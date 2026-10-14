@@ -25,7 +25,7 @@ local ROW1_H    = 24   -- search box and Difficulty height
 local BTN       = 28   -- cog, reset and dungeon squares (row 2): start size; Layout fits them to the row
 local DIFF_W    = 110
 local SQ_GAP    = 3    -- one gap between every button: across a row and between the rows
-local ROW2_Y    = ROW1_Y - ROW1_H / 2 - SQ_GAP   -- row 2 top: one gap under row 1
+local ROW2_Y    = ROW1_Y - ROW1_H / 2 - SQ_GAP - 1   -- row 2 top: one gap under row 1 (1 lower: level with the rail's first box)
 -- Search Again cooldown sweep.
 local CD_SEARCH = 2
 -- Bottom buttons (Back / Sign Up, Start a Group / Find a Group, Back / List
@@ -3256,6 +3256,50 @@ end
 
 -- Difficulty, the search prompt and the typed search text in the font of the
 -- panel's own Back / Sign Up buttons (whatever the font settings make it).
+function XF.ButtonFont()
+    if gfFont then return gfFont end
+    local src = SP and (SP.BackButton or SP.SignUpButton)
+    local fs = src and src.GetFontString and src:GetFontString()
+    local path, size, flags
+    if fs then path, size, flags = fs:GetFont() end
+    if not path then return nil end
+    gfFont = CreateFont("EUIGroupFinderButtonFont")
+    gfFont:SetFont(path, math.max(8, size - 1), flags or "")
+    gfFont:SetTextColor(1, 1, 1)
+    return gfFont
+end
+
+-- For rail pages: a search box in the look of the search row's (Blizzard's
+-- SearchBoxTemplate, skinned the same, the Filters font, grey prompt) and a
+-- dropdown button in the Filters button's look (its arrow included).
+function ns.MakeSearchBox(parent, prompt)
+    local eb = CreateFrame("EditBox", nil, parent, "SearchBoxTemplate")
+    eb:SetHeight(ROW1_H)
+    eb:SetAutoFocus(false)
+    local S = Skin()
+    if S and S.EditBox then S.EditBox(eb) end
+    SetBorderColor(eb, ThemeBorder())
+    local font = XF.ButtonFont()
+    if font then eb:SetFontObject(font) end
+    if eb.Instructions then
+        if font then eb.Instructions:SetFontObject(font) end
+        eb.Instructions:SetTextColor(0.4, 0.4, 0.4)
+        eb.Instructions:SetText(prompt or SEARCH or "Search")
+    end
+    return eb
+end
+
+function ns.MakeDropButton(parent, w)
+    local b = DropButton(parent, w, ROW1_H)
+    local font = XF.ButtonFont()
+    if font then
+        b:SetNormalFontObject(font)
+        b:SetHighlightFontObject(font)
+    end
+    return b
+end
+
+-- The Filters button's text size, for pages that match it (rail pages).
 function ns.ButtonFontSize()
     if gfFont then
         local _, size = gfFont:GetFont()
@@ -3600,9 +3644,12 @@ end
 function XF.PageFrame()
     local page = XF.pageFrame
     if page then return page end
-    local gf, LF = _G.GroupFinderFrame, LFGListFrame
+    -- On Blizzard's Premade Groups holder (LFGListPVEStub, where LFGListFrame
+    -- sits once that is shown; after a reload LFGListFrame can still be
+    -- elsewhere until then).
+    local gf = _G.GroupFinderFrame
     page = CreateFrame("Frame", nil, gf)
-    page:SetAllPoints(LF)
+    page:SetAllPoints(_G.LFGListPVEStub or LFGListFrame)
     page:EnableMouse(true)
     page:EnableMouseWheel(true)
     page:SetScript("OnMouseWheel", function() end)
@@ -3663,7 +3710,7 @@ end
 
 function ns.OpenRailPage(spec)
     local gf = _G.GroupFinderFrame
-    if not (gf and LFGListFrame) or InCombatLockdown() then return end
+    if not (gf and LFGListFrame and (_G.LFGListPVEStub or LFGListFrame)) or InCombatLockdown() then return end
     local page = XF.PageFrame()
     local pad = tonumber(Cfg().padding) or 12
     local _, r2, size = ns.Search_Rows()

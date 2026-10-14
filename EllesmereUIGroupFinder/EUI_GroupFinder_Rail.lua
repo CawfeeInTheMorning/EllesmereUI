@@ -245,7 +245,7 @@ local function LayoutRail()
     end
     local ref = list[1]
     local gt, gl = gf:GetTop(), gf:GetLeft()
-    local lf = _G.LFGListFrame
+    local lf = _G.LFGListPVEStub or _G.LFGListFrame
     local lt = (lf and lf:GetTop()) or gt
     if #pages == 0 or not (ref and gt and gl and lt and ref:GetLeft()) then
         Restore()
