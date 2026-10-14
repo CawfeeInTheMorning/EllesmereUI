@@ -51,7 +51,8 @@ local PL_DEFAULTS = {
     plAlertSound = true,
     plFavoriteAlert = false,  -- chat note when a favorite joins
     plRaiderIO = true,        -- save Raider.IO scores with runs
-    plPruneDays = 30,         -- forget unrated, unflagged players after N days (0 = never)
+    plKeepDungeons = 25,      -- players kept from your last N dungeon runs (keys included)
+    plKeepRaids = 5,          -- ... and from your last N raids
 }
 PL.DEFAULTS = PL_DEFAULTS
 
@@ -387,19 +388,34 @@ local function AddPlayerRun(p, run)
     end
 end
 
+-- Dungeons (keys included) and raids are counted apart: the run number of
+-- each kind is what Prune keeps players by.
+local function Group(kind) return kind == "raid" and "raid" or "dungeon" end
+local function Seq()
+    local sv = ns.PlayersStore()
+    if type(sv.seq) ~= "table" then sv.seq = { dungeon = 0, raid = 0 } end
+    return sv.seq
+end
+local SEQ_FIELD = { dungeon = "lastDungeon", raid = "lastRaid" }
+
 local function Record(s, extra)
     if not s or #s.order == 0 then return end
     extra = extra or {}
     local t = time()
+    local g = Group(s.kind)
+    local seq = Seq()
+    seq[g] = (seq[g] or 0) + 1
     for _, key in ipairs(s.order) do
         local m = s.members[key]
         local p = PL.Ensure(m.name, m.realm, m.class, m.role)
+        p[SEQ_FIELD[g]] = seq[g]
         AddPlayerRun(p, {
             t = t, kind = s.kind, inst = s.inst, diff = s.diff, level = s.level,
             completed = extra.completed, timed = extra.timed, timeSec = extra.timeSec, deaths = extra.deaths,
             role = m.role, rio = m.rio or nil,
         })
     end
+    if PL.Prune then PL.Prune() end
     PL.Changed()
 end
 
@@ -516,15 +532,70 @@ local function ScanAlerts()
 end
 
 -------------------------------------------------------------------------------
---  Prune: players you never rated, flagged or noted, not seen for N days.
+--  Prune: players you have not rated are kept while they were in one of your
+--  last plKeepDungeons dungeon runs or plKeepRaids raids; rated players,
+--  favorites, blacklisted players, players with notes and players you added
+--  yourself are kept for good.
 -------------------------------------------------------------------------------
+-- (Players you never ran with, rated from a right-click menu or added, have
+-- no run numbers: kept too.)
+local function Kept(p)
+    return p.rating ~= nil or p.status ~= nil or p.notes ~= nil or p.manual == true
+        or (p.lastDungeon == nil and p.lastRaid == nil)
+end
+
 local function Prune()
-    local days = tonumber(PL.Opt("plPruneDays")) or 30
-    if days <= 0 then return end
-    local cutoff = time() - days * 86400
+    local seq = Seq()
+    local keepD = math.max(1, tonumber(PL.Opt("plKeepDungeons")) or 25)
+    local keepR = math.max(1, tonumber(PL.Opt("plKeepRaids")) or 5)
     local players = Players()
+    local gone = false
     for key, p in pairs(players) do
-        if not PL.IsListed(p) and (p.lastSeen or p.added or 0) < cutoff then players[key] = nil end
+        if not Kept(p) then
+            local d, r = p.lastDungeon, p.lastRaid
+            local inD = d ~= nil and (seq.dungeon or 0) - d < keepD
+            local inR = r ~= nil and (seq.raid or 0) - r < keepR
+            if not (inD or inR) then
+                players[key] = nil
+                gone = true
+            end
+        end
+    end
+    return gone
+end
+PL.Prune = Prune
+
+-- Saved data from before the run numbers: numbered once from the runs each
+-- player has (runs shared with several players share their time).
+local function SeedSeq()
+    local sv = ns.PlayersStore()
+    if sv.seqSeeded then return end
+    sv.seqSeeded = true
+    local runs, seen = {}, {}
+    for _, p in pairs(Players()) do
+        for _, r in ipairs(type(p.runs) == "table" and p.runs or {}) do
+            local g = Group(r.kind)
+            local id = g .. ":" .. tostring(r.t)
+            if r.t and not seen[id] then
+                seen[id] = true
+                runs[#runs + 1] = { t = r.t, g = g, id = id }
+            end
+        end
+    end
+    table.sort(runs, function(a, b) return a.t < b.t end)
+    local seq = Seq()
+    local num = {}
+    for _, r in ipairs(runs) do
+        seq[r.g] = (seq[r.g] or 0) + 1
+        num[r.id] = seq[r.g]
+    end
+    for _, p in pairs(Players()) do
+        for _, r in ipairs(type(p.runs) == "table" and p.runs or {}) do
+            local g = Group(r.kind)
+            local n = num[g .. ":" .. tostring(r.t)]
+            local f = SEQ_FIELD[g]
+            if n and (p[f] or 0) < n then p[f] = n end
+        end
     end
 end
 
@@ -631,6 +702,7 @@ function ns.Players_Enable()
     if started then return end
     started = true
     myGUID = PlainString(UnitGUID("player"))
+    SeedSeq()
     Prune()
     TrimRuns()
     if TooltipDataProcessor and TooltipDataProcessor.AddTooltipPostCall and Enum and Enum.TooltipDataType then

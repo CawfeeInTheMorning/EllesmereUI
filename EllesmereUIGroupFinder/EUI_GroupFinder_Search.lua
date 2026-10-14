@@ -3161,14 +3161,25 @@ function XF.SquareAbbr(sq, d, size)
         f:SetFrameLevel(sq:GetFrameLevel() + 3)
         f:EnableMouse(false)
         sq.abbr = f:CreateFontString(nil, "OVERLAY")
-        sq.abbr:SetPoint("CENTER", sq, "CENTER", 0, 0)
+        -- Across the whole square, centred in it (a point anchor centres on
+        -- the text's own rounded width, which leaves some a pixel off).
+        sq.abbr:SetPoint("LEFT", sq, "LEFT", -4, 0)
+        sq.abbr:SetPoint("RIGHT", sq, "RIGHT", 4, 0)
         sq.abbr:SetJustifyH("CENTER")
+        sq.abbr:SetJustifyV("MIDDLE")
+        sq.abbr:SetWordWrap(false)
     end
     if not sq.abbr then return end
     if on then
-        sq.abbr:SetFont(Font(), math.max(8, math.floor(size * 0.36)), "OUTLINE")
+        -- One size smaller until it fits inside the square's edges.
+        local fs = math.max(8, math.floor(size * 0.36))
+        sq.abbr:SetFont(Font(), fs, "OUTLINE")
         sq.abbr:SetTextColor(1, 1, 1, 1)
         sq.abbr:SetText(XF.Abbr(d.name))
+        while fs > 8 and ((sq.abbr.GetUnboundedStringWidth and sq.abbr:GetUnboundedStringWidth()) or 0) > size - 4 do
+            fs = fs - 1
+            sq.abbr:SetFont(Font(), fs, "OUTLINE")
+        end
     end
     sq.abbr:SetShown(on)
 end
@@ -3429,7 +3440,17 @@ function ns.MakeFilterMenu(owner, spec)
     end
     local num = spec.number
     if num then
-        y = AddSection(m, y, num.title or num.label)
+        if num.title == false then
+            -- A divider only (no section title).
+            local div = m:CreateTexture(nil, "ARTWORK")
+            div:SetHeight((CM.PP and CM.PP.mult) or 1)
+            div:SetColorTexture(1, 1, 1, 0.10)
+            div:SetPoint("TOPLEFT", m, "TOPLEFT", 10, -y - 3)
+            div:SetPoint("TOPRIGHT", m, "TOPRIGHT", -10, -y - 3)
+            y = y + 7
+        else
+            y = AddSection(m, y, num.title or num.label)
+        end
         local rowF = CreateFrame("Frame", nil, m)
         rowF:SetHeight(ITEM_H + 4)
         rowF:SetPoint("TOPLEFT", m, "TOPLEFT", 1, -y)

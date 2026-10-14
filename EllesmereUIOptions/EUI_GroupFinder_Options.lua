@@ -98,6 +98,18 @@ initFrame:SetScript("OnEvent", function(self)
             _, h = W:DualRow(parent, y,
                 PlToggle("Blacklist Alert", "plBlacklistAlert", "A chat warning when a blacklisted player joins your group."),
                 PlToggle("Alert Sound", "plAlertSound", "A raid warning sound with the blacklist alert."));  y = y - h
+            local function PlKeep(text, key, maxV, tip)
+                return { type="slider", text=text, min=1, max=maxV, step=1, tooltip=tip,
+                         disabled=function() return not ns.PL.On() end, disabledTooltip="Player Ratings",
+                         getValue=function() return tonumber(Get(key, PLD[key])) or PLD[key] end,
+                         setValue=function(v)
+                             Set(key, math.floor(v + 0.5))
+                             if ns.PL.Prune and ns.PL.Prune() then ns.PL.Changed() end
+                         end }
+            end
+            _, h = W:DualRow(parent, y,
+                PlKeep("Dungeons Kept", "plKeepDungeons", 100, "Players you have not rated stay in the list while they were in one of your last this many dungeon runs (keys included). Rated, favorite, blacklisted and noted players, and players you added, stay for good."),
+                PlKeep("Raids Kept", "plKeepRaids", 50, "Players you have not rated stay in the list while they were in one of your last this many raids. Rated, favorite, blacklisted and noted players, and players you added, stay for good."));  y = y - h
             _, h = W:DualRow(parent, y,
                 PlToggle("Favorite Alert", "plFavoriteAlert", "A chat note when a favorite joins your group."),
                 PlToggle("Raider.IO Scores", "plRaiderIO", "Saves each player's Raider.IO score with your runs while Raider.IO is loaded."));  y = y - h

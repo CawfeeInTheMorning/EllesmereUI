@@ -405,9 +405,9 @@ local function BuildPlayersPage(body, ctx)
         reset:SetActive(FiltersSet())
     end
     local menu = ns.MakeFilterMenu(filtersBtn, {
-        sections = { { title = "Show", items = showItems }, { title = "Role", items = roleItems } },
+        sections = { { title = "Show (Pick One)", items = showItems }, { title = "Role (Pick One)", items = roleItems } },
         number = {
-            title = "Key Level", label = "Min. Best Key",
+            title = false, label = "Min. Best Key",
             tip = "Only players whose best key with you is at least this level.",
             get = function() return (filters.minKey or 0) > 0 and filters.minKey or nil end,
             set = function(n) filters.minKey = n or 0; Rerender() end,
