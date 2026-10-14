@@ -4,7 +4,7 @@ if EUI_CLIENT_BLOCKED then return end -- pre-12.1 client failsafe (EllesmereUI_C
 --  The Players page in the Dungeons & Raids rail: the player list with its
 --  search and filters, and a player's detail.
 -------------------------------------------------------------------------------
-local _, ns = ...
+local ADDON_NAME, ns = ...
 local CM = EllesmereUI
 local PL = ns.PL
 if not PL then return end
@@ -71,9 +71,9 @@ local function ResultFontSize()
     return size and floor(size + 0.5) or 12
 end
 
--- Five clickable stars; clicking the current rating again clears it. The
--- hovered star and every one before it get a white outline.
-local function Stars(parent, size, onSet)
+-- Five clickable stars; clicking the current rating again clears it (unless
+-- noClear). The hovered star and every one before it get a white outline.
+local function Stars(parent, size, onSet, noClear)
     local f = CreateFrame("Frame", nil, parent)
     local gap = 2
     f:SetSize(size * 5 + gap * 4, size)
@@ -101,7 +101,7 @@ local function Stars(parent, size, onSet)
         b:SetScript("OnEnter", function() Paint(i, i) end)
         b:SetScript("OnLeave", function() Paint(f.value) end)
         b:SetScript("OnClick", function()
-            local v = (f.value == i) and 0 or i
+            local v = (f.value == i and not noClear) and 0 or i
             f.value = v
             Paint(v, i)
             if f.onSet then f.onSet(v) end
@@ -168,9 +168,11 @@ local function GlyphToggle(parent, size, tex, color, tip, onClick)
         self.on = on
         if on then
             self.Glyph:SetVertexColor(color[1], color[2], color[3], 1)
+            if ns.SetBorderColor then ns.SetBorderColor(self, color[1], color[2], color[3], 1) end
         else
             local g = ns.GLYPH or 0.6
             self.Glyph:SetVertexColor(g, g, g, 0.8)
+            if ns.SetBorderColor and ns.ThemeBorder then ns.SetBorderColor(self, ns.ThemeBorder()) end
         end
     end
     b:SetScript("OnEnter", function(self)
@@ -522,13 +524,18 @@ local function BuildDetailPage(body, ctx)
     page:Hide()
     local over = ctx.listR or 0
     local function Key() return ctx.key() end
-    local SQ = 22
+    local SQ = 28
+    if ns.Search_Rows then
+        local _, _, size = ns.Search_Rows()
+        if size then SQ = floor(size) end
+    end
     local GAP6 = 6
 
-    -- Top row: the name, then Favorite, Blacklist and Remove as icon squares
-    -- at the right edge (level with Reset Filters above).
+    -- Top row (squares the size of the dungeon row's): the role, the name, then
+    -- Favorite, Blacklist and Remove at the right edge (level with Reset
+    -- Filters above).
     local remove = ns.MakeGlyphButton(page, SQ, ns.X_TEX)
-    remove.Glyph:SetSize(floor(SQ * 0.5), floor(SQ * 0.5))
+    remove.Glyph:SetSize(floor(SQ * 0.5), floor(SQ * 0.5))   -- as Reset Filters' X
     remove.Glyph:SetVertexColor(1, 0.3, 0.3, 0.9)
     remove:SetPoint("TOPRIGHT", page, "TOPRIGHT", 0, 0)
     remove:SetScript("OnClick", function() UI.ConfirmRemove(Key()) end)
@@ -551,35 +558,61 @@ local function BuildDetailPage(body, ctx)
         function() PL.ToggleStatus(Key(), PL.STATUS_FAV) end)
     fav:SetPoint("RIGHT", black, "LEFT", -GAP, 0)
 
+    -- The role: a square showing it (an X for none), its menu below it.
+    local ROLE_ATLAS = { TANK = "UI-LFG-RoleIcon-Tank", HEALER = "UI-LFG-RoleIcon-Healer", DAMAGER = "UI-LFG-RoleIcon-DPS" }
+    local role = ns.MakeGlyphButton(page, SQ, ns.X_TEX)
+    role:SetPoint("TOPLEFT", page, "TOPLEFT", 0, 0)
+    function role:Paint(r)
+        local atlas = r and ((GetIconForRole and GetIconForRole(r)) or ROLE_ATLAS[r])
+        if atlas then
+            self.Glyph:SetAtlas(atlas, false)
+            self.Glyph:SetDesaturated(false)
+            self.Glyph:SetVertexColor(1, 1, 1, 1)
+            self.Glyph:SetSize(floor(SQ * 0.7), floor(SQ * 0.7))
+        else
+            self.Glyph:SetTexture(ns.X_TEX)
+            self.Glyph:SetTexCoord(0, 1, 0, 1)
+            local g = ns.GLYPH or 0.6
+            self.Glyph:SetVertexColor(g, g, g, 0.8)
+            self.Glyph:SetSize(floor(SQ * 0.5), floor(SQ * 0.5))
+        end
+    end
+    role:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_TOP")
+        GameTooltip:SetText("Role", 1, 1, 1)
+        GameTooltip:Show()
+    end)
+    role:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    role:SetScript("OnClick", function(self)
+        local p = PL.Get(Key())
+        local items = {}
+        for _, r in ipairs({ "TANK", "HEALER", "DAMAGER" }) do
+            items[#items + 1] = {
+                text = PL.RoleMarkup(r, 16) .. "  " .. PL.ROLE_LABEL[r], isActive = p ~= nil and p.role == r,
+                onClick = function() PL.SetRole(Key(), r) end,
+            }
+        end
+        items[#items + 1] = {
+            text = ("|T%s:14:14|t  None"):format(ns.X_TEX), isActive = p ~= nil and p.role == nil,
+            onClick = function() PL.SetRole(Key(), nil) end,
+        }
+        if CM.ShowContextMenu then CM.ShowContextMenu(self, items, { below = true, minWidth = CTRL_W }) end
+    end)
+
     local name = Text(page, 18)
-    name:SetPoint("LEFT", page, "TOPLEFT", 0, -SQ / 2)
+    name:SetPoint("LEFT", role, "RIGHT", 8, 0)
     name:SetPoint("RIGHT", fav, "LEFT", -8, 0)
     local info = Text(page, 12, 1, 1, 1, 0.7)
     info:SetPoint("TOPLEFT", page, "TOPLEFT", 0, -(SQ + 8))
     info:SetPoint("RIGHT", page, "RIGHT", 0, 0)
 
-    -- Rating row: the stars, the role dropdown at the right edge.
+    -- Rating row. A rating can be changed here, not cleared (Remove takes a
+    -- player off the list).
     local rateLbl = Text(page, 13, 1, 1, 1, 0.8)
     rateLbl:SetPoint("TOPLEFT", info, "BOTTOMLEFT", 0, -14)
     rateLbl:SetText("Rating")
-    local stars = Stars(page, 18, function(v) PL.SetRating(Key(), v) end)
+    local stars = Stars(page, 18, function(v) PL.SetRating(Key(), v) end, true)
     stars:SetPoint("LEFT", rateLbl, "RIGHT", 12, 0)
-    local ROLE_KEYS = { "TANK", "HEALER", "DAMAGER" }
-    local roleDrop = ns.MakeDropButton(page, CTRL_W)
-    roleDrop:SetPoint("RIGHT", page, "RIGHT", 0, 0)
-    roleDrop:SetPoint("TOP", rateLbl, "TOP", 0, 4)
-    roleDrop:SetScript("OnClick", function(self)
-        local p = PL.Get(Key())
-        local items = {}
-        for _, r in ipairs(ROLE_KEYS) do
-            items[#items + 1] = {
-                text = PL.ROLE_LABEL[r], isActive = p ~= nil and p.role == r,
-                onClick = function() PL.SetRole(Key(), r) end,
-            }
-        end
-        items[#items + 1] = { text = "No Role", onClick = function() PL.SetRole(Key(), nil) end }
-        if CM.ShowContextMenu then CM.ShowContextMenu(self, items, { below = true, minWidth = CTRL_W }) end
-    end)
 
     -- Notes, in the search box's look.
     local notesLbl = Text(page, 13, 1, 1, 1, 0.8)
@@ -654,13 +687,13 @@ local function BuildDetailPage(body, ctx)
             return
         end
         LayoutRows()
-        name:SetText((p.role and (PL.RoleMarkup(p.role, 18) .. " ") or "") .. PL.NameText(p.name, p.realm, p.class))
+        name:SetText(PL.NameText(p.name, p.realm, p.class))
+        role:Paint(p.role)
         local parts = { ("%d run%s together"):format(p.runCount or 0, (p.runCount == 1) and "" or "s") }
         if p.bestKey then parts[#parts + 1] = ("best key +%d"):format(p.bestKey) end
         if p.rio then parts[#parts + 1] = ("Raider.IO %d"):format(p.rio) end
         if p.lastSeen then parts[#parts + 1] = "last seen " .. PL.Day(p.lastSeen) end
         info:SetText(table.concat(parts, "   |cff606060|||r   "))
-        roleDrop:SetText(PL.ROLE_LABEL[p.role] or "No Role")
         stars:SetValue(p.rating or 0)
         fav:SetOn(p.status == PL.STATUS_FAV)
         black:SetOn(p.status == PL.STATUS_BLACK)
@@ -753,6 +786,7 @@ UI.open = ShowPlayer
 ns.RegisterRailPage({
     key = "players",
     label = "Players",
+    art = "Interface\\AddOns\\" .. ADDON_NAME .. "\\media\\rail\\player-group.png",
     noTitle = true,
     toggle = "Player Ratings",
     toggleTip = "A Players entry in the Dungeons & Raids rail: everyone you ran a dungeon, key or raid with, with your rating, favorite / blacklist and notes for each. Also in unit tooltips and on player right-click menus.",

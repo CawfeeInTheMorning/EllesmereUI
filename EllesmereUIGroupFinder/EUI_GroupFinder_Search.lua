@@ -2574,6 +2574,7 @@ end
 
 ns.GlyphButton = GlyphButton   -- the rail's settings cog (Rail.lua)
 ns.MakeGlyphButton, ns.X_TEX = GlyphButton, X_TEX   -- for rail pages (PlayersUI.lua)
+ns.SetBorderColor = SetBorderColor
 XF.GlyphButton = GlyphButton   -- the applicant buttons (defined before it)
 ns.GLYPH = XF.GLYPH
 
