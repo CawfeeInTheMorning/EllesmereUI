@@ -3538,38 +3538,18 @@ local function LayoutCategoryList()
     local c = Cfg()
     if not (CS and type(CS.CategoryButtons) == "table") then return end
     local pad = tonumber(c.padding) or 12
-    -- Extra pages (XF.pages) go in after their category's button, the
-    -- buttons below move down by one row each.
-    local prev, placed = nil, {}
-    local function Under(b)
+    for i, b in ipairs(CS.CategoryButtons) do
         b:ClearAllPoints()
-        if not prev then
+        if i == 1 then
             b:SetPoint("TOPLEFT", CS, "TOPLEFT", pad, -77)
             b:SetPoint("TOPRIGHT", CS, "TOPRIGHT", -pad, -77)
         else
+            local prev = CS.CategoryButtons[i - 1]
             b:SetPoint("TOPLEFT", prev, "BOTTOMLEFT", 0, -3)
             b:SetPoint("TOPRIGHT", prev, "BOTTOMRIGHT", 0, -3)
         end
-        prev = b
-    end
-    for _, b in ipairs(CS.CategoryButtons) do
-        Under(b)
-        if b:IsShown() then
-            for _, spec in ipairs(XF.pages) do
-                if spec.after == b.categoryID and not placed[spec] then
-                    local pb = XF.PageButton(CS, spec, b)
-                    Under(pb)
-                    pb:Show()
-                    placed[spec] = true
-                end
-            end
-        end
-    end
-    for _, spec in ipairs(XF.pages) do
-        if spec.button and not placed[spec] then spec.button:Hide() end
     end
 end
-XF.LayoutCategoryList = LayoutCategoryList
 
 local function LayoutCategoryButtons()
     PinBottomButtons(LFGListFrame and LFGListFrame.CategorySelection, { "StartGroupButton" }, "FindGroupButton")
@@ -3582,118 +3562,108 @@ local function LayoutCategoryButtons()
         rio:EnableMouse(false)
     end
 end
-XF.LayoutCategoryButtons = LayoutCategoryButtons
 
 -------------------------------------------------------------------------------
---  Extra pages on the category screen.
+--  Extra rail pages.
 -------------------------------------------------------------------------------
-XF.pages = {}
+ns.railPages = {}
 
-function ns.RegisterCategoryPage(spec)
+function ns.RegisterRailPage(spec)
     if type(spec) ~= "table" or not spec.key then return end
-    for _, p in ipairs(XF.pages) do if p.key == spec.key then return end end
-    XF.pages[#XF.pages + 1] = spec
-    local CS = LFGListFrame and LFGListFrame.CategorySelection
-    if XF.csHooked and CS and CS:IsShown() and not InCombatLockdown() then XF.LayoutCategoryList() end
+    for _, p in ipairs(ns.railPages) do if p.key == spec.key then return end end
+    ns.railPages[#ns.railPages + 1] = spec
+    if ns.Rail_Refresh then ns.Rail_Refresh() end
 end
 
--- Font, colour and label offset of Blizzard's own category buttons.
-function XF.CopyLabel(fs, src)
-    local sfs = src and src.GetFontString and src:GetFontString()
-    if not (fs and sfs) then return end
-    local path, size, flags = sfs:GetFont()
-    if path then fs:SetFont(path, size, flags) end
-    fs:SetTextColor(sfs:GetTextColor())
-    fs:SetShadowOffset(sfs:GetShadowOffset())
-    fs:SetShadowColor(sfs:GetShadowColor())
-    local x = 20
-    local srcL, fsL = src:GetLeft(), sfs:GetLeft()
-    if srcL and fsL then x = fsL - srcL end
-    fs:ClearAllPoints()
-    fs:SetPoint("LEFT", fs:GetParent(), "LEFT", x, 0)
-    fs:SetJustifyH("LEFT")
-end
+XF.GROUP_FRAMES = { "LFDParentFrame", "ScenarioFinderFrame", "RaidFinderFrame", "LFGListPVEStub" }
 
-function XF.PageButton(CS, spec, like)
-    local b = spec.button
-    if not b then
-        b = SkinnedButton(CS, 100, 46)
-        b:SetText(spec.label or spec.key)
-        b:SetScript("OnClick", function() XF.OpenPage(spec) end)
-        spec.button = b
+function XF.FadeGroupFrames(a)
+    for _, n in ipairs(XF.GROUP_FRAMES) do
+        local f = _G[n]
+        if type(f) == "table" and f.SetAlpha then f:SetAlpha(a) end
     end
-    b:SetHeight(like:GetHeight() or 46)
-    XF.CopyLabel(b:GetFontString(), like)
-    return b
 end
 
 function XF.PageFrame()
     local page = XF.pageFrame
     if page then return page end
-    local CS = LFGListFrame.CategorySelection
-    page = CreateFrame("Frame", nil, LFGListFrame)
-    page:SetAllPoints(CS)
+    local gf, LF = _G.GroupFinderFrame, LFGListFrame
+    page = CreateFrame("Frame", nil, gf)
+    page:SetAllPoints(LF)
     page:EnableMouse(true)
     page:EnableMouseWheel(true)
     page:SetScript("OnMouseWheel", function() end)
     page:Hide()
     page.title = page:CreateFontString(nil, "ARTWORK", "QuestFont_Huge")
-    page.back = SkinnedButton(page, 100, 22)
-    page.back:SetText(BACK or "Back")
-    page.back:SetScript("OnClick", function() page:Hide() end)
+    page.sub = page:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+    page.sub:SetJustifyH("LEFT")
+    page.sub:SetTextColor(1, 1, 1, 0.6)
     page:SetScript("OnHide", function()
-        CS:SetAlpha(1)
-        if CS:IsShown() and not InCombatLockdown() then XF.LayoutCategoryButtons() end
+        page.key = nil
+        XF.FadeGroupFrames(1)
+        if ns.Rail_Paint then ns.Rail_Paint() end
+        if ns.ApplyApplications then ns.ApplyApplications() end
     end)
     page.bodies = {}
     XF.pageFrame = page
     return page
 end
 
-function XF.OpenPage(spec)
-    local CS = LFGListFrame and LFGListFrame.CategorySelection
-    if not CS or InCombatLockdown() then return end
+function ns.RailPageOpen()
+    local page = XF.pageFrame
+    return page and page:IsShown() and page.key or nil
+end
+
+function ns.CloseRailPage()
+    if XF.pageFrame then XF.pageFrame:Hide() end
+end
+
+function ns.OpenRailPage(spec)
+    local gf = _G.GroupFinderFrame
+    if not (gf and LFGListFrame) or InCombatLockdown() then return end
     local page = XF.PageFrame()
     local pad = tonumber(Cfg().padding) or 12
-    page:SetFrameLevel((CS:GetFrameLevel() or 0) + 40)
-    -- Title in the place and look of the screen's own ("Premade Groups").
-    local lab = CS.Label
+    local _, r2, size = ns.Search_Rows()
+    page:SetFrameLevel((gf:GetFrameLevel() or 0) + 30)
+    -- Title in the place and look of the Premade Groups screen's own.
+    local CS = LFGListFrame.CategorySelection
+    local lab = CS and CS.Label
     page.title:ClearAllPoints()
     if type(lab) == "table" and lab.GetFont then
-        local path, size, flags = lab:GetFont()
-        if path then page.title:SetFont(path, size, flags) end
+        local path, fsize, flags = lab:GetFont()
+        if path then page.title:SetFont(path, fsize, flags) end
         page.title:SetTextColor(lab:GetTextColor())
         page.title:SetShadowOffset(lab:GetShadowOffset())
         page.title:SetShadowColor(lab:GetShadowColor())
-        local p, rel, rp, x, y = lab:GetPoint(1)
+        local p, _, rp, x, y = lab:GetPoint(1)
         if p then page.title:SetPoint(p, page, rp, x, y) end
     end
     if not page.title:GetPoint(1) then page.title:SetPoint("TOP", page, "TOP", -3, -35) end
     page.title:SetText(spec.title or spec.label or "")
-    -- Body: the search list's rect (padding lines, from row 2 down to one
-    -- gap above the bottom row).
+    page.sub:ClearAllPoints()
+    page.sub:SetPoint("LEFT", page, "TOPLEFT", pad, r2 - size / 2)
+    page.sub:SetPoint("RIGHT", page, "TOPRIGHT", -pad, r2 - size / 2)
+    page.sub:SetText("")
+    -- Body: the search result list's rect (padding lines, one gap under the
+    -- dungeon row, one gap above the bottom row).
     for k, body in pairs(page.bodies) do body:SetShown(k == spec.key) end
     local body = page.bodies[spec.key]
     if not body then
         body = CreateFrame("Frame", nil, page)
         page.bodies[spec.key] = body
-        body:SetPoint("TOPLEFT", page, "TOPLEFT", pad, ROW2_Y)
-        body:SetPoint("BOTTOMRIGHT", page, "BOTTOMRIGHT", -pad, BOTTOM_Y + 22 + SQ_GAP)
         body.pad = pad
         if spec.build then spec.build(body, page) end
     end
+    body:ClearAllPoints()
+    body:SetPoint("TOPLEFT", page, "TOPLEFT", pad, r2 - size - SQ_GAP)
+    body:SetPoint("BOTTOMRIGHT", page, "BOTTOMRIGHT", -pad, BOTTOM_Y + 22 + SQ_GAP)
     body:Show()
-    CS:SetAlpha(0)
+    XF.FadeGroupFrames(0)
+    page.key = spec.key
     page:Show()
-    -- Bottom row: the cog, then Back in the first slot (as on the search screen).
-    local cog = XF.SettingsCog(page)
-    local x0 = pad + (cog and (XF.COG_H + SQ_GAP) or 0)
-    local pw = page:GetWidth()
-    local w = (type(pw) == "number" and pw > 0) and (pw - pad - x0 - SQ_GAP) / 2 or 140
-    page.back:ClearAllPoints()
-    page.back:SetPoint("BOTTOMLEFT", page, "BOTTOMLEFT", x0, BOTTOM_Y)
-    page.back:SetWidth(w)
     if spec.show then spec.show(body, page) end
+    if ns.Rail_Paint then ns.Rail_Paint() end
+    if ns.ApplyApplications then ns.ApplyApplications() end
 end
 
 -- A Blizzard dropdown button in our Difficulty button's look: the theme border,
@@ -4007,8 +3977,6 @@ local function Init()
     local CS = LFGListFrame.CategorySelection
     if CS then
         CS:HookScript("OnShow", LayoutCategoryButtons)
-        CS:HookScript("OnHide", function() if XF.pageFrame then XF.pageFrame:Hide() end end)
-        XF.csHooked = true
         if LFGListCategorySelection_AddButton then
             hooksecurefunc("LFGListCategorySelection_AddButton", LayoutCategoryList)
         end

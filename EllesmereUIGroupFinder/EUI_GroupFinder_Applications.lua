@@ -309,7 +309,7 @@ end
 -- Show/hide the card, re-place and re-layout it from the settings.
 local function Apply()
     local on = On()
-    local want = on and InDungeonSearch()
+    local want = on and InDungeonSearch() and not (ns.RailPageOpen and ns.RailPageOpen())
     if want then BuildCard() end
     if card then
         card:SetShown(want)
