@@ -216,8 +216,9 @@ local function PageButton(spec)
     return b
 end
 
--- With an extra page entry showing, the boxes are re-stacked: from the top of
--- the result list down, one gap apart, our entries last.
+-- With an extra page entry showing, the boxes are re-stacked: the first level
+-- with the top of the result list, the last with the bottom of the Back / Sign
+-- Up row, evenly spaced (at least one gap), our entries last.
 local function LayoutRail()
     local gf = _G.GroupFinderFrame
     if not gf or InCombatLockdown() then return end
@@ -255,13 +256,20 @@ local function LayoutRail()
         _, r2, size = ns.Search_Rows()
     end
     local top = lt + r2 - size - GAP          -- the result list's top
+    local lb = (lf and lf:GetBottom()) or gf:GetBottom()
+    local n = #list + #pages
+    local step = BOX_H + GAP
+    if lb and n > 1 then
+        local bottom = lb + (ns.BOTTOM_Y or 8)   -- the bottom buttons' bottom edge
+        step = math.max(BOX_H + GAP, (top - bottom - BOX_H) / (n - 1))
+    end
     local x1, x2 = ref:GetLeft() - gl, ref:GetRight() - gl
     local k = 0
     for _, b in ipairs(list) do
         local d = FFD[b]
         local bt, bb = b:GetTop(), b:GetBottom()
         if bt and bb then
-            local boxTop = top - k * (BOX_H + GAP)
+            local boxTop = top - k * step
             k = k + 1
             d.box:ClearAllPoints()
             d.box:SetPoint("TOPLEFT", gf, "TOPLEFT", x1 + pad, boxTop - gt)
@@ -273,7 +281,7 @@ local function LayoutRail()
     for _, spec in ipairs(pages) do
         local b = PageButton(spec)
         if b then
-            local boxTop = top - k * (BOX_H + GAP)
+            local boxTop = top - k * step
             k = k + 1
             b:ClearAllPoints()
             b:SetPoint("TOPLEFT", gf, "TOPLEFT", x1, boxTop - gt)

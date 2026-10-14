@@ -2391,16 +2391,7 @@ function XF.BuildGroupMenu()
     if S and S.AddBorder then S.AddBorder(m) else CM.MakeBorder(m, ThemeBorder()) end
     m.items = {}
     local y = 3
-    -- Misc ends with a switch per extra rail page that has one (spec.toggle).
-    local items = {}
-    for _, spec in ipairs(XF.GROUP_MENU) do items[#items + 1] = spec end
-    for _, page in ipairs(ns.railPages or {}) do
-        if page.toggle then
-            items[#items + 1] = { key = "railPage_" .. page.key, label = page.toggle, tip = page.toggleTip,
-                default = true, onToggle = function() XF.RailPageToggled(page) end }
-        end
-    end
-    for _, spec in ipairs(items) do
+    for _, spec in ipairs(XF.GROUP_MENU) do
         if spec.title then
             y = AddSection(m, y, spec.title)
         else
@@ -3629,6 +3620,24 @@ end
 function XF.RailPageToggled(spec)
     if not ns.RailPageEnabled(spec) and ns.RailPageOpen() == spec.key then ns.CloseRailPage() end
     if ns.Rail_Refresh then ns.Rail_Refresh() end
+end
+
+-- The settings page's switches for the pages that have one (Options.lua).
+function ns.RailPageToggles()
+    local out = {}
+    for _, spec in ipairs(ns.railPages) do
+        if spec.toggle then
+            out[#out + 1] = {
+                type = "toggle", text = spec.toggle, tooltip = spec.toggleTip,
+                getValue = function() return ns.RailPageEnabled(spec) end,
+                setValue = function(v)
+                    Cfg()["railPage_" .. spec.key] = v and true or false
+                    XF.RailPageToggled(spec)
+                end,
+            }
+        end
+    end
+    return out
 end
 
 function ns.RailPageOpen()

@@ -33,6 +33,10 @@ initFrame:SetScript("OnEvent", function(self)
         local W = EUI.Widgets
         local y = yOffset
         local _, h
+        -- Switches for the extra Dungeons & Raids rail entries (pages with a
+        -- toggle, ns.RegisterRailPage): from railFrom on, two per row.
+        local railToggles = ns.RailPageToggles and ns.RailPageToggles() or {}
+        local railFrom = 1
 
         if EUI.ClearContentHeader then EUI:ClearContentHeader() end
         parent._showRowDivider = true
@@ -42,6 +46,10 @@ initFrame:SetScript("OnEvent", function(self)
         local pgfNote = PGFLoaded()
             and { type = "label", text = "|cffff6060Premade Groups Filter is loaded. Disable it to use the Group Finder.|r" }
             or EUI.BlankRowCfg()
+        -- The first rail switch sits beside Enable (the PGF note takes that
+        -- place while Premade Groups Filter is loaded).
+        local besideEnable = pgfNote
+        if not PGFLoaded() and railToggles[1] then besideEnable, railFrom = railToggles[1], 2 end
         _, h = W:SectionHeader(parent, "GROUP FINDER", y); y = y - h
         _, h = W:DualRow(parent, y,
             { type = "toggle", text = "Enable Group Finder",
@@ -65,7 +73,14 @@ initFrame:SetScript("OnEvent", function(self)
                       onCancel    = function() EUI:RefreshPage() end,
                   })
               end },
-            pgfNote);  y = y - h
+            besideEnable);  y = y - h
+
+        if railToggles[railFrom] then
+            _, h = W:SectionHeader(parent, "DUNGEONS & RAIDS RAIL", y); y = y - h
+            for i = railFrom, #railToggles, 2 do
+                _, h = W:DualRow(parent, y, railToggles[i], railToggles[i + 1] or EUI.BlankRowCfg()); y = y - h
+            end
+        end
 
         -- The group list's look, the sign-up helpers, Role Icon Size and the
         -- applicant columns are in the Group Settings menu on the search panel
