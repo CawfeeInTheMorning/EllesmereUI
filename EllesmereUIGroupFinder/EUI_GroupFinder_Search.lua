@@ -3289,6 +3289,15 @@ function ns.MakeSearchBox(parent, prompt)
     return eb
 end
 
+function ns.StyleInputBox(eb)
+    local S = Skin()
+    if S and S.EditBox then S.EditBox(eb) end
+    SetBorderColor(eb, ThemeBorder())
+    local font = XF.ButtonFont()
+    if font then eb:SetFontObject(font) end
+    return font
+end
+
 function ns.MakeDropButton(parent, w)
     local b = DropButton(parent, w, ROW1_H)
     local font = XF.ButtonFont()
@@ -3306,6 +3315,13 @@ function ns.MakeButton(parent, w, h, text)
     if font then
         b:SetNormalFontObject(font)
         b:SetHighlightFontObject(font)
+        -- Disabled: the same font in Blizzard's disabled grey.
+        if not XF.buttonFontOff then
+            XF.buttonFontOff = CreateFont("EUIGroupFinderButtonFontOff")
+            XF.buttonFontOff:CopyFontObject(font)
+            XF.buttonFontOff:SetTextColor(0.5, 0.5, 0.5)
+        end
+        b:SetDisabledFontObject(XF.buttonFontOff)
     end
     b:SetText(text or "")
     return b
@@ -3405,7 +3421,11 @@ function ns.MakeFilterMenu(owner, spec)
         self:SetWidth(spec.width or (DIFF_W + SQ_GAP + ROW1_H))
         self:Show()
     end
-    m:SetScript("OnShow", function(self) self:Paint() end)
+    local function Dim(a)
+        for _, f in ipairs(spec.dim and spec.dim() or {}) do f:SetAlpha(a) end
+    end
+    m:SetScript("OnShow", function(self) self:Paint(); Dim(0.35) end)
+    m:SetScript("OnHide", function() Dim(1) end)
     m:SetScript("OnUpdate", function(self)
         if IsMouseButtonDown("LeftButton") and not self:IsMouseOver() and not owner:IsMouseOver() then
             self:Hide()
@@ -3683,6 +3703,10 @@ function XF.SettingsCog(panel)
         XF.cog = cog
     end
     local pad = tonumber(Cfg().padding) or 12
+    -- On a rail page (Blizzard's screens are faded under it) the cog is the
+    -- page's child; on Blizzard's screens, LFGListFrame's.
+    local parent = (panel == XF.pageFrame) and panel or LFGListFrame
+    if cog:GetParent() ~= parent then cog:SetParent(parent) end
     cog:ClearAllPoints()
     cog:SetPoint("BOTTOMLEFT", panel, "BOTTOMLEFT", pad, BOTTOM_Y)
     cog:SetFrameLevel(panel:GetFrameLevel() + 10)
@@ -3791,6 +3815,7 @@ function XF.PageFrame()
     page.sub:SetTextColor(1, 1, 1, 0.6)
     page:SetScript("OnHide", function()
         page.key = nil
+        if XF.cog and XF.cog:GetParent() == page then XF.cog:SetParent(LFGListFrame) end
         XF.FadeGroupFrames(1)
         if ns.Rail_Paint then ns.Rail_Paint() end
         if ns.ApplyApplications then ns.ApplyApplications() end
@@ -3890,6 +3915,13 @@ function ns.OpenRailPage(spec)
     XF.FadeGroupFrames(0)
     page.key, page.spec = spec.key, spec
     page:Show()
+    -- The bottom row as on the other screens: the cog, then two equal slots
+    -- (page.slots = { x of the first, width, y, height }, Back / Sign Up's).
+    XF.SettingsCog(page)
+    local x0 = pad + XF.COG_H + SQ_GAP
+    local pw = page:GetWidth()
+    local w = (type(pw) == "number" and pw > 0) and (pw - pad - x0 - SQ_GAP) / 2 or 140
+    page.slots = { x0, w, BOTTOM_Y, 22, w + SQ_GAP }
     if spec.show then spec.show(body, page) end
     if ns.Rail_Paint then ns.Rail_Paint() end
     if ns.ApplyApplications then ns.ApplyApplications() end
