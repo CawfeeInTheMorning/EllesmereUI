@@ -3256,6 +3256,18 @@ end
 
 -- Difficulty, the search prompt and the typed search text in the font of the
 -- panel's own Back / Sign Up buttons (whatever the font settings make it).
+function ns.ButtonFontSize()
+    if gfFont then
+        local _, size = gfFont:GetFont()
+        if size then return math.floor(size + 0.5) end
+    end
+    local src = SP and (SP.BackButton or SP.SignUpButton)
+    local fs = src and src.GetFontString and src:GetFontString()
+    local _, size = fs and fs:GetFont()
+    if size then return math.max(8, math.floor(size + 0.5) - 1) end
+    return 12
+end
+
 local function MatchButtonFont(box)
     local src = SP.BackButton or SP.SignUpButton
     local fs = src and src.GetFontString and src:GetFontString()
