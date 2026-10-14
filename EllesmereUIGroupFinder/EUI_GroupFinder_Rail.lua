@@ -243,12 +243,18 @@ local function LayoutRail()
             b:SetHitRectInsets(0, 0, 0, 0)
         end
     end
+    -- The search panel's row 2 (and a rail page's search row) level with
+    -- the first box's top (re-stacked rail only).
+    local function ReportTop(firstTop, holderTop)
+        if ns.SetRow2Top and firstTop and holderTop then ns.SetRow2Top(firstTop - holderTop) end
+    end
     local ref = list[1]
     local gt, gl = gf:GetTop(), gf:GetLeft()
     local lf = _G.LFGListPVEStub or _G.LFGListFrame
     local lt = (lf and lf:GetTop()) or gt
     if #pages == 0 or not (ref and gt and gl and lt and ref:GetLeft()) then
         Restore()
+        if ns.SetRow2Top then ns.SetRow2Top(nil) end
         return
     end
     local pad = tonumber(ns.Cfg and ns.Cfg().padding) or 12
@@ -263,6 +269,7 @@ local function LayoutRail()
     end
     local step = BOX_H + gap
     local top = railTop - (avail - (n * BOX_H + (n - 1) * gap)) / 2
+    ReportTop(top, lt)
     local x1, x2 = ref:GetLeft() - gl, ref:GetRight() - gl
     local k = 0
     for _, b in ipairs(list) do

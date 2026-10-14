@@ -25,7 +25,7 @@ local ROW1_H    = 24   -- search box and Difficulty height
 local BTN       = 28   -- cog, reset and dungeon squares (row 2): start size; Layout fits them to the row
 local DIFF_W    = 110
 local SQ_GAP    = 3    -- one gap between every button: across a row and between the rows
-local ROW2_Y    = ROW1_Y - ROW1_H / 2 - SQ_GAP - 1   -- row 2 top: one gap under row 1 (1 lower: level with the rail's first box)
+local ROW2_Y    = ROW1_Y - ROW1_H / 2 - SQ_GAP   -- row 2 top: one gap under row 1 (until the rail sets it: XF.Row2Y)
 -- Search Again cooldown sweep.
 local CD_SEARCH = 2
 -- Bottom buttons (Back / Sign Up, Start a Group / Find a Group, Back / List
@@ -3338,12 +3338,24 @@ end
 -- 1's centre and row 2's top below the panel's top, row 2's height (Layout's
 -- square size; the panel's own width while it is not laid out) and row 1's
 -- height.
+function XF.Row2Y() return XF.row2Y or ROW2_Y end
+
+function ns.SetRow2Top(y)
+    if type(y) == "number" then y = math.min(ROW2_Y, math.floor(y * 100 + 0.5) / 100) else y = nil end
+    if XF.row2Y == y then return end
+    XF.row2Y = y
+    if InCombatLockdown() then return end
+    if SP and SP:IsShown() and ns.Search_Layout then ns.Search_Layout() end
+    local page = XF.pageFrame
+    if page and page:IsShown() and page.spec then ns.OpenRailPage(page.spec) end
+end
+
 function ns.Search_Rows()
     local pad = tonumber(Cfg().padding) or 12
     local w = SP and SP:GetWidth()
     if not w or w < 100 then w = 338 end
     local n = (dungeons and #dungeons > 0) and #dungeons or 8
-    return ROW1_Y, ROW2_Y, math.max(18, (w - pad * 2 - (n + 1) * SQ_GAP) / (n + 2)), ROW1_H
+    return ROW1_Y, XF.Row2Y(), math.max(18, (w - pad * 2 - (n + 1) * SQ_GAP) / (n + 2)), ROW1_H
 end
 
 local function Layout()
@@ -3449,8 +3461,8 @@ local function Layout()
 
     -- Row 2: cog | reset | season dungeons (squares in Dungeons only)
     row:ClearAllPoints()
-    row:SetPoint("TOPLEFT", SP, "TOPLEFT", pad, ROW2_Y)
-    row:SetPoint("TOPRIGHT", SP, "TOPRIGHT", -pad, ROW2_Y)
+    row:SetPoint("TOPLEFT", SP, "TOPLEFT", pad, XF.Row2Y())
+    row:SetPoint("TOPRIGHT", SP, "TOPRIGHT", -pad, XF.Row2Y())
     row:SetHeight(size)
     row:Show()
     if filter then
@@ -3505,7 +3517,7 @@ local function Layout()
     -- with one gap between it and the list, and the list ending one gap above
     -- the Back / Sign Up buttons (22 tall, BOTTOM_Y off the bottom).
     local ROW_INSET = 3
-    local top = ROW2_Y - lines * size - (lines - 1) * SQ_GAP - SQ_GAP
+    local top = XF.Row2Y() - lines * size - (lines - 1) * SQ_GAP - SQ_GAP
     local bottom = BOTTOM_Y + 22 + SQ_GAP
     local scroll, bar, inset = SP.ScrollBox, SP.ScrollBar, SP.ResultsInset
     if bar then
@@ -3753,7 +3765,7 @@ function ns.OpenRailPage(spec)
     body:SetPoint("BOTTOMRIGHT", page, "BOTTOMRIGHT", -pad, BOTTOM_Y + 22 + SQ_GAP)
     body:Show()
     XF.FadeGroupFrames(0)
-    page.key = spec.key
+    page.key, page.spec = spec.key, spec
     page:Show()
     if spec.show then spec.show(body, page) end
     if ns.Rail_Paint then ns.Rail_Paint() end
