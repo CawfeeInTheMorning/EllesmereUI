@@ -3406,7 +3406,7 @@ end
 
 -- A menu in the Filters menu's look, opened under its button (owner):
 -- spec.sections = { { title = "Status", items = { { label = "...", active =
--- function() end, click = function() end }, ...
+-- function() end, click = function() end, tip = "..." }, ...
 function ns.MakeFilterMenu(owner, spec)
     local m = CreateFrame("Frame", nil, owner:GetParent())
     m:SetFrameStrata("FULLSCREEN_DIALOG")
@@ -3434,6 +3434,10 @@ function ns.MakeFilterMenu(owner, spec)
                 Changed()
             end)
             row.spec = it
+            if it.tip then
+                row:HookScript("OnEnter", function(self) XF.Tip(self, it.tipTitle or it.label, it.tip) end)
+                row:HookScript("OnLeave", XF.Untip)
+            end
             m.rows[#m.rows + 1] = row
             y = y + ITEM_H
         end

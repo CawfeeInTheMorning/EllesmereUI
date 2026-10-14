@@ -48,7 +48,6 @@ local PL_DEFAULTS = {
     plTooltip = true,         -- rating, status, runs and notes in unit tooltips
     plUnitMenu = true,        -- Rate Player on player right-click menus
     plBlacklistAlert = true,  -- chat warning when a blacklisted player joins
-    plAlertSound = true,
     plFavoriteAlert = false,  -- chat note when a favorite joins
     plRaiderIO = true,        -- save Raider.IO scores with runs
     plKeepDungeons = 25,      -- players kept from your last N dungeon runs (keys included)
@@ -526,7 +525,7 @@ local function ScanAlerts()
             end
         end
     end
-    if black and PL.Opt("plAlertSound") ~= false and SOUNDKIT and SOUNDKIT.RAID_WARNING then
+    if black and SOUNDKIT and SOUNDKIT.RAID_WARNING then
         PlaySound(SOUNDKIT.RAID_WARNING, "Master")
     end
 end

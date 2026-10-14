@@ -270,8 +270,18 @@ end
 local filters = { search = "", status = "listed", role = "all", minKey = 0 }
 local sortKey, sortAsc = "lastSeen", false
 
-local STATUS_OPTS = { { "listed", "All Rated" }, { "fav", "Favorites" }, { "black", "Blacklisted" }, { "seen", "Everyone Seen" } }
-local ROLE_OPTS   = { { "all", "All Roles" }, { "TANK", "Tanks" }, { "HEALER", "Healers" }, { "DAMAGER", "DPS" } }
+local STATUS_OPTS = {
+    { "listed", "All Rated", "Players you rated, favorited, blacklisted, wrote a note on or added." },
+    { "fav", "Favorites", "Only your favorites." },
+    { "black", "Blacklisted", "Only players you blacklisted." },
+    { "unrated", "Non Rated", "Only players you have not rated yet (from your recent runs)." },
+}
+local ROLE_OPTS = {
+    { "all", "All Roles", "Players of every role." },
+    { "TANK", "Tanks", "Only players last seen as a tank." },
+    { "HEALER", "Healers", "Only players last seen as a healer." },
+    { "DAMAGER", "DPS", "Only players last seen as damage." },
+}
 
 local SORT_VAL = {
     name     = function(p) return (p.name or ""):lower() end,
@@ -295,6 +305,7 @@ local function Passes(p)
     if f.status == "listed" and not PL.IsListed(p) then return false end
     if f.status == "fav" and p.status ~= PL.STATUS_FAV then return false end
     if f.status == "black" and p.status ~= PL.STATUS_BLACK then return false end
+    if f.status == "unrated" and p.rating ~= nil then return false end
     if f.role ~= "all" and p.role ~= f.role then return false end
     if f.minKey > 0 and (p.bestKey or 0) < f.minKey then return false end
     if f.search ~= "" then
@@ -387,16 +398,16 @@ local function BuildPlayersPage(body, ctx)
     search:SetPoint("LEFT", row1, "LEFT", 0, 0)
     search:SetPoint("RIGHT", filtersBtn, "LEFT", -GAP, 0)
 
-    local function Opt(field, key, label)
+    local function Opt(field, key, label, tip)
         return {
-            label = label,
+            label = label, tip = tip,
             active = function() return filters[field] == key end,
             click = function() filters[field] = key; Rerender() end,
         }
     end
     local showItems, roleItems = {}, {}
-    for _, o in ipairs(STATUS_OPTS) do showItems[#showItems + 1] = Opt("status", o[1], o[2]) end
-    for _, o in ipairs(ROLE_OPTS) do roleItems[#roleItems + 1] = Opt("role", o[1], o[2]) end
+    for _, o in ipairs(STATUS_OPTS) do showItems[#showItems + 1] = Opt("status", o[1], o[2], o[3]) end
+    for _, o in ipairs(ROLE_OPTS) do roleItems[#roleItems + 1] = Opt("role", o[1], o[2], o[3]) end
     local function PaintFilters()
         local lbl = filtersBtn.label or filtersBtn:GetFontString()
         if lbl then
@@ -405,7 +416,7 @@ local function BuildPlayersPage(body, ctx)
         reset:SetActive(FiltersSet())
     end
     local menu = ns.MakeFilterMenu(filtersBtn, {
-        sections = { { title = "Show (Pick One)", items = showItems }, { title = "Role (Pick One)", items = roleItems } },
+        sections = { { title = "Show |cff5a5a5a(Pick One)|r", items = showItems }, { title = "Role |cff5a5a5a(Pick One)|r", items = roleItems } },
         number = {
             title = false, label = "Min. Best Key",
             tip = "Only players whose best key with you is at least this level.",
@@ -455,8 +466,18 @@ local function BuildPlayersPage(body, ctx)
             end
             Rerender()
         end)
-        b:SetScript("OnEnter", function() if sortKey ~= col.key then b.label:SetTextColor(1, 1, 1, 0.8) end end)
-        b:SetScript("OnLeave", function() if sortKey ~= col.key then b.label:SetTextColor(1, 1, 1, 0.45) end end)
+        b:SetScript("OnEnter", function(self)
+            if sortKey ~= col.key then b.label:SetTextColor(1, 1, 1, 0.8) end
+            if col.header ~= "" then
+                GameTooltip:SetOwner(self, "ANCHOR_TOP")
+                GameTooltip:SetText("Click to swap sorting order.", 1, 1, 1)
+                GameTooltip:Show()
+            end
+        end)
+        b:SetScript("OnLeave", function()
+            if sortKey ~= col.key then b.label:SetTextColor(1, 1, 1, 0.45) end
+            GameTooltip:Hide()
+        end)
         hdr.cols[col.key] = b
     end
     local sep = page:CreateTexture(nil, "ARTWORK")
@@ -529,7 +550,6 @@ local function BuildDetailPage(body, ctx)
         local _, _, size = ns.Search_Rows()
         if size then SQ = floor(size) end
     end
-    local GAP6 = 6
 
     -- Top row (squares the size of the dungeon row's): the role, the name, then
     -- Favorite, Blacklist and Remove at the right edge (level with Reset
@@ -669,14 +689,14 @@ local function BuildDetailPage(body, ctx)
     -- Whisper and Invite: two equal buttons across.
     local whisper = ns.MakeButton(page, 100, 22, "Whisper")
     whisper:SetScript("OnClick", function() local p = PL.Get(Key()); if p then UI.Whisper(p) end end)
-    whisper:SetPoint("TOPLEFT", notes, "BOTTOMLEFT", 0, -10)
+    whisper:SetPoint("TOPLEFT", notes, "BOTTOMLEFT", 0, -GAP)
     local invite = ns.MakeButton(page, 100, 22, "Invite")
     invite:SetScript("OnClick", function() local p = PL.Get(Key()); if p then UI.Invite(p) end end)
-    invite:SetPoint("LEFT", whisper, "RIGHT", GAP6, 0)
+    invite:SetPoint("LEFT", whisper, "RIGHT", GAP, 0)
     local function LayoutRows()
         local W = page:GetWidth()
         if not (W and W > 0) then return end
-        local w = floor((W - GAP6) / 2)
+        local w = floor((W - GAP) / 2)
         whisper:SetWidth(w)
         invite:SetWidth(w)
     end
