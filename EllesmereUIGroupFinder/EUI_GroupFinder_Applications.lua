@@ -96,7 +96,9 @@ local function Counts(scope)
 end
 
 -------------------------------------------------------------------------------
---  Card.
+--  Card At the top of the Dungeons & Raids left rail, above its entries: a box
+--  as tall as the Premade Groups search row's Filters button and level with it,
+--  spanning the rail less a margin each side (no title).
 -------------------------------------------------------------------------------
 local card
 local TITLE_SIZE = 12   -- the title (and the Premade Groups title); the Font Size setting is the counts' only
@@ -138,8 +140,12 @@ local function Place()
     local pve = _G.PVEFrame
     local inset = pve and pve.Inset
     if not (card and inset) then return end
-    local r1, r2, size = -42, -57, 28
-    if ns.Search_Rows then r1, r2, size = ns.Search_Rows() end
+    local r1, h1 = -42, 24
+    if ns.Search_Rows then
+        local _
+        r1, _, _, h1 = ns.Search_Rows()
+    end
+    h1 = h1 or 24
     local sp = _G.LFGListFrame and _G.LFGListFrame.SearchPanel
     local st, pt = sp and sp:GetTop(), pve:GetTop()
     local dy = (st and pt) and (st - pt) or 0
@@ -151,11 +157,10 @@ local function Place()
     local pad = tonumber(ns.Cfg and ns.Cfg().padding) or 12
     local x1, x2 = il - pl + pad, ir - pl - pad
     card.box:ClearAllPoints()
-    card.box:SetPoint("TOPLEFT", pve, "TOPLEFT", x1, dy + r2)
-    card.box:SetPoint("TOPRIGHT", pve, "TOPLEFT", x2, dy + r2)
-    card.box:SetHeight(size)
-    card.title:ClearAllPoints()
-    card.title:SetPoint("LEFT", pve, "TOPLEFT", x1, dy + r1)
+    card.box:SetPoint("TOPLEFT", pve, "TOPLEFT", x1, dy + r1 + h1 / 2)
+    card.box:SetPoint("TOPRIGHT", pve, "TOPLEFT", x2, dy + r1 + h1 / 2)
+    card.box:SetHeight(h1)
+    card.title:Hide()
 end
 
 -- Fonts and sizes from the settings.

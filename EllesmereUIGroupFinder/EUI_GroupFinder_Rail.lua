@@ -217,8 +217,9 @@ local function PageButton(spec)
 end
 
 -- With an extra page entry showing, the boxes are re-stacked: the first level
--- with the top of the result list, the last with the bottom of the Back / Sign
--- Up row, evenly spaced (at least one gap), our entries last.
+-- with the top of the search panel's second row (Group Settings), the last with
+-- the bottom of the Back / Sign Up row, evenly spaced (at least one gap), our
+-- entries last.
 local function LayoutRail()
     local gf = _G.GroupFinderFrame
     if not gf or InCombatLockdown() then return end
@@ -250,12 +251,12 @@ local function LayoutRail()
         return
     end
     local pad = tonumber(ns.Cfg and ns.Cfg().padding) or 12
-    local r2, size = -57, 28
+    local r2 = -57
     if ns.Search_Rows then
         local _
-        _, r2, size = ns.Search_Rows()
+        _, r2 = ns.Search_Rows()
     end
-    local top = lt + r2 - size - GAP          -- the result list's top
+    local top = lt + r2                       -- the search panel's row 2 top
     local lb = (lf and lf:GetBottom()) or gf:GetBottom()
     local n = #list + #pages
     local step = BOX_H + GAP
