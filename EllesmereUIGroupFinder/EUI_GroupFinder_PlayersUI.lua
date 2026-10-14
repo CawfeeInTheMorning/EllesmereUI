@@ -66,6 +66,16 @@ local function ResultFont()
     if fo and fo.GetFont then return fo:GetFont() end
 end
 
+-- A Blizzard font object's face and size on one of our strings (our own colours
+-- kept): the result list's title (GameFontNormal) and its dungeon line
+-- (GameFontDisableSmallLeft).
+local function UseFont(fs, objName)
+    local fo = _G[objName]
+    local path, size, flags
+    if fo and fo.GetFont then path, size, flags = fo:GetFont() end
+    if path then fs:SetFont(path, size, flags or "") end
+end
+
 local function ResultFontSize()
     local _, size = ResultFont()
     return size and floor(size + 0.5) or 12
@@ -794,6 +804,8 @@ local function BuildDetailPage(body, ctx)
             return
         end
         LayoutRows()
+        UseFont(name, "GameFontNormal")
+        UseFont(info, "GameFontDisableSmallLeft")
         name:SetText(PL.NameText(p.name, p.realm, p.class))
         role:Paint(p.role)
         local parts = { ("Runs Together: %d"):format(p.runCount or 0) }
@@ -835,6 +847,9 @@ local function BuildDetailPage(body, ctx)
             row:SetPoint("TOPLEFT", list.child, "TOPLEFT", 0, -(i - 1) * 22)
             row:SetPoint("TOPRIGHT", list.child, "TOPRIGHT", -over, -(i - 1) * 22)
             row.stripe:SetColorTexture(1, 1, 1, (i % 2 == 0) and 0.03 or 0)
+            for _, fs in ipairs({ row.when, row.kind, row.text, row.extra }) do
+                UseFont(fs, "GameFontDisableSmallLeft")
+            end
             row.when:SetText(PL.Day(r.t))
             row.kind:SetText(PL.KindText(r.kind))
             row.text:SetText(PL.RunText(r))
