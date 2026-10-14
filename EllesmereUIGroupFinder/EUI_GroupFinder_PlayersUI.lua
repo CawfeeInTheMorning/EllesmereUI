@@ -669,7 +669,7 @@ local function BuildDetailPage(body, ctx)
     local roleItems = {}
     for _, r in ipairs({ "TANK", "HEALER", "DAMAGER" }) do
         roleItems[#roleItems + 1] = {
-            label = PL.RoleMarkup(r, 14) .. " " .. PL.ROLE_LABEL[r],
+            label = PL.RoleMarkup(r, 18) .. " " .. PL.ROLE_LABEL[r],
             active = function() local p = PL.Get(Key()); return p ~= nil and p.role == r end,
             click = function() PL.SetRole(Key(), r) end,
         }
@@ -868,7 +868,7 @@ local function BuildDetailPage(body, ctx)
             row.when:SetText(PL.Day(r.t))
             row.kind:SetText(PL.KindText(r.kind))
             row.text:SetText(PL.RunText(r))
-            row.extra:SetText(PL.RoleMarkup(r.role, 12))
+            row.extra:SetText(PL.RoleMarkup(r.role, 18))
             row:Show()
         end
         for i = #runs + 1, #self.rows do self.rows[i]:Hide() end
