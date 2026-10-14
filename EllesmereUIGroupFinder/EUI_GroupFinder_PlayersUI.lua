@@ -608,9 +608,13 @@ local function BuildDetailPage(body, ctx)
     role.icon = role:CreateTexture(nil, "ARTWORK")
     role.icon:SetPoint("TOPLEFT", role, "TOPLEFT", px, -px)
     role.icon:SetPoint("BOTTOMRIGHT", role, "BOTTOMRIGHT", -px, px)
-    -- Hovered: the icon a little brighter (there is no frame around it).
+    -- Hovered: the icon lit up (an added-light copy over it), or a soft
+    -- square where no role is set, so the spot reads as clickable.
+    role.glow = role:CreateTexture(nil, "HIGHLIGHT")
+    role.glow:SetPoint("TOPLEFT", role, "TOPLEFT", px, -px)
+    role.glow:SetPoint("BOTTOMRIGHT", role, "BOTTOMRIGHT", -px, px)
     local function RoleBorder(hover)
-        role.icon:SetAlpha(hover and 1 or 0.9)
+        role.icon:SetAlpha(hover and 1 or 0.85)
     end
     function role:Paint(r)
         local atlas = r and ((GetIconForRole and GetIconForRole(r)) or ROLE_ATLAS[r])
@@ -621,8 +625,13 @@ local function BuildDetailPage(body, ctx)
             self.icon:SetAtlas(atlas, false)
             self.icon:SetVertexColor(1, 1, 1, 1)
             self.icon:Show()
+            self.glow:SetAtlas(atlas, false)
+            self.glow:SetBlendMode("ADD")
+            self.glow:SetVertexColor(1, 1, 1, 0.5)
         else
             self.icon:Hide()   -- None: no icon (the spot still opens the menu)
+            self.glow:SetColorTexture(1, 1, 1, 0.12)
+            self.glow:SetBlendMode("BLEND")
         end
     end
     role:SetScript("OnEnter", function(self)
