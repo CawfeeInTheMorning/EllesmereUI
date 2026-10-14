@@ -12,6 +12,7 @@ local ART = "Interface\\AddOns\\" .. ADDON_NAME .. "\\media\\rail\\"
 local BOX_H = 75      -- the box's height (the art's 300 px / 4); a little taller than Blizzard's 72
 local NAME_X = 12    -- the name's inset from the box's left
 local GAP = 3        -- the search rows' gap (Search.lua SQ_GAP)
+local RAIL_GAP = 10  -- between the boxes while an extra entry shows (clears the M+ bar with four)
 -- Art per entry, by the name Blizzard gives it (the entries move around:
 -- Scenarios, when shown, takes slot 2).
 local function ArtFor(btn)
@@ -216,10 +217,10 @@ local function PageButton(spec)
     return b
 end
 
--- With an extra page entry showing, the boxes are re-stacked with the gap
--- Blizzard's own entries have between them (measured), our entries last, the
--- stack centred on the rail below the search row (the M+ Applications bar's
--- row); if it does not fit, the gap shrinks (to one search gap at least).
+-- With an extra page entry showing, the boxes are re-stacked RAIL_GAP apart
+-- (our entries last), the stack centred on the rail (Blizzard's left inset,
+-- whether or not the M+ Applications bar shows); if it does not fit, the gap
+-- shrinks (to one search gap at least).
 local function LayoutRail()
     local gf = _G.GroupFinderFrame
     if not gf or InCombatLockdown() then return end
@@ -251,22 +252,11 @@ local function LayoutRail()
         return
     end
     local pad = tonumber(ns.Cfg and ns.Cfg().padding) or 12
-    local r1, h1 = -42, 24
-    if ns.Search_Rows then
-        local _
-        r1, _, _, h1 = ns.Search_Rows()
-        h1 = h1 or 24
-    end
-    local railTop = lt + r1 - h1 / 2          -- under the search row (and the M+ bar)
-    local railBottom = (lf and lf:GetBottom()) or gf:GetBottom() or (railTop - 374)
+    local inset = _G.PVEFrame and _G.PVEFrame.Inset
+    local railTop = (inset and inset:GetTop()) or lt
+    local railBottom = (inset and inset:GetBottom()) or (lf and lf:GetBottom()) or gf:GetBottom() or (railTop - 400)
     local n = #list + #pages
-    -- Blizzard's gap between two boxes: its buttons' gap plus what each box
-    -- leaves of its (centred) button.
-    local gap = 18
-    local a, b2 = list[1], list[2]
-    if a and b2 and a:GetBottom() and b2:GetTop() and a:GetHeight() then
-        gap = (a:GetBottom() - b2:GetTop()) + (a:GetHeight() - BOX_H)
-    end
+    local gap = RAIL_GAP
     local avail = railTop - railBottom
     if n > 1 and n * BOX_H + (n - 1) * gap > avail - 2 * GAP then
         gap = math.max(GAP, (avail - 2 * GAP - n * BOX_H) / (n - 1))
