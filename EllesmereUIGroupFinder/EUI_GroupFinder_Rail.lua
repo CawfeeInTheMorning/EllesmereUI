@@ -216,10 +216,10 @@ local function PageButton(spec)
     return b
 end
 
--- With an extra page entry showing, the boxes are re-stacked: the first level
--- with the top of the search panel's second row (Group Settings), the last with
--- the bottom of the Back / Sign Up row, evenly spaced (at least one gap), our
--- entries last.
+-- With an extra page entry showing, the boxes are re-stacked with the gap
+-- Blizzard's own entries have between them (measured), our entries last, the
+-- stack centred on the rail below the search row (the M+ Applications bar's
+-- row); if it does not fit, the gap shrinks (to one search gap at least).
 local function LayoutRail()
     local gf = _G.GroupFinderFrame
     if not gf or InCombatLockdown() then return end
@@ -251,19 +251,28 @@ local function LayoutRail()
         return
     end
     local pad = tonumber(ns.Cfg and ns.Cfg().padding) or 12
-    local r2 = -57
+    local r1, h1 = -42, 24
     if ns.Search_Rows then
         local _
-        _, r2 = ns.Search_Rows()
+        r1, _, _, h1 = ns.Search_Rows()
+        h1 = h1 or 24
     end
-    local top = lt + r2                       -- the search panel's row 2 top
-    local lb = (lf and lf:GetBottom()) or gf:GetBottom()
+    local railTop = lt + r1 - h1 / 2          -- under the search row (and the M+ bar)
+    local railBottom = (lf and lf:GetBottom()) or gf:GetBottom() or (railTop - 374)
     local n = #list + #pages
-    local step = BOX_H + GAP
-    if lb and n > 1 then
-        local bottom = lb + (ns.BOTTOM_Y or 8)   -- the bottom buttons' bottom edge
-        step = math.max(BOX_H + GAP, (top - bottom - BOX_H) / (n - 1))
+    -- Blizzard's gap between two boxes: its buttons' gap plus what each box
+    -- leaves of its (centred) button.
+    local gap = 18
+    local a, b2 = list[1], list[2]
+    if a and b2 and a:GetBottom() and b2:GetTop() and a:GetHeight() then
+        gap = (a:GetBottom() - b2:GetTop()) + (a:GetHeight() - BOX_H)
     end
+    local avail = railTop - railBottom
+    if n > 1 and n * BOX_H + (n - 1) * gap > avail - 2 * GAP then
+        gap = math.max(GAP, (avail - 2 * GAP - n * BOX_H) / (n - 1))
+    end
+    local step = BOX_H + gap
+    local top = railTop - (avail - (n * BOX_H + (n - 1) * gap)) / 2
     local x1, x2 = ref:GetLeft() - gl, ref:GetRight() - gl
     local k = 0
     for _, b in ipairs(list) do
