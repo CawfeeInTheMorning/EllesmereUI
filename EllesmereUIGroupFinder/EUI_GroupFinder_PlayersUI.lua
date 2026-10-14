@@ -624,24 +624,32 @@ local function BuildDetailPage(body, ctx)
         GameTooltip:Show()
     end)
     role:SetScript("OnLeave", function() RoleBorder(false); GameTooltip:Hide() end)
-    role:SetScript("OnClick", function(self)
-        local p = PL.Get(Key())
-        local items = {}
-        for _, r in ipairs({ "TANK", "HEALER", "DAMAGER" }) do
-            items[#items + 1] = {
-                text = PL.RoleMarkup(r, 20), isActive = p ~= nil and p.role == r,
-                onClick = function() PL.SetRole(Key(), r) end,
-            }
-        end
-        items[#items + 1] = {
-            text = ("|T%s:16:16|t"):format(ns.X_TEX), isActive = p ~= nil and p.role == nil,
-            onClick = function() PL.SetRole(Key(), nil) end,
+    -- Its menu in the Filters menu's look: each role's icon and name, None.
+    local roleItems = {}
+    for _, r in ipairs({ "TANK", "HEALER", "DAMAGER" }) do
+        roleItems[#roleItems + 1] = {
+            label = PL.RoleMarkup(r, 14) .. " " .. PL.ROLE_LABEL[r],
+            active = function() local p = PL.Get(Key()); return p ~= nil and p.role == r end,
+            click = function() PL.SetRole(Key(), r) end,
         }
-        if CM.ShowContextMenu then CM.ShowContextMenu(self, items, { below = true }) end
+    end
+    roleItems[#roleItems + 1] = {
+        label = "None",
+        active = function() local p = PL.Get(Key()); return p ~= nil and p.role == nil end,
+        click = function() PL.SetRole(Key(), nil) end,
+    }
+    local roleMenu = ns.MakeFilterMenu(role, {
+        sections = { { title = "Role", items = roleItems } },
+        alignLeft = true,
+        width = CTRL_W,
+    })
+    role:SetScript("OnClick", function()
+        GameTooltip:Hide()
+        roleMenu:Toggle()
     end)
     RoleBorder(false)
 
-    local name = Text(page, 18)
+    local name = Text(page, 15)
     name:SetPoint("LEFT", role, "RIGHT", 8, 0)
     name:SetPoint("RIGHT", fav, "LEFT", -8, 0)
     local info = Text(page, 12, 1, 1, 1, 0.7)
@@ -650,7 +658,7 @@ local function BuildDetailPage(body, ctx)
 
     -- The rating, centred. It can be changed here, not cleared (Remove takes
     -- a player off the list).
-    local stars = Stars(page, 18, function(v) PL.SetRating(Key(), v) end, true)
+    local stars = Stars(page, 24, function(v) PL.SetRating(Key(), v) end, true)
     stars:SetPoint("TOP", info, "BOTTOM", 0, -14)
 
     -- Notes, in the search box's look.
@@ -729,9 +737,9 @@ local function BuildDetailPage(body, ctx)
         LayoutRows()
         name:SetText(PL.NameText(p.name, p.realm, p.class))
         role:Paint(p.role)
-        local parts = { ("%d run%s together"):format(p.runCount or 0, (p.runCount == 1) and "" or "s") }
-        if p.rio then parts[#parts + 1] = ("Raider.IO %d"):format(p.rio) end
-        if p.lastSeen then parts[#parts + 1] = "last seen " .. PL.Day(p.lastSeen) end
+        local parts = { ("Runs Together: %d"):format(p.runCount or 0) }
+        if p.lastSeen then parts[#parts + 1] = "Last Seen: " .. PL.Day(p.lastSeen) end
+        if p.rio then parts[#parts + 1] = ("%dio"):format(p.rio) end
         info:SetText(table.concat(parts, "   |cff606060|||r   "))
         stars:SetValue(p.rating or 0)
         fav:SetOn(p.status == PL.STATUS_FAV)

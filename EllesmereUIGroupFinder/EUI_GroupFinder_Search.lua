@@ -3426,7 +3426,7 @@ function ns.MakeFilterMenu(owner, spec)
     end
     local y = 3
     for _, sec in ipairs(spec.sections or {}) do
-        y = AddSection(m, y, sec.title)
+        if sec.title then y = AddSection(m, y, sec.title) end
         for _, it in ipairs(sec.items or {}) do
             local row = MenuItem(m, y, it.label, function()
                 it.click()
@@ -3486,7 +3486,11 @@ function ns.MakeFilterMenu(owner, spec)
     function m:Toggle()
         if self:IsShown() then self:Hide(); return end
         self:ClearAllPoints()
-        self:SetPoint("TOPRIGHT", owner, "BOTTOMRIGHT", 0, -SQ_GAP)
+        if spec.alignLeft then
+            self:SetPoint("TOPLEFT", owner, "BOTTOMLEFT", 0, -SQ_GAP)
+        else
+            self:SetPoint("TOPRIGHT", owner, "BOTTOMRIGHT", 0, -SQ_GAP)
+        end
         self:SetWidth(spec.width or (DIFF_W + SQ_GAP + ROW1_H))
         self:Show()
     end
