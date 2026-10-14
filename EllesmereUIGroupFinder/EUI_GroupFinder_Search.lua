@@ -3299,6 +3299,123 @@ function ns.MakeDropButton(parent, w)
     return b
 end
 
+-- A button in the skin's button look with a label in the Filters font.
+function ns.MakeButton(parent, w, h, text)
+    local b = SkinnedButton(parent, w, h)
+    local font = XF.ButtonFont()
+    if font then
+        b:SetNormalFontObject(font)
+        b:SetHighlightFontObject(font)
+    end
+    b:SetText(text or "")
+    return b
+end
+
+-- A square in the Reset Filters button's look (the X; dim while nothing is
+-- set: b:SetActive(on)), its tooltip included. size = the row's height.
+function ns.MakeResetButton(parent, size)
+    local b = GlyphButton(parent, size, X_TEX)
+    b.Glyph:SetVertexColor(XF.GLYPH, XF.GLYPH, XF.GLYPH)
+    b.Glyph:SetSize(math.floor(size * 0.5), math.floor(size * 0.5))
+    function b:SetActive(on)
+        self.active = on and true or false
+        self.Glyph:SetAlpha(on and 0.9 or 0.35)
+    end
+    b:SetScript("OnEnter", function(self)
+        self.Glyph:SetAlpha(1)
+        XF.Tip(self, "Reset Filters", not self.active and "No filters set" or nil)
+    end)
+    b:SetScript("OnLeave", function(self)
+        XF.Untip()
+        self:SetActive(self.active)
+    end)
+    b:SetActive(false)
+    return b
+end
+
+-- A menu in the Filters menu's look, opened under its button (owner):
+-- spec.sections = { { title = "Status", items = { { label = "...", active =
+-- function() end, click = function() end }, ...
+function ns.MakeFilterMenu(owner, spec)
+    local m = CreateFrame("Frame", nil, owner:GetParent())
+    m:SetFrameStrata("FULLSCREEN_DIALOG")
+    m:EnableMouse(true)   -- not click-through
+    m:SetFrameLevel(300)
+    m:SetClampedToScreen(true)
+    local bg = m:CreateTexture(nil, "BACKGROUND")
+    bg:SetAllPoints()
+    local r, g, b = ThemeFill()
+    bg:SetColorTexture(r, g, b, 0.98)
+    local S = Skin()
+    if S and S.AddBorder then S.AddBorder(m) else CM.MakeBorder(m, ThemeBorder()) end
+    m.rows = {}
+    local function Changed()
+        m:Paint()
+        if spec.onChange then spec.onChange() end
+    end
+    local y = 3
+    for _, sec in ipairs(spec.sections or {}) do
+        y = AddSection(m, y, sec.title)
+        for _, it in ipairs(sec.items or {}) do
+            local row = MenuItem(m, y, it.label, function()
+                it.click()
+                PlaySound(SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON)
+                Changed()
+            end)
+            row.spec = it
+            m.rows[#m.rows + 1] = row
+            y = y + ITEM_H
+        end
+    end
+    local num = spec.number
+    if num then
+        y = AddSection(m, y, num.title or num.label)
+        local rowF = CreateFrame("Frame", nil, m)
+        rowF:SetHeight(ITEM_H + 4)
+        rowF:SetPoint("TOPLEFT", m, "TOPLEFT", 1, -y)
+        rowF:SetPoint("TOPRIGHT", m, "TOPRIGHT", -1, -y)
+        if num.tip then
+            rowF:EnableMouse(true)
+            rowF:SetScript("OnEnter", function(self) XF.Tip(self, num.label, num.tip) end)
+            rowF:SetScript("OnLeave", XF.Untip)
+        end
+        XF.MenuLabel(rowF, num.label)
+        local box = XF.MenuBox(rowF, 44, num.letters or 2)
+        box:SetPoint("RIGHT", rowF, "RIGHT", -7, 0)
+        box:SetScript("OnEditFocusLost", function(self)
+            local v = tonumber(self:GetText())
+            num.set((v and v > 0) and v or nil)
+            Changed()
+        end)
+        m.numBox = box
+        y = y + ITEM_H + 4
+    end
+    m:SetHeight(y + 3)
+    function m:Paint()
+        for _, row in ipairs(self.rows) do row:SetChecked(row.spec.active() and true or false) end
+        if self.numBox and not self.numBox:HasFocus() then
+            local v = num.get()
+            self.numBox:SetText(v and tostring(v) or "")
+        end
+    end
+    function m:Toggle()
+        if self:IsShown() then self:Hide(); return end
+        self:ClearAllPoints()
+        self:SetPoint("TOPRIGHT", owner, "BOTTOMRIGHT", 0, -SQ_GAP)
+        self:SetWidth(spec.width or (DIFF_W + SQ_GAP + ROW1_H))
+        self:Show()
+    end
+    m:SetScript("OnShow", function(self) self:Paint() end)
+    m:SetScript("OnUpdate", function(self)
+        if IsMouseButtonDown("LeftButton") and not self:IsMouseOver() and not owner:IsMouseOver() then
+            self:Hide()
+        end
+    end)
+    owner:HookScript("OnHide", function() m:Hide() end)
+    m:Hide()
+    return m
+end
+
 -- The Filters button's text size, for pages that match it (rail pages).
 function ns.ButtonFontSize()
     if gfFont then
@@ -3668,6 +3785,7 @@ function XF.PageFrame()
     page:Hide()
     page.title = page:CreateFontString(nil, "ARTWORK", "QuestFont_Huge")
     page.band = CreateFrame("Frame", nil, page)
+    page.row1 = CreateFrame("Frame", nil, page)
     page.sub = page.band:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
     page.sub:SetJustifyH("LEFT")
     page.sub:SetTextColor(1, 1, 1, 0.6)
@@ -3742,6 +3860,11 @@ function ns.OpenRailPage(spec)
     end
     if not page.title:GetPoint(1) then page.title:SetPoint("TOP", page, "TOP", -3, -35) end
     page.title:SetText(spec.title or spec.label or "")
+    page.title:SetShown(not spec.noTitle)
+    page.row1:ClearAllPoints()
+    page.row1:SetPoint("TOPLEFT", page, "TOPLEFT", pad, ROW1_Y + ROW1_H / 2)
+    page.row1:SetPoint("TOPRIGHT", page, "TOPRIGHT", -pad, ROW1_Y + ROW1_H / 2)
+    page.row1:SetHeight(ROW1_H)
     page.band:ClearAllPoints()
     page.band:SetPoint("TOPLEFT", page, "TOPLEFT", pad, r2)
     page.band:SetPoint("TOPRIGHT", page, "TOPRIGHT", -pad, r2)
