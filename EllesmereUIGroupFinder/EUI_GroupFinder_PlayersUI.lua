@@ -683,6 +683,7 @@ local function BuildDetailPage(body, ctx)
     local info = Text(page, 12, 1, 1, 1, 0.7)
     info:SetPoint("TOPLEFT", page, "TOPLEFT", 0, -(SQ + 8))
     info:SetPoint("RIGHT", page, "RIGHT", 0, 0)
+    info:SetJustifyH("CENTER")
 
     -- The rating, centred. It can be changed here, not cleared (Remove takes
     -- a player off the list).
@@ -809,8 +810,8 @@ local function BuildDetailPage(body, ctx)
         name:SetText(PL.NameText(p.name, p.realm, p.class))
         role:Paint(p.role)
         local parts = { ("Runs Together: %d"):format(p.runCount or 0) }
-        if p.lastSeen then parts[#parts + 1] = "Last Seen: " .. PL.Day(p.lastSeen) end
         if p.rio then parts[#parts + 1] = UI.ScoreText(p.rio) end
+        if p.lastSeen then parts[#parts + 1] = "Last Seen: " .. PL.Day(p.lastSeen) end
         info:SetText(table.concat(parts, "   |cff606060|||r   "))
         stars:SetValue(p.rating or 0)
         fav:SetOn(p.status == PL.STATUS_FAV)
