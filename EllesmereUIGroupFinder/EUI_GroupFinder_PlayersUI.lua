@@ -40,6 +40,18 @@ end
 
 local function Pixel() return (CM.PP and CM.PP.mult) or 1 end
 
+-- A one-pixel line under a list row (the /keys window's row separators).
+local function Underline(row)
+    local sep = row:CreateTexture(nil, "ARTWORK")
+    sep:SetColorTexture(1, 1, 1, 0.10)
+    local PP = CM.PP
+    if PP and PP.DisablePixelSnap then PP.DisablePixelSnap(sep) end
+    sep:SetHeight(Pixel())
+    sep:SetPoint("BOTTOMLEFT", row, "BOTTOMLEFT", 0, 0)
+    sep:SetPoint("BOTTOMRIGHT", row, "BOTTOMRIGHT", 0, 0)
+    return sep
+end
+
 local function Fill(f, r, g, b, a, layer)
     local t = f:CreateTexture(nil, layer or "BACKGROUND")
     t:SetAllPoints()
@@ -353,6 +365,7 @@ local function MakePlayerRow(parent, ctx)
     row:SetHeight(ROW_H)
     row:RegisterForClicks("LeftButtonUp", "RightButtonUp")
     row.stripe = Fill(row, 1, 1, 1, 0)
+    Underline(row)
     Fill(row, 1, 1, 1, 0.05, "HIGHLIGHT")
     row.status = row:CreateTexture(nil, "ARTWORK")
     row.status:SetSize(14, 14)
@@ -374,7 +387,7 @@ end
 
 local function FillPlayerRow(row, key, p, i)
     row.key = key
-    row.stripe:SetColorTexture(1, 1, 1, (i % 2 == 0) and 0.025 or 0)
+    row.stripe:SetColorTexture(1, 1, 1, 0)   -- rows are told apart by their underlines
     if p.status == PL.STATUS_FAV then
         row.status:SetTexture(PL.HEART_TEX)
         row.status:SetVertexColor(PL.FAV_COLOR[1], PL.FAV_COLOR[2], PL.FAV_COLOR[3], 1)
@@ -830,6 +843,7 @@ local function BuildDetailPage(body, ctx)
                 row = CreateFrame("Frame", nil, list.child)
                 row:SetHeight(22)
                 row.stripe = Fill(row, 1, 1, 1, 0)
+                Underline(row)
                 row.when = Text(row, fsz, 1, 1, 1, 0.55)
                 row.when:SetPoint("LEFT", row, "LEFT", 4, 0)
                 row.when:SetWidth(52)
@@ -847,7 +861,7 @@ local function BuildDetailPage(body, ctx)
             row:ClearAllPoints()
             row:SetPoint("TOPLEFT", list.child, "TOPLEFT", 0, -(i - 1) * 22)
             row:SetPoint("TOPRIGHT", list.child, "TOPRIGHT", -over, -(i - 1) * 22)
-            row.stripe:SetColorTexture(1, 1, 1, (i % 2 == 0) and 0.03 or 0)
+            row.stripe:SetColorTexture(1, 1, 1, 0)
             for _, fs in ipairs({ row.when, row.kind, row.text, row.extra }) do
                 UseFont(fs, "GameFontDisableSmallLeft")
             end
