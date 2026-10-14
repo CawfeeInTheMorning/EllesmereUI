@@ -195,6 +195,25 @@ end
 -------------------------------------------------------------------------------
 local UI = {}
 
+-- "2096io" in the score's Raider.IO colour (Blizzard's score colour without
+-- Raider.IO, white without either).
+function UI.ScoreText(score)
+    local r, g, b
+    local rio = _G.RaiderIO
+    if rio and type(rio.GetScoreColor) == "function" then
+        local ok, cr, cg, cb = pcall(rio.GetScoreColor, score)
+        if ok and type(cr) == "number" then r, g, b = cr, cg, cb end
+        if ok and type(cr) == "table" and cr.r then r, g, b = cr.r, cr.g, cr.b end
+    end
+    if not r and C_ChallengeMode and C_ChallengeMode.GetDungeonScoreRarityColor then
+        local c = C_ChallengeMode.GetDungeonScoreRarityColor(score)
+        if c and c.GetRGB then r, g, b = c:GetRGB() end
+    end
+    local text = ("%dio"):format(score)
+    if not r then return text end
+    return ("|cff%02x%02x%02x%s|r"):format(floor(r * 255), floor(g * 255), floor(b * 255), text)
+end
+
 function UI.Whisper(p)
     local target = p.name .. "-" .. p.realm
     if ChatFrameUtil and ChatFrameUtil.SendTell then
@@ -589,38 +608,28 @@ local function BuildDetailPage(body, ctx)
     role.icon = role:CreateTexture(nil, "ARTWORK")
     role.icon:SetPoint("TOPLEFT", role, "TOPLEFT", px, -px)
     role.icon:SetPoint("BOTTOMRIGHT", role, "BOTTOMRIGHT", -px, px)
-    local S = ns.Skin and ns.Skin()
-    if S and S.AddBorder then
-        S.AddBorder(role)
-    elseif CM.MakeBorder then
-        if ns.ThemeBorder then CM.MakeBorder(role, ns.ThemeBorder()) else CM.MakeBorder(role, 0.2, 0.2, 0.2, 1) end
-    end
+    -- Hovered: the icon a little brighter (there is no frame around it).
     local function RoleBorder(hover)
-        if not ns.SetBorderColor then return end
-        if hover then ns.SetBorderColor(role, 1, 1, 1, 1)
-        elseif ns.ThemeBorder then ns.SetBorderColor(role, ns.ThemeBorder()) end
+        role.icon:SetAlpha(hover and 1 or 0.9)
     end
     function role:Paint(r)
         local atlas = r and ((GetIconForRole and GetIconForRole(r)) or ROLE_ATLAS[r])
         self.icon:ClearAllPoints()
+        self.icon:SetPoint("TOPLEFT", self, "TOPLEFT", px, -px)
+        self.icon:SetPoint("BOTTOMRIGHT", self, "BOTTOMRIGHT", -px, px)
         if atlas then
             self.icon:SetAtlas(atlas, false)
             self.icon:SetVertexColor(1, 1, 1, 1)
-            self.icon:SetPoint("TOPLEFT", self, "TOPLEFT", px, -px)
-            self.icon:SetPoint("BOTTOMRIGHT", self, "BOTTOMRIGHT", -px, px)
+            self.icon:Show()
         else
-            self.icon:SetTexture(ns.X_TEX)
-            self.icon:SetTexCoord(0, 1, 0, 1)
-            local g = ns.GLYPH or 0.6
-            self.icon:SetVertexColor(g, g, g, 0.8)
-            self.icon:SetSize(floor(SQ * 0.5), floor(SQ * 0.5))
-            self.icon:SetPoint("CENTER")
+            self.icon:Hide()   -- None: no icon (the spot still opens the menu)
         end
     end
     role:SetScript("OnEnter", function(self)
         RoleBorder(true)
         GameTooltip:SetOwner(self, "ANCHOR_TOP")
         GameTooltip:SetText("Role", 1, 1, 1)
+        GameTooltip:AddLine("Click to set this player's role.", 0.7, 0.7, 0.7)
         GameTooltip:Show()
     end)
     role:SetScript("OnLeave", function() RoleBorder(false); GameTooltip:Hide() end)
@@ -662,17 +671,14 @@ local function BuildDetailPage(body, ctx)
     stars:SetPoint("TOP", info, "BOTTOM", 0, -14)
 
     -- Notes, in the search box's look.
-    local notesLbl = Text(page, 13, 1, 1, 1, 0.8)
-    notesLbl:SetPoint("TOP", stars, "BOTTOM", 0, -16)
-    notesLbl:SetPoint("LEFT", page, "LEFT", 0, 0)
-    notesLbl:SetText("Notes")
     local notes = CreateFrame("EditBox", nil, page)
     notes:SetHeight(54)
     notes:SetAutoFocus(false)
     notes:SetMultiLine(true)
     notes:SetMaxLetters(250)
     notes:SetTextInsets(7, 7, 6, 6)
-    notes:SetPoint("TOPLEFT", notesLbl, "BOTTOMLEFT", 0, -6)
+    notes:SetPoint("TOP", stars, "BOTTOM", 0, -16)
+    notes:SetPoint("LEFT", page, "LEFT", 0, 0)
     notes:SetPoint("RIGHT", page, "RIGHT", 0, 0)
     local font = ns.StyleInputBox(notes)
     if not font then SetFS(notes, 12) end
@@ -681,6 +687,8 @@ local function BuildDetailPage(body, ctx)
     local fpath, fsize, fflags
     if font then fpath, fsize, fflags = font:GetFont() end
     if fpath then notes.ph:SetFont(fpath, fsize, fflags or "") else SetFS(notes.ph, 12) end
+    -- Three lines of text inside the insets.
+    notes:SetHeight(floor((fsize or 12) * 1.35 * 3 + 14))
     notes.ph:SetTextColor(0.4, 0.4, 0.4, 1)
     notes.ph:SetPoint("TOPLEFT", notes, "TOPLEFT", 8, -6)
     notes.ph:SetText("Add a note, e.g. great healer, always uses cooldowns")
@@ -712,7 +720,7 @@ local function BuildDetailPage(body, ctx)
 
     local histLbl = Text(page, 11, 1, 1, 1, 0.5)
     histLbl:SetPoint("TOPLEFT", whisper, "BOTTOMLEFT", 0, -18)
-    histLbl:SetText("RUNS TOGETHER")
+    histLbl:SetText("Last 5 Runs Together")
     local sep = page:CreateTexture(nil, "ARTWORK")
     sep:SetHeight(Pixel())
     sep:SetPoint("TOPLEFT", histLbl, "BOTTOMLEFT", 0, -4)
@@ -739,7 +747,7 @@ local function BuildDetailPage(body, ctx)
         role:Paint(p.role)
         local parts = { ("Runs Together: %d"):format(p.runCount or 0) }
         if p.lastSeen then parts[#parts + 1] = "Last Seen: " .. PL.Day(p.lastSeen) end
-        if p.rio then parts[#parts + 1] = ("%dio"):format(p.rio) end
+        if p.rio then parts[#parts + 1] = UI.ScoreText(p.rio) end
         info:SetText(table.concat(parts, "   |cff606060|||r   "))
         stars:SetValue(p.rating or 0)
         fav:SetOn(p.status == PL.STATUS_FAV)
