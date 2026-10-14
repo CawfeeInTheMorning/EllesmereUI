@@ -2472,6 +2472,33 @@ local function SkinnedButton(parent, w, h, keepKeys, decorate)
     return b
 end
 
+-- Grey, unclickable Start a Group / Find a Group for a party member who is not
+-- the leader (the applicant viewer then has no bottom buttons).
+function XF.NotLeaderButtons(AV, show)
+    local nb = XF.notLeader
+    if not show then
+        if nb then nb[1]:Hide(); nb[2]:Hide() end
+        return nil
+    end
+    if not nb then
+        nb = {}
+        for i, text in ipairs({ START_A_GROUP or "Start a Group", LFG_LIST_FIND_A_GROUP or "Find a Group" }) do
+            local b = SkinnedButton(AV, 100, 22)
+            b:SetText(text)
+            b:Disable()
+            b:SetMotionScriptsWhileDisabled(true)
+            b:SetScript("OnEnter", function(self)
+                XF.Tip(self, text, LFG_LIST_NOT_LEADER or "You must be the party leader to do that.")
+            end)
+            b:SetScript("OnLeave", function() XF.Untip() end)
+            nb[i] = b
+        end
+        XF.notLeader = nb
+    end
+    nb[1]:Show(); nb[2]:Show()
+    return { nb[1], nb[2] }
+end
+
 local function DropButton(parent, w, h)
     local b = SkinnedButton(parent, w, h, { "Arrow" }, function(btn)
         btn.Arrow = btn:CreateTexture(nil, "OVERLAY")
@@ -3181,6 +3208,9 @@ function XF.LayoutViewer()
         local b = AV[k]
         if type(b) == "table" and b.IsShown and b:IsShown() then btns[#btns + 1] = b end
     end
+    -- Not the leader: Blizzard shows none of them, so the row keeps grey
+    -- Start a Group / Find a Group stand-ins in their usual places.
+    btns = XF.NotLeaderButtons(AV, #btns == 0) or btns
     local avW = AV:GetWidth()
     local cog = XF.SettingsCog(AV)
     local x0 = pad + (cog and (XF.COG_H + SQ_GAP) or 0)
@@ -3888,6 +3918,10 @@ local function Init()
         end)
         local AV = LFGListFrame.ApplicationViewer
         if AV then AV:HookScript("OnShow", function() XF.LayoutViewer() end) end
+        -- Leader changes show / hide Blizzard's bottom buttons here.
+        if LFGListApplicationViewer_UpdateAvailability then
+            hooksecurefunc("LFGListApplicationViewer_UpdateAvailability", function() XF.LayoutViewer() end)
+        end
     end
     -- Every search: clears the "filters changed" hint and starts the sweep.
     hooksecurefunc("LFGListSearchPanel_DoSearch", function()
