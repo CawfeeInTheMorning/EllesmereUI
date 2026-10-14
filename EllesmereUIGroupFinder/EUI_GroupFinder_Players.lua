@@ -10,7 +10,7 @@ local CM = EllesmereUI
 local PL = {}
 ns.PL = PL
 
-local MAX_PLAYER_RUNS  = 25
+local MAX_PLAYER_RUNS  = 5    -- runs together kept per player
 local MIN_SESSION_SEC  = 60   -- zoning in and straight back out is not a run
 local MPLUS_DIFFICULTY = 8
 local issecretvalue    = _G.issecretvalue
@@ -528,6 +528,15 @@ local function Prune()
     end
 end
 
+-- Older saved data kept more runs per player: trimmed to the newest MAX_PLAYER_RUNS.
+local function TrimRuns()
+    for _, p in pairs(Players()) do
+        if type(p.runs) == "table" then
+            for i = #p.runs, MAX_PLAYER_RUNS + 1, -1 do p.runs[i] = nil end
+        end
+    end
+end
+
 -------------------------------------------------------------------------------
 --  Unit tooltip lines
 -------------------------------------------------------------------------------
@@ -623,6 +632,7 @@ function ns.Players_Enable()
     started = true
     myGUID = PlainString(UnitGUID("player"))
     Prune()
+    TrimRuns()
     if TooltipDataProcessor and TooltipDataProcessor.AddTooltipPostCall and Enum and Enum.TooltipDataType then
         TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Unit, OnUnitTooltip)
     end

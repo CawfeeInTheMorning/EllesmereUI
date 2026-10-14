@@ -560,44 +560,66 @@ local function BuildDetailPage(body, ctx)
 
     -- The role: a square showing it (an X for none), its menu below it.
     local ROLE_ATLAS = { TANK = "UI-LFG-RoleIcon-Tank", HEALER = "UI-LFG-RoleIcon-Healer", DAMAGER = "UI-LFG-RoleIcon-DPS" }
-    local role = ns.MakeGlyphButton(page, SQ, ns.X_TEX)
+    -- The role: its icon alone in a bordered frame (the house border; white
+    -- while hovered), an X for none; its menu (icons only) below it.
+    local role = CreateFrame("Button", nil, page)
+    role:SetSize(SQ, SQ)
     role:SetPoint("TOPLEFT", page, "TOPLEFT", 0, 0)
+    local px = Pixel()
+    role.icon = role:CreateTexture(nil, "ARTWORK")
+    role.icon:SetPoint("TOPLEFT", role, "TOPLEFT", px, -px)
+    role.icon:SetPoint("BOTTOMRIGHT", role, "BOTTOMRIGHT", -px, px)
+    local S = ns.Skin and ns.Skin()
+    if S and S.AddBorder then
+        S.AddBorder(role)
+    elseif CM.MakeBorder then
+        if ns.ThemeBorder then CM.MakeBorder(role, ns.ThemeBorder()) else CM.MakeBorder(role, 0.2, 0.2, 0.2, 1) end
+    end
+    local function RoleBorder(hover)
+        if not ns.SetBorderColor then return end
+        if hover then ns.SetBorderColor(role, 1, 1, 1, 1)
+        elseif ns.ThemeBorder then ns.SetBorderColor(role, ns.ThemeBorder()) end
+    end
     function role:Paint(r)
         local atlas = r and ((GetIconForRole and GetIconForRole(r)) or ROLE_ATLAS[r])
+        self.icon:ClearAllPoints()
         if atlas then
-            self.Glyph:SetAtlas(atlas, false)
-            self.Glyph:SetDesaturated(false)
-            self.Glyph:SetVertexColor(1, 1, 1, 1)
-            self.Glyph:SetSize(floor(SQ * 0.7), floor(SQ * 0.7))
+            self.icon:SetAtlas(atlas, false)
+            self.icon:SetVertexColor(1, 1, 1, 1)
+            self.icon:SetPoint("TOPLEFT", self, "TOPLEFT", px, -px)
+            self.icon:SetPoint("BOTTOMRIGHT", self, "BOTTOMRIGHT", -px, px)
         else
-            self.Glyph:SetTexture(ns.X_TEX)
-            self.Glyph:SetTexCoord(0, 1, 0, 1)
+            self.icon:SetTexture(ns.X_TEX)
+            self.icon:SetTexCoord(0, 1, 0, 1)
             local g = ns.GLYPH or 0.6
-            self.Glyph:SetVertexColor(g, g, g, 0.8)
-            self.Glyph:SetSize(floor(SQ * 0.5), floor(SQ * 0.5))
+            self.icon:SetVertexColor(g, g, g, 0.8)
+            self.icon:SetSize(floor(SQ * 0.5), floor(SQ * 0.5))
+            self.icon:SetPoint("CENTER")
         end
     end
     role:SetScript("OnEnter", function(self)
+        RoleBorder(true)
         GameTooltip:SetOwner(self, "ANCHOR_TOP")
         GameTooltip:SetText("Role", 1, 1, 1)
         GameTooltip:Show()
     end)
-    role:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    role:SetScript("OnLeave", function() RoleBorder(false); GameTooltip:Hide() end)
     role:SetScript("OnClick", function(self)
         local p = PL.Get(Key())
         local items = {}
         for _, r in ipairs({ "TANK", "HEALER", "DAMAGER" }) do
             items[#items + 1] = {
-                text = PL.RoleMarkup(r, 16) .. "  " .. PL.ROLE_LABEL[r], isActive = p ~= nil and p.role == r,
+                text = PL.RoleMarkup(r, 20), isActive = p ~= nil and p.role == r,
                 onClick = function() PL.SetRole(Key(), r) end,
             }
         end
         items[#items + 1] = {
-            text = ("|T%s:14:14|t  None"):format(ns.X_TEX), isActive = p ~= nil and p.role == nil,
+            text = ("|T%s:16:16|t"):format(ns.X_TEX), isActive = p ~= nil and p.role == nil,
             onClick = function() PL.SetRole(Key(), nil) end,
         }
-        if CM.ShowContextMenu then CM.ShowContextMenu(self, items, { below = true, minWidth = CTRL_W }) end
+        if CM.ShowContextMenu then CM.ShowContextMenu(self, items, { below = true }) end
     end)
+    RoleBorder(false)
 
     local name = Text(page, 18)
     name:SetPoint("LEFT", role, "RIGHT", 8, 0)
@@ -606,17 +628,15 @@ local function BuildDetailPage(body, ctx)
     info:SetPoint("TOPLEFT", page, "TOPLEFT", 0, -(SQ + 8))
     info:SetPoint("RIGHT", page, "RIGHT", 0, 0)
 
-    -- Rating row. A rating can be changed here, not cleared (Remove takes a
-    -- player off the list).
-    local rateLbl = Text(page, 13, 1, 1, 1, 0.8)
-    rateLbl:SetPoint("TOPLEFT", info, "BOTTOMLEFT", 0, -14)
-    rateLbl:SetText("Rating")
+    -- The rating, centred. It can be changed here, not cleared (Remove takes
+    -- a player off the list).
     local stars = Stars(page, 18, function(v) PL.SetRating(Key(), v) end, true)
-    stars:SetPoint("LEFT", rateLbl, "RIGHT", 12, 0)
+    stars:SetPoint("TOP", info, "BOTTOM", 0, -14)
 
     -- Notes, in the search box's look.
     local notesLbl = Text(page, 13, 1, 1, 1, 0.8)
-    notesLbl:SetPoint("TOPLEFT", rateLbl, "BOTTOMLEFT", 0, -18)
+    notesLbl:SetPoint("TOP", stars, "BOTTOM", 0, -16)
+    notesLbl:SetPoint("LEFT", page, "LEFT", 0, 0)
     notesLbl:SetText("Notes")
     local notes = CreateFrame("EditBox", nil, page)
     notes:SetHeight(54)
@@ -690,7 +710,6 @@ local function BuildDetailPage(body, ctx)
         name:SetText(PL.NameText(p.name, p.realm, p.class))
         role:Paint(p.role)
         local parts = { ("%d run%s together"):format(p.runCount or 0, (p.runCount == 1) and "" or "s") }
-        if p.bestKey then parts[#parts + 1] = ("best key +%d"):format(p.bestKey) end
         if p.rio then parts[#parts + 1] = ("Raider.IO %d"):format(p.rio) end
         if p.lastSeen then parts[#parts + 1] = "last seen " .. PL.Day(p.lastSeen) end
         info:SetText(table.concat(parts, "   |cff606060|||r   "))

@@ -25,7 +25,7 @@ local DEFAULTS = {
     keepNote         = false,
     cancelOldest     = false,
     signUpDeclined   = false,
-    applicantColumns = true,
+    dungeonAbbr      = false,
 }
 ns.DEFAULTS = DEFAULTS
 
