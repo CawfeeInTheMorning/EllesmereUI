@@ -216,37 +216,70 @@ local function PageButton(spec)
     return b
 end
 
--- The entries from the top of the result list down, one gap between the boxes
--- (each box reaches (BOX_H - button height) / 2 past its button).
+-- With an extra page entry showing, the boxes are re-stacked: from the top of
+-- the result list down, one gap apart, our entries last.
 local function LayoutRail()
     local gf = _G.GroupFinderFrame
-    local b1 = RailButton(1)
-    if not (gf and b1) or InCombatLockdown() then return end
+    if not gf or InCombatLockdown() then return end
+    local pages = {}
+    for _, spec in ipairs(ns.railPages or {}) do
+        if not ns.RailPageEnabled or ns.RailPageEnabled(spec) then
+            pages[#pages + 1] = spec
+        elseif spec.railButton then
+            spec.railButton:Hide()
+        end
+    end
     local list = {}
     for i = 1, 4 do
         local b = RailButton(i)
-        if b and b:IsShown() then list[#list + 1] = b end
+        if b and b:IsShown() and FFD[b] then list[#list + 1] = b end
     end
-    for _, spec in ipairs(ns.railPages or {}) do
-        local b = PageButton(spec)
-        if b then list[#list + 1] = b end
+    local function Restore()
+        for _, b in ipairs(list) do
+            Place(b)
+            b:SetHitRectInsets(0, 0, 0, 0)
+        end
     end
-    local over = BOX_H - (b1:GetHeight() or BOX_H)
+    local ref = list[1]
+    local gt, gl = gf:GetTop(), gf:GetLeft()
+    local lf = _G.LFGListFrame
+    local lt = (lf and lf:GetTop()) or gt
+    if #pages == 0 or not (ref and gt and gl and lt and ref:GetLeft()) then
+        Restore()
+        return
+    end
+    local pad = tonumber(ns.Cfg and ns.Cfg().padding) or 12
     local r2, size = -57, 28
     if ns.Search_Rows then
         local _
         _, r2, size = ns.Search_Rows()
     end
-    local lf, dy = _G.LFGListFrame, 0
-    local lt, gt = lf and lf:GetTop(), gf:GetTop()
-    if lt and gt then dy = lt - gt end
-    local top = dy + r2 - size - GAP
-    for k, b in ipairs(list) do
-        b:ClearAllPoints()
-        if k == 1 then
-            b:SetPoint("TOPLEFT", gf, "TOPLEFT", 10, top - over / 2)
-        else
-            b:SetPoint("TOP", list[k - 1], "BOTTOM", 0, -(GAP + over))
+    local top = lt + r2 - size - GAP          -- the result list's top
+    local x1, x2 = ref:GetLeft() - gl, ref:GetRight() - gl
+    local k = 0
+    for _, b in ipairs(list) do
+        local d = FFD[b]
+        local bt, bb = b:GetTop(), b:GetBottom()
+        if bt and bb then
+            local boxTop = top - k * (BOX_H + GAP)
+            k = k + 1
+            d.box:ClearAllPoints()
+            d.box:SetPoint("TOPLEFT", gf, "TOPLEFT", x1 + pad, boxTop - gt)
+            d.box:SetPoint("TOPRIGHT", gf, "TOPLEFT", x2 - pad, boxTop - gt)
+            d.box:SetHeight(BOX_H)
+            b:SetHitRectInsets(pad, pad, bt - boxTop, (boxTop - BOX_H) - bb)
+        end
+    end
+    for _, spec in ipairs(pages) do
+        local b = PageButton(spec)
+        if b then
+            local boxTop = top - k * (BOX_H + GAP)
+            k = k + 1
+            b:ClearAllPoints()
+            b:SetPoint("TOPLEFT", gf, "TOPLEFT", x1, boxTop - gt)
+            b:SetSize(x2 - x1, BOX_H)
+            b:Show()
+            Place(b)
         end
     end
 end
@@ -259,11 +292,10 @@ local function StyleAll()
         Place(b)
         if b then HideBackgrounds(b); PaintBorder(b) end
     end
-    for _, spec in ipairs(ns.railPages or {}) do
-        local b = PageButton(spec)
-        if b then Place(b); PaintBorder(b) end
-    end
     LayoutRail()
+    for _, spec in ipairs(ns.railPages or {}) do
+        if spec.railButton then PaintBorder(spec.railButton) end
+    end
 end
 
 function ns.Rail_Paint()
@@ -302,7 +334,7 @@ local function Hook()
         gf:HookScript("OnHide", function() if ns.CloseRailPage then ns.CloseRailPage() end end)
     end
     if GroupFinderFrame_EvaluateButtonVisibility then
-        hooksecurefunc("GroupFinderFrame_EvaluateButtonVisibility", LayoutRail)
+        hooksecurefunc("GroupFinderFrame_EvaluateButtonVisibility", function() C_Timer.After(0, LayoutRail) end)
     end
     if pve:IsShown() then C_Timer.After(0, StyleAll) end
 end

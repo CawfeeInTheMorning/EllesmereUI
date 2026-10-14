@@ -2237,9 +2237,10 @@ XF.GROUP_MENU = {
 }
 XF.MENU_SW_W, XF.MENU_SW_H = 22, 12
 
-function XF.GroupOpt(key)
+function XF.GroupOpt(key, default)
     local v = Cfg()[key]
     if v == nil then v = ns.DEFAULTS and ns.DEFAULTS[key] end
+    if v == nil then v = default end
     return v and true or false
 end
 
@@ -2282,7 +2283,7 @@ function XF.SwitchItem(m, y, spec)
         XF.Untip()
     end)
     function item:Paint()
-        local on = XF.GroupOpt(spec.key)
+        local on = XF.GroupOpt(spec.key, spec.default)
         self.sw.knob:ClearAllPoints()
         if on then
             local r, g, b = Accent()
@@ -2296,10 +2297,10 @@ function XF.SwitchItem(m, y, spec)
         end
     end
     item:SetScript("OnClick", function(self)
-        Cfg()[spec.key] = not XF.GroupOpt(spec.key)
+        Cfg()[spec.key] = not XF.GroupOpt(spec.key, spec.default)
         PlaySound(SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON)
         self:Paint()
-        if spec.signUp then XF.ApplySignUp() else Refilter() end
+        if spec.onToggle then spec.onToggle() elseif spec.signUp then XF.ApplySignUp() else Refilter() end
     end)
     item:Paint()
     return item
@@ -2390,7 +2391,16 @@ function XF.BuildGroupMenu()
     if S and S.AddBorder then S.AddBorder(m) else CM.MakeBorder(m, ThemeBorder()) end
     m.items = {}
     local y = 3
-    for _, spec in ipairs(XF.GROUP_MENU) do
+    -- Misc ends with a switch per extra rail page that has one (spec.toggle).
+    local items = {}
+    for _, spec in ipairs(XF.GROUP_MENU) do items[#items + 1] = spec end
+    for _, page in ipairs(ns.railPages or {}) do
+        if page.toggle then
+            items[#items + 1] = { key = "railPage_" .. page.key, label = page.toggle, tip = page.toggleTip,
+                default = true, onToggle = function() XF.RailPageToggled(page) end }
+        end
+    end
+    for _, spec in ipairs(items) do
         if spec.title then
             y = AddSection(m, y, spec.title)
         else
@@ -3608,6 +3618,17 @@ function XF.PageFrame()
     page.bodies = {}
     XF.pageFrame = page
     return page
+end
+
+-- Whether a page's rail entry shows (its Group Settings switch, on by default).
+function ns.RailPageEnabled(spec)
+    if not spec.toggle then return true end
+    return XF.GroupOpt("railPage_" .. spec.key, true)
+end
+
+function XF.RailPageToggled(spec)
+    if not ns.RailPageEnabled(spec) and ns.RailPageOpen() == spec.key then ns.CloseRailPage() end
+    if ns.Rail_Refresh then ns.Rail_Refresh() end
 end
 
 function ns.RailPageOpen()
