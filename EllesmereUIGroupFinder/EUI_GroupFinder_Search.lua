@@ -2573,6 +2573,7 @@ function XF.CancelLook(entry)
 end
 
 ns.GlyphButton = GlyphButton   -- the rail's settings cog (Rail.lua)
+ns.MakeGlyphButton, ns.X_TEX = GlyphButton, X_TEX   -- for rail pages (PlayersUI.lua)
 XF.GlyphButton = GlyphButton   -- the applicant buttons (defined before it)
 ns.GLYPH = XF.GLYPH
 
@@ -3281,7 +3282,7 @@ function ns.MakeSearchBox(parent, prompt)
     SetBorderColor(eb, ThemeBorder())
     local font = XF.ButtonFont()
     if font then eb:SetFontObject(font) end
-    if eb.Instructions then
+    if type(eb.Instructions) == "table" then
         if font then eb.Instructions:SetFontObject(font) end
         eb.Instructions:SetTextColor(0.4, 0.4, 0.4)
         eb.Instructions:SetText(prompt or SEARCH or "Search")
@@ -3847,6 +3848,7 @@ function ns.RailPageToggles()
                 setValue = function(v)
                     Cfg()["railPage_" .. spec.key] = v and true or false
                     XF.RailPageToggled(spec)
+                    if CM.RefreshPage then CM:RefreshPage() end
                 end,
             }
         end

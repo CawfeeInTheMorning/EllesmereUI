@@ -7,7 +7,7 @@
 ## Author: MorningCawfee
 ## Version: 9.4.1
 ## Dependencies: EllesmereUI
-## SavedVariables: EllesmereUIGroupFinderDB, EllesmereUIGroupFinderAppsDB
+## SavedVariables: EllesmereUIGroupFinderDB, EllesmereUIGroupFinderAppsDB, EllesmereUIGroupFinderPlayersDB
 ## IconTexture: Interface\AddOns\EllesmereUI\media\eg-logo.tga
 
 # Runtime. The settings page lives in the LoadOnDemand EllesmereUIOptions addon
@@ -16,4 +16,6 @@ EllesmereUIGroupFinder.lua
 EUI_GroupFinder_Search.lua
 EUI_GroupFinder_Applications.lua
 EUI_GroupFinder_Rail.lua
+EUI_GroupFinder_Players.lua
+EUI_GroupFinder_PlayersUI.lua
 EUI_GroupFinder_Finder.lua

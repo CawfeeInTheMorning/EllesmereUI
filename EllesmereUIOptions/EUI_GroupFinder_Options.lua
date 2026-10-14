@@ -82,6 +82,27 @@ initFrame:SetScript("OnEvent", function(self)
             end
         end
 
+        -- Player ratings (Players.lua): where they show, the join alerts.
+        if ns.PL then
+            local PLD = ns.PL.DEFAULTS
+            local function PlToggle(text, key, tip)
+                return { type="toggle", text=text, tooltip=tip,
+                         disabled=function() return not ns.PL.On() end, disabledTooltip="Player Ratings",
+                         getValue=function() return Get(key, PLD[key]) == true end,
+                         setValue=function(v) Set(key, v and true or false) end }
+            end
+            _, h = W:SectionHeader(parent, "PLAYER RATINGS", y); y = y - h
+            _, h = W:DualRow(parent, y,
+                PlToggle("Tooltip Lines", "plTooltip", "A player's rating, favorite / blacklist, runs together and notes in their unit tooltip."),
+                PlToggle("Right-Click Rating", "plUnitMenu", "Rate Player on player right-click menus: rating, favorite and blacklist."));  y = y - h
+            _, h = W:DualRow(parent, y,
+                PlToggle("Blacklist Alert", "plBlacklistAlert", "A chat warning when a blacklisted player joins your group."),
+                PlToggle("Alert Sound", "plAlertSound", "A raid warning sound with the blacklist alert."));  y = y - h
+            _, h = W:DualRow(parent, y,
+                PlToggle("Favorite Alert", "plFavoriteAlert", "A chat note when a favorite joins your group."),
+                PlToggle("Raider.IO Scores", "plRaiderIO", "Saves each player's Raider.IO score with your runs while Raider.IO is loaded."));  y = y - h
+        end
+
         -- The group list's look, the sign-up helpers, Role Icon Size and the
         -- applicant columns are in the Group Settings menu on the search panel
         -- (the person button, row 2).
