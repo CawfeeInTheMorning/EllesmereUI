@@ -680,15 +680,17 @@ local function BuildDetailPage(body, ctx)
     stars:SetPoint("TOP", info, "BOTTOM", 0, -14)
 
     -- Notes, in the search box's look.
-    local notes = CreateFrame("EditBox", nil, page)
-    notes:SetHeight(54)
+    local holder = CreateFrame("Frame", nil, page)
+    holder:SetHeight(54)
+    holder:SetPoint("TOP", stars, "BOTTOM", 0, -16)
+    holder:SetPoint("LEFT", page, "LEFT", 0, 0)
+    holder:SetPoint("RIGHT", page, "RIGHT", 0, 0)
+    local notes = CreateFrame("EditBox", nil, holder)
+    notes:SetAllPoints(holder)
     notes:SetAutoFocus(false)
     notes:SetMultiLine(true)
     notes:SetMaxLetters(250)
     notes:SetTextInsets(7, 7, 6, 6)
-    notes:SetPoint("TOP", stars, "BOTTOM", 0, -16)
-    notes:SetPoint("LEFT", page, "LEFT", 0, 0)
-    notes:SetPoint("RIGHT", page, "RIGHT", 0, 0)
     local font = ns.StyleInputBox(notes)
     if not font then SetFS(notes, 12) end
     notes:SetTextColor(1, 1, 1, 1)
@@ -697,7 +699,23 @@ local function BuildDetailPage(body, ctx)
     if font then fpath, fsize, fflags = font:GetFont() end
     if fpath then notes.ph:SetFont(fpath, fsize, fflags or "") else SetFS(notes.ph, 12) end
     -- Three lines of text inside the insets.
-    notes:SetHeight(floor((fsize or 12) * 1.35 * 3 + 14))
+    local LINE_H = floor((fsize or 12) * 1.35 + 0.5)
+    holder:SetHeight(LINE_H * 3 + 14)
+    -- Measures the text as the box wraps it (same font, the inner width).
+    local measure = holder:CreateFontString(nil, "OVERLAY")
+    if fpath then measure:SetFont(fpath, fsize, fflags or "") else SetFS(measure, 12) end
+    measure:SetWordWrap(true)
+    measure:SetNonSpaceWrap(true)
+    measure:Hide()
+    local function Lines(text)
+        local w = holder:GetWidth()
+        if not (w and w > 14) then return 1 end
+        measure:SetWidth(w - 14)
+        measure:SetText(text ~= "" and text or " ")
+        if measure.GetNumLines then return measure:GetNumLines() end
+        return floor((measure:GetStringHeight() or 0) / LINE_H + 0.5)
+    end
+    local lastOK = ""
     notes.ph:SetTextColor(0.4, 0.4, 0.4, 1)
     notes.ph:SetPoint("TOPLEFT", notes, "TOPLEFT", 8, -6)
     notes.ph:SetText("Add a note, e.g. great healer, always uses cooldowns")
@@ -707,17 +725,41 @@ local function BuildDetailPage(body, ctx)
         PH()
         if Key() then PL.SetNotes(Key(), self:GetText()) end
     end)
-    notes:SetScript("OnTextChanged", PH)
+    notes:SetScript("OnTextChanged", function(self, user)
+        local text = self:GetText() or ""
+        if user then
+            -- One paragraph (Enter ends editing), three lines at most.
+            local flat = text:gsub("[\r\n]", "")
+            if flat ~= text or Lines(flat) > 3 then
+                local keep = (flat ~= text and Lines(flat) <= 3) and flat or lastOK
+                self:SetText(keep)
+                self:SetCursorPosition(#keep)
+                text = keep
+            end
+        end
+        lastOK = text
+        PH()
+    end)
+    notes:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
     notes:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
     page:SetScript("OnHide", function() if notes:HasFocus() then notes:ClearFocus() end end)
 
     -- Whisper and Invite: two equal buttons across.
     local whisper = ns.MakeButton(page, 100, 22, "Whisper")
     whisper:SetScript("OnClick", function() local p = PL.Get(Key()); if p then UI.Whisper(p) end end)
-    whisper:SetPoint("TOPLEFT", notes, "BOTTOMLEFT", 0, -GAP)
+    whisper:SetPoint("TOPLEFT", holder, "BOTTOMLEFT", 0, -GAP)
     local invite = ns.MakeButton(page, 100, 22, "Invite")
     invite:SetScript("OnClick", function() local p = PL.Get(Key()); if p then UI.Invite(p) end end)
     invite:SetPoint("LEFT", whisper, "RIGHT", GAP, 0)
+    for b, tip in pairs({ [whisper] = "Automatically starts a /whisper to this player.",
+                          [invite] = "Sends a group invite to this player." }) do
+        b:HookScript("OnEnter", function(self)
+            GameTooltip:SetOwner(self, "ANCHOR_TOP")
+            GameTooltip:SetText(tip, 1, 1, 1, 1, true)
+            GameTooltip:Show()
+        end)
+        b:HookScript("OnLeave", function() GameTooltip:Hide() end)
+    end
     local function LayoutRows()
         local W = page:GetWidth()
         if not (W and W > 0) then return end
@@ -762,6 +804,7 @@ local function BuildDetailPage(body, ctx)
         fav:SetOn(p.status == PL.STATUS_FAV)
         black:SetOn(p.status == PL.STATUS_BLACK)
         if not notes:HasFocus() then
+            lastOK = p.notes or ""
             notes:SetText(p.notes or "")
             PH()
         end
