@@ -72,12 +72,6 @@ function ns.AppCountsStore()
     return sv.dungeon
 end
 
--- Player ratings (EUI_GroupFinder_Players.lua): account-wide, outside profiles.
-function ns.PlayersStore()
-    if type(EllesmereUIGroupFinderPlayersDB) ~= "table" then EllesmereUIGroupFinderPlayersDB = {} end
-    return EllesmereUIGroupFinderPlayersDB
-end
-
 function ns.ApplyDefaults()
     local p = Profile()
     if not p then return end
@@ -114,7 +108,6 @@ function GF:OnEnable()
     local function Start()
         if ns.Search_OnEnable then ns.Search_OnEnable() end
         if ns.Rail_Enable then ns.Rail_Enable() end
-        if ns.Players_Enable then ns.Players_Enable() end
         if ns.Finder_Enable then ns.Finder_Enable() end
     end
     if C_AddOns.IsAddOnLoaded("Blizzard_GroupFinder") and PVEFrame then
