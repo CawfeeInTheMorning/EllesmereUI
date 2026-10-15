@@ -2600,6 +2600,8 @@ local function KeepMainChatSizeCorner()
     if type(x) ~= "number" or type(y) ~= "number" then return end
     relPoint = relPoint or point
     local w, h = size.w, size.h
+    -- Cawfee Extras: pixel-grid snap of the size corner (nil without the add-on).
+    if ECHAT.CawfeeSnapCorner then x, y, w, h = ECHAT.CawfeeSnapCorner(cf1, point, relPoint, x, y, w, h) end
     if point == "TOPLEFT" then
         SetFramePoint(cf1, "BOTTOMRIGHT", UIParent, relPoint, x + w, y - h)
     elseif point == "BOTTOMLEFT" then
@@ -2635,7 +2637,9 @@ function ECHAT.ApplyLockChatSize()
         -- window lockdown class). The grip's OnHide ends any drag that was
         -- live when combat started; the regen listener in the grip build
         -- recomputes this on both combat edges.
-        grip:SetShown(not locked and not InCombatLockdown())
+        -- Cawfee Extras: Show Resize Handle toggle (nil without the add-on).
+        local hideGrip = ECHAT.CawfeeHideResizeGrip and ECHAT.CawfeeHideResizeGrip()
+        grip:SetShown(not locked and not hideGrip and not InCombatLockdown())
     end
 end
 
@@ -6454,11 +6458,19 @@ initFrame:SetScript("OnEvent", function(self)
                     return cf1:GetWidth(), cf1:GetHeight()
                 end,
                 isHidden = function() return false end,
+                -- Cawfee Extras: the mover outlines the visible panel, and
+                -- W / H Match (all nil / off without the add-on).
+                getInsets = function() if ECHAT.CawfeeMoverInsets then return ECHAT.CawfeeMoverInsets() end end,
+                allowMatchSource = ECHAT.CawfeeSetChatWidth ~= nil,
+                getMatchPad = function() if ECHAT.CawfeeMatchPad then return ECHAT.CawfeeMatchPad() end end,
+                setWidth = function(_, w) if ECHAT.CawfeeSetChatWidth then ECHAT.CawfeeSetChatWidth(w) end end,
+                setHeight = function(_, h) if ECHAT.CawfeeSetChatHeight then ECHAT.CawfeeSetChatHeight(h) end end,
                 -- The mover places ChatFrame1 with one anchor per drag tick /
                 -- nudge; our size rides a second corner (SetSize is banned on
                 -- the main window), so restore it after every placement.
                 onLiveMove = function()
                     if ns._KeepMainChatSizeCorner then ns._KeepMainChatSizeCorner() end
+                    if ECHAT.CawfeeOnLiveMove then ECHAT.CawfeeOnLiveMove() end -- Cawfee Extras
                 end,
                 savePos = function(_, point, relPoint, x, y)
                     local cfg = ECHAT.DB()

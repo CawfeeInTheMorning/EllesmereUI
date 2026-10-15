@@ -762,8 +762,15 @@ end
 -- untouched lines cost one plain find / one set lookup. Backfilled session
 -- history passes no event, so name coloring never runs there (stored lines
 -- were captured in display form already).
+-- Cawfee Extras: an optional extra transform in the same lane (plain lines
+-- only, dormant in protected content). Unset without the add-on.
+local _extraXform = nil
+function ECHAT.EngineSetExtraTransform(fn)
+    _extraXform = fn
+end
+
 local function DisplayText(msg, event)
-    if not _abbrevOn and not _ccnOn then return msg end
+    if not _abbrevOn and not _ccnOn and not _extraXform then return msg end
     if issecretvalue and issecretvalue(msg) then return msg end
     if type(msg) ~= "string" then return msg end
     if _abbrevOn and not _protActive and msg:find("|Hchannel:", 1, true) then
@@ -773,6 +780,10 @@ local function DisplayText(msg, event)
         and not (issecretvalue and issecretvalue(event))
         and CCN_EVENTS[event] then
         msg = ColorRosterNames(msg)
+    end
+    if _extraXform and not _protActive
+        and not (event ~= nil and issecretvalue and issecretvalue(event)) then
+        msg = _extraXform(msg, event, _abbrevOn)
     end
     return msg
 end
