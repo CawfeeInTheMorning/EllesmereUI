@@ -64,6 +64,11 @@ end
 
 -- The whole feature: the Player Ratings switch (its rail entry's).
 function PL.On()
+    local sa = ns.STANDALONE_PLAYERS
+    if sa and C_AddOns and C_AddOns.GetAddOnEnableState
+        and (C_AddOns.GetAddOnEnableState(sa, UnitName("player")) or 0) > 0 then
+        return false
+    end
     local c = ns.Cfg and ns.Cfg()
     return not (c and c.railPage_players == false)
 end

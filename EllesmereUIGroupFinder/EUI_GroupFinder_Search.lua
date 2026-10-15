@@ -3900,6 +3900,7 @@ end
 
 -- Whether a page's rail entry shows (its Group Settings switch, on by default).
 function ns.RailPageEnabled(spec)
+    if spec.enabled and not spec.enabled() then return false end
     if not spec.toggle then return true end
     return XF.GroupOpt("railPage_" .. spec.key, true)
 end
@@ -3913,7 +3914,7 @@ end
 function ns.RailPageToggles()
     local out = {}
     for _, spec in ipairs(ns.railPages) do
-        if spec.toggle then
+        if spec.toggle and not (spec.enabled and not spec.enabled()) then
             out[#out + 1] = {
                 type = "toggle", text = spec.toggle, tooltip = spec.toggleTip,
                 getValue = function() return ns.RailPageEnabled(spec) end,

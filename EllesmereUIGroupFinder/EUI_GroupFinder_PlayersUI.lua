@@ -925,6 +925,7 @@ ns.RegisterRailPage({
     label = "Players",
     art = "Interface\\AddOns\\" .. ADDON_NAME .. "\\media\\rail\\player-group.png",
     noTitle = true,
+    enabled = function() return PL.On() end,
     toggle = "Player Ratings",
     toggleTip = "A Players entry in the Dungeons & Raids rail: everyone you ran a dungeon, key or raid with, with your rating, favorite / blacklist and notes for each. Also in unit tooltips and on player right-click menus.",
     build = function(body, page)
