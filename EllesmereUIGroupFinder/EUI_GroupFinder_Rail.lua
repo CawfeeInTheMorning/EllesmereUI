@@ -11,8 +11,6 @@ local FFD = setmetatable({}, { __mode = "k" })
 local ART = "Interface\\AddOns\\" .. ADDON_NAME .. "\\media\\rail\\"
 local BOX_H = 75      -- the box's height (the art's 300 px / 4); a little taller than Blizzard's 72
 local NAME_X = 12    -- the name's inset from the box's left
-local GAP = 3        -- the search rows' gap (Search.lua SQ_GAP)
-local RAIL_GAP = 10  -- between the boxes while an extra entry shows (clears the M+ bar with four)
 -- Art per entry, by the name Blizzard gives it (the entries move around:
 -- Scenarios, when shown, takes slot 2).
 local function ArtFor(btn)
@@ -82,17 +80,7 @@ PaintBorder = function(btn)
     local PP = CM.PanelPP or CM.PP
     if not (d and d.box and PP and PP.SetBorderColor) then return end
     local gf = _G.GroupFinderFrame
-    local open = ns.RailPageOpen and ns.RailPageOpen()
-    local selected
-    if d.page then
-        selected = open == d.page.key
-    else
-        selected = not open and gf and gf.selectionIndex == d.index
-        -- The host skin's selected wash (moved onto our box) off while a
-        -- page of ours is the one showing.
-        if d.selWash then d.selWash:SetAlpha(open and 0 or 1) end
-    end
-    if d.hovered or selected then
+    if d.hovered or (gf and gf.selectionIndex == d.index) then
         PP.SetBorderColor(d.box, 1, 1, 1, 1)
     else
         local r, g, b, a = 0.2, 0.2, 0.2, 1
@@ -137,7 +125,6 @@ local function HideBackgrounds(btn)
                 r:ClearAllPoints()
                 r:SetAllPoints(d.box)
                 d.selMoved = true
-                d.selWash = r
             end
         end
     end
@@ -155,14 +142,9 @@ local function Place(btn)
     d.box:SetPoint("TOPLEFT", btn, "TOPLEFT", pad, -dy)
     d.box:SetPoint("BOTTOMRIGHT", btn, "BOTTOMRIGHT", -pad, dy)
     local art = ArtFor(btn)
-    if d.page then art = d.page.art end
-    if art then d.art:SetTexture(d.page and art or (ART .. art)) end
+    if art then d.art:SetTexture(ART .. art) end
     d.art:SetShown(art ~= nil)
-    if d.page then
-        btn.name:ClearAllPoints()
-        btn.name:SetPoint("LEFT", d.box, "LEFT", NAME_X, 0)
-        btn.name:SetJustifyH("LEFT")
-    elseif art then
+    if art then
         Hide(btn.icon)
         Hide(btn.ring)
         local name = btn.name
@@ -193,112 +175,6 @@ local function AlignTabs()
     end
 end
 
--- An entry of ours for an extra page: the size of Blizzard's, its name in
--- the font of theirs.
-local function PageButton(spec)
-    if spec.railButton then return spec.railButton end
-    local gf, ref = _G.GroupFinderFrame, RailButton(1)
-    if not (gf and ref) then return nil end
-    local b = CreateFrame("Button", nil, gf)
-    b:SetSize(ref:GetSize())
-    b.name = b:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
-    local src = ref.name
-    if src and src.GetFont then
-        local path, size, flags = src:GetFont()
-        if path then b.name:SetFont(path, size, flags) end
-        b.name:SetTextColor(src:GetTextColor())
-        b.name:SetShadowOffset(src:GetShadowOffset())
-    end
-    b.name:SetText(spec.label or spec.key)
-    b:SetScript("OnClick", function() if ns.OpenRailPage then ns.OpenRailPage(spec) end end)
-    Style(b)
-    FFD[b].page = spec
-    spec.railButton = b
-    return b
-end
-
--- With an extra page entry showing, the boxes are re-stacked RAIL_GAP apart
--- (our entries last), the stack centred on the rail (Blizzard's left inset,
--- whether or not the M+ Applications bar shows); if it does not fit, the gap
--- shrinks (to one search gap at least).
-local function LayoutRail()
-    local gf = _G.GroupFinderFrame
-    if not gf or InCombatLockdown() then return end
-    local pages = {}
-    for _, spec in ipairs(ns.railPages or {}) do
-        if not ns.RailPageEnabled or ns.RailPageEnabled(spec) then
-            pages[#pages + 1] = spec
-        elseif spec.railButton then
-            spec.railButton:Hide()
-        end
-    end
-    local list = {}
-    for i = 1, 4 do
-        local b = RailButton(i)
-        if b and b:IsShown() and FFD[b] then list[#list + 1] = b end
-    end
-    local function Restore()
-        for _, b in ipairs(list) do
-            Place(b)
-            b:SetHitRectInsets(0, 0, 0, 0)
-        end
-    end
-    -- The search panel's row 2 (and a rail page's search row) level with
-    -- the first box's top (re-stacked rail only).
-    local function ReportTop(firstTop, holderTop)
-        if ns.SetRow2Top and firstTop and holderTop then ns.SetRow2Top(firstTop - holderTop) end
-    end
-    local ref = list[1]
-    local gt, gl = gf:GetTop(), gf:GetLeft()
-    local lf = _G.LFGListPVEStub or _G.LFGListFrame
-    local lt = (lf and lf:GetTop()) or gt
-    if #pages == 0 or not (ref and gt and gl and lt and ref:GetLeft()) then
-        Restore()
-        if ns.SetRow2Top then ns.SetRow2Top(nil) end
-        return
-    end
-    local pad = tonumber(ns.Cfg and ns.Cfg().padding) or 12
-    local inset = _G.PVEFrame and _G.PVEFrame.Inset
-    local railTop = (inset and inset:GetTop()) or lt
-    local railBottom = (inset and inset:GetBottom()) or (lf and lf:GetBottom()) or gf:GetBottom() or (railTop - 400)
-    local n = #list + #pages
-    local gap = RAIL_GAP
-    local avail = railTop - railBottom
-    if n > 1 and n * BOX_H + (n - 1) * gap > avail - 2 * GAP then
-        gap = math.max(GAP, (avail - 2 * GAP - n * BOX_H) / (n - 1))
-    end
-    local step = BOX_H + gap
-    local top = railTop - (avail - (n * BOX_H + (n - 1) * gap)) / 2
-    ReportTop(top, lt)
-    local x1, x2 = ref:GetLeft() - gl, ref:GetRight() - gl
-    local k = 0
-    for _, b in ipairs(list) do
-        local d = FFD[b]
-        local bt, bb = b:GetTop(), b:GetBottom()
-        if bt and bb then
-            local boxTop = top - k * step
-            k = k + 1
-            d.box:ClearAllPoints()
-            d.box:SetPoint("TOPLEFT", gf, "TOPLEFT", x1 + pad, boxTop - gt)
-            d.box:SetPoint("TOPRIGHT", gf, "TOPLEFT", x2 - pad, boxTop - gt)
-            d.box:SetHeight(BOX_H)
-            b:SetHitRectInsets(pad, pad, bt - boxTop, (boxTop - BOX_H) - bb)
-        end
-    end
-    for _, spec in ipairs(pages) do
-        local b = PageButton(spec)
-        if b then
-            local boxTop = top - k * step
-            k = k + 1
-            b:ClearAllPoints()
-            b:SetPoint("TOPLEFT", gf, "TOPLEFT", x1, boxTop - gt)
-            b:SetSize(x2 - x1, BOX_H)
-            b:Show()
-            Place(b)
-        end
-    end
-end
-
 local function StyleAll()
     AlignTabs()
     for i = 1, 4 do
@@ -307,22 +183,6 @@ local function StyleAll()
         Place(b)
         if b then HideBackgrounds(b); PaintBorder(b) end
     end
-    LayoutRail()
-    for _, spec in ipairs(ns.railPages or {}) do
-        if spec.railButton then PaintBorder(spec.railButton) end
-    end
-end
-
-function ns.Rail_Paint()
-    for i = 1, 4 do PaintBorder(RailButton(i)) end
-    for _, spec in ipairs(ns.railPages or {}) do
-        if spec.railButton then PaintBorder(spec.railButton) end
-    end
-end
-
-function ns.Rail_Refresh()
-    local pve = _G.PVEFrame
-    if pve and pve:IsShown() then StyleAll() end
 end
 
 local hooked
@@ -336,20 +196,6 @@ local function Hook()
         hooksecurefunc("GroupFinderFrame_SelectGroupButton", function()
             for i = 1, 4 do PaintBorder(RailButton(i)) end
         end)
-    end
-    -- Blizzard's own switch (any rail entry, or the window opening) ends a
-    -- page of ours; so does the Dungeons & Raids tab closing.
-    if GroupFinderFrame_ShowGroupFrame then
-        hooksecurefunc("GroupFinderFrame_ShowGroupFrame", function()
-            if ns.CloseRailPage then ns.CloseRailPage() end
-        end)
-    end
-    local gf = _G.GroupFinderFrame
-    if gf then
-        gf:HookScript("OnHide", function() if ns.CloseRailPage then ns.CloseRailPage() end end)
-    end
-    if GroupFinderFrame_EvaluateButtonVisibility then
-        hooksecurefunc("GroupFinderFrame_EvaluateButtonVisibility", function() C_Timer.After(0, LayoutRail) end)
     end
     if pve:IsShown() then C_Timer.After(0, StyleAll) end
 end

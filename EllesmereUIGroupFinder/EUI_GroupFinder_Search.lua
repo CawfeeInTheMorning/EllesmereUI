@@ -25,7 +25,7 @@ local ROW1_H    = 24   -- search box and Difficulty height
 local BTN       = 28   -- cog, reset and dungeon squares (row 2): start size; Layout fits them to the row
 local DIFF_W    = 110
 local SQ_GAP    = 3    -- one gap between every button: across a row and between the rows
-local ROW2_Y    = ROW1_Y - ROW1_H / 2 - SQ_GAP   -- row 2 top: one gap under row 1 (until the rail sets it: XF.Row2Y)
+local ROW2_Y    = ROW1_Y - ROW1_H / 2 - SQ_GAP   -- row 2 top: one gap under row 1
 -- Search Again cooldown sweep.
 local CD_SEARCH = 2
 -- Bottom buttons (Back / Sign Up, Start a Group / Find a Group, Back / List
@@ -2573,8 +2573,6 @@ function XF.CancelLook(entry)
 end
 
 ns.GlyphButton = GlyphButton   -- the rail's settings cog (Rail.lua)
-ns.MakeGlyphButton, ns.X_TEX = GlyphButton, X_TEX   -- for rail pages (PlayersUI.lua)
-ns.SetBorderColor = SetBorderColor
 XF.GlyphButton = GlyphButton   -- the applicant buttons (defined before it)
 ns.GLYPH = XF.GLYPH
 
@@ -3311,217 +3309,6 @@ end
 
 -- Difficulty, the search prompt and the typed search text in the font of the
 -- panel's own Back / Sign Up buttons (whatever the font settings make it).
-function XF.ButtonFont()
-    if gfFont then return gfFont end
-    local src = SP and (SP.BackButton or SP.SignUpButton)
-    local fs = src and src.GetFontString and src:GetFontString()
-    local path, size, flags
-    if fs then path, size, flags = fs:GetFont() end
-    if not path then return nil end
-    gfFont = CreateFont("EUIGroupFinderButtonFont")
-    gfFont:SetFont(path, math.max(8, size - 1), flags or "")
-    gfFont:SetTextColor(1, 1, 1)
-    return gfFont
-end
-
--- For rail pages: a search box in the look of the search row's (Blizzard's
--- SearchBoxTemplate, skinned the same, the Filters font, grey prompt) and a
--- dropdown button in the Filters button's look (its arrow included).
-function ns.MakeSearchBox(parent, prompt)
-    local eb = CreateFrame("EditBox", nil, parent, "SearchBoxTemplate")
-    eb:SetHeight(ROW1_H)
-    eb:SetAutoFocus(false)
-    local S = Skin()
-    if S and S.EditBox then S.EditBox(eb) end
-    SetBorderColor(eb, ThemeBorder())
-    local font = XF.ButtonFont()
-    if font then eb:SetFontObject(font) end
-    if type(eb.Instructions) == "table" then
-        if font then eb.Instructions:SetFontObject(font) end
-        eb.Instructions:SetTextColor(0.4, 0.4, 0.4)
-        eb.Instructions:SetText(prompt or SEARCH or "Search")
-    end
-    return eb
-end
-
-function ns.StyleInputBox(eb)
-    local S = Skin()
-    if S and S.EditBox then S.EditBox(eb) end
-    SetBorderColor(eb, ThemeBorder())
-    local font = XF.ButtonFont()
-    if font then eb:SetFontObject(font) end
-    return font
-end
-
-function ns.MakeDropButton(parent, w)
-    local b = DropButton(parent, w, ROW1_H)
-    local font = XF.ButtonFont()
-    if font then
-        b:SetNormalFontObject(font)
-        b:SetHighlightFontObject(font)
-    end
-    return b
-end
-
--- A button in the skin's button look with a label in the Filters font.
-function ns.MakeButton(parent, w, h, text)
-    local b = SkinnedButton(parent, w, h)
-    local font = XF.ButtonFont()
-    if font then
-        b:SetNormalFontObject(font)
-        b:SetHighlightFontObject(font)
-        -- Disabled: the same font in Blizzard's disabled grey.
-        if not XF.buttonFontOff then
-            XF.buttonFontOff = CreateFont("EUIGroupFinderButtonFontOff")
-            XF.buttonFontOff:CopyFontObject(font)
-            XF.buttonFontOff:SetTextColor(0.5, 0.5, 0.5)
-        end
-        b:SetDisabledFontObject(XF.buttonFontOff)
-    end
-    b:SetText(text or "")
-    return b
-end
-
--- A square in the Reset Filters button's look (the X; dim while nothing is
--- set: b:SetActive(on)), its tooltip included. size = the row's height.
-function ns.MakeResetButton(parent, size)
-    local b = GlyphButton(parent, size, X_TEX)
-    b.Glyph:SetVertexColor(XF.GLYPH, XF.GLYPH, XF.GLYPH)
-    b.Glyph:SetSize(math.floor(size * 0.5), math.floor(size * 0.5))
-    function b:SetActive(on)
-        self.active = on and true or false
-        self.Glyph:SetAlpha(on and 0.9 or 0.35)
-    end
-    b:SetScript("OnEnter", function(self)
-        self.Glyph:SetAlpha(1)
-        XF.Tip(self, "Reset Filters", not self.active and "No filters set" or nil)
-    end)
-    b:SetScript("OnLeave", function(self)
-        XF.Untip()
-        self:SetActive(self.active)
-    end)
-    b:SetActive(false)
-    return b
-end
-
--- A menu in the Filters menu's look, opened under its button (owner):
--- spec.sections = { { title = "Status", items = { { label = "...", active =
--- function() end, click = function() end, tip = "..." }, ...
-function ns.MakeFilterMenu(owner, spec)
-    local m = CreateFrame("Frame", nil, owner:GetParent())
-    m:SetFrameStrata("FULLSCREEN_DIALOG")
-    m:EnableMouse(true)   -- not click-through
-    m:SetFrameLevel(300)
-    m:SetClampedToScreen(true)
-    local bg = m:CreateTexture(nil, "BACKGROUND")
-    bg:SetAllPoints()
-    local r, g, b = ThemeFill()
-    bg:SetColorTexture(r, g, b, 0.98)
-    local S = Skin()
-    if S and S.AddBorder then S.AddBorder(m) else CM.MakeBorder(m, ThemeBorder()) end
-    m.rows = {}
-    local function Changed()
-        m:Paint()
-        if spec.onChange then spec.onChange() end
-    end
-    local y = 3
-    for _, sec in ipairs(spec.sections or {}) do
-        if sec.title then y = AddSection(m, y, sec.title) end
-        for _, it in ipairs(sec.items or {}) do
-            local row = MenuItem(m, y, it.label, function()
-                it.click()
-                PlaySound(SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON)
-                Changed()
-            end)
-            row.spec = it
-            if it.tip then
-                row:HookScript("OnEnter", function(self) XF.Tip(self, it.tipTitle or it.label, it.tip) end)
-                row:HookScript("OnLeave", XF.Untip)
-            end
-            m.rows[#m.rows + 1] = row
-            y = y + ITEM_H
-        end
-    end
-    local num = spec.number
-    if num then
-        if num.title == false then
-            -- A divider only (no section title).
-            local div = m:CreateTexture(nil, "ARTWORK")
-            div:SetHeight((CM.PP and CM.PP.mult) or 1)
-            div:SetColorTexture(1, 1, 1, 0.10)
-            div:SetPoint("TOPLEFT", m, "TOPLEFT", 10, -y - 3)
-            div:SetPoint("TOPRIGHT", m, "TOPRIGHT", -10, -y - 3)
-            y = y + 7
-        else
-            y = AddSection(m, y, num.title or num.label)
-        end
-        local rowF = CreateFrame("Frame", nil, m)
-        rowF:SetHeight(ITEM_H + 4)
-        rowF:SetPoint("TOPLEFT", m, "TOPLEFT", 1, -y)
-        rowF:SetPoint("TOPRIGHT", m, "TOPRIGHT", -1, -y)
-        if num.tip then
-            rowF:EnableMouse(true)
-            rowF:SetScript("OnEnter", function(self) XF.Tip(self, num.label, num.tip) end)
-            rowF:SetScript("OnLeave", XF.Untip)
-        end
-        XF.MenuLabel(rowF, num.label)
-        local box = XF.MenuBox(rowF, 44, num.letters or 2)
-        box:SetPoint("RIGHT", rowF, "RIGHT", -7, 0)
-        box:SetScript("OnEditFocusLost", function(self)
-            local v = tonumber(self:GetText())
-            num.set((v and v > 0) and v or nil)
-            Changed()
-        end)
-        m.numBox = box
-        y = y + ITEM_H + 4
-    end
-    m:SetHeight(y + 3)
-    function m:Paint()
-        for _, row in ipairs(self.rows) do row:SetChecked(row.spec.active() and true or false) end
-        if self.numBox and not self.numBox:HasFocus() then
-            local v = num.get()
-            self.numBox:SetText(v and tostring(v) or "")
-        end
-    end
-    function m:Toggle()
-        if self:IsShown() then self:Hide(); return end
-        self:ClearAllPoints()
-        if spec.alignLeft then
-            self:SetPoint("TOPLEFT", owner, "BOTTOMLEFT", 0, -SQ_GAP)
-        else
-            self:SetPoint("TOPRIGHT", owner, "BOTTOMRIGHT", 0, -SQ_GAP)
-        end
-        self:SetWidth(spec.width or (DIFF_W + SQ_GAP + ROW1_H))
-        self:Show()
-    end
-    local function Dim(a)
-        for _, f in ipairs(spec.dim and spec.dim() or {}) do f:SetAlpha(a) end
-    end
-    m:SetScript("OnShow", function(self) self:Paint(); Dim(0.35) end)
-    m:SetScript("OnHide", function() Dim(1) end)
-    m:SetScript("OnUpdate", function(self)
-        if IsMouseButtonDown("LeftButton") and not self:IsMouseOver() and not owner:IsMouseOver() then
-            self:Hide()
-        end
-    end)
-    owner:HookScript("OnHide", function() m:Hide() end)
-    m:Hide()
-    return m
-end
-
--- The Filters button's text size, for pages that match it (rail pages).
-function ns.ButtonFontSize()
-    if gfFont then
-        local _, size = gfFont:GetFont()
-        if size then return math.floor(size + 0.5) end
-    end
-    local src = SP and (SP.BackButton or SP.SignUpButton)
-    local fs = src and src.GetFontString and src:GetFontString()
-    local _, size = fs and fs:GetFont()
-    if size then return math.max(8, math.floor(size + 0.5) - 1) end
-    return 12
-end
-
 local function MatchButtonFont(box)
     local src = SP.BackButton or SP.SignUpButton
     local fs = src and src.GetFontString and src:GetFontString()
@@ -3548,24 +3335,12 @@ end
 -- 1's centre and row 2's top below the panel's top, row 2's height (Layout's
 -- square size; the panel's own width while it is not laid out) and row 1's
 -- height.
-function XF.Row2Y() return XF.row2Y or ROW2_Y end
-
-function ns.SetRow2Top(y)
-    if type(y) == "number" then y = math.min(ROW2_Y, math.floor(y * 100 + 0.5) / 100) else y = nil end
-    if XF.row2Y == y then return end
-    XF.row2Y = y
-    if InCombatLockdown() then return end
-    if SP and SP:IsShown() and ns.Search_Layout then ns.Search_Layout() end
-    local page = XF.pageFrame
-    if page and page:IsShown() and page.spec then ns.OpenRailPage(page.spec) end
-end
-
 function ns.Search_Rows()
     local pad = tonumber(Cfg().padding) or 12
     local w = SP and SP:GetWidth()
     if not w or w < 100 then w = 338 end
     local n = (dungeons and #dungeons > 0) and #dungeons or 8
-    return ROW1_Y, XF.Row2Y(), math.max(18, (w - pad * 2 - (n + 1) * SQ_GAP) / (n + 2)), ROW1_H
+    return ROW1_Y, ROW2_Y, math.max(18, (w - pad * 2 - (n + 1) * SQ_GAP) / (n + 2)), ROW1_H
 end
 
 local function Layout()
@@ -3671,8 +3446,8 @@ local function Layout()
 
     -- Row 2: cog | reset | season dungeons (squares in Dungeons only)
     row:ClearAllPoints()
-    row:SetPoint("TOPLEFT", SP, "TOPLEFT", pad, XF.Row2Y())
-    row:SetPoint("TOPRIGHT", SP, "TOPRIGHT", -pad, XF.Row2Y())
+    row:SetPoint("TOPLEFT", SP, "TOPLEFT", pad, ROW2_Y)
+    row:SetPoint("TOPRIGHT", SP, "TOPRIGHT", -pad, ROW2_Y)
     row:SetHeight(size)
     row:Show()
     if filter then
@@ -3727,7 +3502,7 @@ local function Layout()
     -- with one gap between it and the list, and the list ending one gap above
     -- the Back / Sign Up buttons (22 tall, BOTTOM_Y off the bottom).
     local ROW_INSET = 3
-    local top = XF.Row2Y() - lines * size - (lines - 1) * SQ_GAP - SQ_GAP
+    local top = ROW2_Y - lines * size - (lines - 1) * SQ_GAP - SQ_GAP
     local bottom = BOTTOM_Y + 22 + SQ_GAP
     local scroll, bar, inset = SP.ScrollBox, SP.ScrollBar, SP.ResultsInset
     if bar then
@@ -3776,10 +3551,6 @@ function XF.SettingsCog(panel)
         XF.cog = cog
     end
     local pad = tonumber(Cfg().padding) or 12
-    -- On a rail page (Blizzard's screens are faded under it) the cog is the
-    -- page's child; on Blizzard's screens, LFGListFrame's.
-    local parent = (panel == XF.pageFrame) and panel or LFGListFrame
-    if cog:GetParent() ~= parent then cog:SetParent(parent) end
     cog:ClearAllPoints()
     cog:SetPoint("BOTTOMLEFT", panel, "BOTTOMLEFT", pad, BOTTOM_Y)
     cog:SetFrameLevel(panel:GetFrameLevel() + 10)
@@ -3844,162 +3615,6 @@ local function LayoutCategoryButtons()
         rio:SetAlpha(0)
         rio:EnableMouse(false)
     end
-end
-
--------------------------------------------------------------------------------
---  Extra rail pages.
--------------------------------------------------------------------------------
-ns.railPages = {}
-
-function ns.RegisterRailPage(spec)
-    if type(spec) ~= "table" or not spec.key then return end
-    for _, p in ipairs(ns.railPages) do if p.key == spec.key then return end end
-    ns.railPages[#ns.railPages + 1] = spec
-    if ns.Rail_Refresh then ns.Rail_Refresh() end
-end
-
-XF.GROUP_FRAMES = { "LFDParentFrame", "ScenarioFinderFrame", "RaidFinderFrame", "LFGListPVEStub" }
-
-function XF.FadeGroupFrames(a)
-    for _, n in ipairs(XF.GROUP_FRAMES) do
-        local f = _G[n]
-        if type(f) == "table" and f.SetAlpha then f:SetAlpha(a) end
-    end
-end
-
-function XF.PageFrame()
-    local page = XF.pageFrame
-    if page then return page end
-    -- On Blizzard's Premade Groups holder (LFGListPVEStub, where LFGListFrame
-    -- sits once that is shown; after a reload LFGListFrame can still be
-    -- elsewhere until then).
-    local gf = _G.GroupFinderFrame
-    page = CreateFrame("Frame", nil, gf)
-    page:SetAllPoints(_G.LFGListPVEStub or LFGListFrame)
-    page:EnableMouse(true)
-    page:EnableMouseWheel(true)
-    page:SetScript("OnMouseWheel", function() end)
-    page:Hide()
-    page.title = page:CreateFontString(nil, "ARTWORK", "QuestFont_Huge")
-    page.band = CreateFrame("Frame", nil, page)
-    page.row1 = CreateFrame("Frame", nil, page)
-    page.sub = page.band:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
-    page.sub:SetJustifyH("LEFT")
-    page.sub:SetTextColor(1, 1, 1, 0.6)
-    page:SetScript("OnHide", function()
-        page.key = nil
-        if XF.cog and XF.cog:GetParent() == page then XF.cog:SetParent(LFGListFrame) end
-        XF.FadeGroupFrames(1)
-        if ns.Rail_Paint then ns.Rail_Paint() end
-        if ns.ApplyApplications then ns.ApplyApplications() end
-    end)
-    page.bodies = {}
-    XF.pageFrame = page
-    return page
-end
-
--- Whether a page's rail entry shows (its Group Settings switch, on by default).
-function ns.RailPageEnabled(spec)
-    if spec.enabled and not spec.enabled() then return false end
-    if not spec.toggle then return true end
-    return XF.GroupOpt("railPage_" .. spec.key, true)
-end
-
-function XF.RailPageToggled(spec)
-    if not ns.RailPageEnabled(spec) and ns.RailPageOpen() == spec.key then ns.CloseRailPage() end
-    if ns.Rail_Refresh then ns.Rail_Refresh() end
-end
-
--- The settings page's switches for the pages that have one (Options.lua).
-function ns.RailPageToggles()
-    local out = {}
-    for _, spec in ipairs(ns.railPages) do
-        if spec.toggle and not (spec.enabled and not spec.enabled()) then
-            out[#out + 1] = {
-                type = "toggle", text = spec.toggle, tooltip = spec.toggleTip,
-                getValue = function() return ns.RailPageEnabled(spec) end,
-                setValue = function(v)
-                    Cfg()["railPage_" .. spec.key] = v and true or false
-                    XF.RailPageToggled(spec)
-                    if CM.RefreshPage then CM:RefreshPage() end
-                end,
-            }
-        end
-    end
-    return out
-end
-
-function ns.RailPageOpen()
-    local page = XF.pageFrame
-    return page and page:IsShown() and page.key or nil
-end
-
-function ns.CloseRailPage()
-    if XF.pageFrame then XF.pageFrame:Hide() end
-end
-
-function ns.OpenRailPage(spec)
-    local gf = _G.GroupFinderFrame
-    if not (gf and LFGListFrame and (_G.LFGListPVEStub or LFGListFrame)) or InCombatLockdown() then return end
-    local page = XF.PageFrame()
-    local pad = tonumber(Cfg().padding) or 12
-    local _, r2, size = ns.Search_Rows()
-    page:SetFrameLevel((gf:GetFrameLevel() or 0) + 30)
-    -- Title in the place and look of the Premade Groups screen's own.
-    local CS = LFGListFrame.CategorySelection
-    local lab = CS and CS.Label
-    page.title:ClearAllPoints()
-    if type(lab) == "table" and lab.GetFont then
-        local path, fsize, flags = lab:GetFont()
-        if path then page.title:SetFont(path, fsize, flags) end
-        page.title:SetTextColor(lab:GetTextColor())
-        page.title:SetShadowOffset(lab:GetShadowOffset())
-        page.title:SetShadowColor(lab:GetShadowColor())
-        local p, _, rp, x, y = lab:GetPoint(1)
-        if p then page.title:SetPoint(p, page, rp, x, y) end
-    end
-    if not page.title:GetPoint(1) then page.title:SetPoint("TOP", page, "TOP", -3, -35) end
-    page.title:SetText(spec.title or spec.label or "")
-    page.title:SetShown(not spec.noTitle)
-    page.row1:ClearAllPoints()
-    page.row1:SetPoint("TOPLEFT", page, "TOPLEFT", pad, ROW1_Y + ROW1_H / 2)
-    page.row1:SetPoint("TOPRIGHT", page, "TOPRIGHT", -pad, ROW1_Y + ROW1_H / 2)
-    page.row1:SetHeight(ROW1_H)
-    page.band:ClearAllPoints()
-    page.band:SetPoint("TOPLEFT", page, "TOPLEFT", pad, r2)
-    page.band:SetPoint("TOPRIGHT", page, "TOPRIGHT", -pad, r2)
-    page.band:SetHeight(size)
-    page.sub:ClearAllPoints()
-    page.sub:SetPoint("LEFT", page.band, "LEFT", 0, 0)
-    page.sub:SetPoint("RIGHT", page.band, "RIGHT", 0, 0)
-    page.sub:SetText("")
-    -- Body: the search result list's rect (padding lines, one gap under the
-    -- dungeon row, one gap above the bottom row).
-    for k, body in pairs(page.bodies) do body:SetShown(k == spec.key) end
-    local body = page.bodies[spec.key]
-    if not body then
-        body = CreateFrame("Frame", nil, page)
-        page.bodies[spec.key] = body
-        body.pad = pad
-        if spec.build then spec.build(body, page) end
-    end
-    body:ClearAllPoints()
-    body:SetPoint("TOPLEFT", page, "TOPLEFT", pad, r2 - size - SQ_GAP)
-    body:SetPoint("BOTTOMRIGHT", page, "BOTTOMRIGHT", -pad, BOTTOM_Y + 22 + SQ_GAP)
-    body:Show()
-    XF.FadeGroupFrames(0)
-    page.key, page.spec = spec.key, spec
-    page:Show()
-    -- The bottom row as on the other screens: the cog, then two equal slots
-    -- (page.slots = { x of the first, width, y, height }, Back / Sign Up's).
-    XF.SettingsCog(page)
-    local x0 = pad + XF.COG_H + SQ_GAP
-    local pw = page:GetWidth()
-    local w = (type(pw) == "number" and pw > 0) and (pw - pad - x0 - SQ_GAP) / 2 or 140
-    page.slots = { x0, w, BOTTOM_Y, 22, w + SQ_GAP }
-    if spec.show then spec.show(body, page) end
-    if ns.Rail_Paint then ns.Rail_Paint() end
-    if ns.ApplyApplications then ns.ApplyApplications() end
 end
 
 -- A Blizzard dropdown button in our Difficulty button's look: the theme border,
