@@ -3325,6 +3325,10 @@ initFrame:SetScript("OnEvent", function(self)
                     end }
                 if b.type ~= "micromenu" then typeRows[#typeRows + 1] = iconStyleCfg end
             end
+            -- cawfee extras: rows for the blocks it adds (nil without the add-on)
+            if #typeRows == 0 and ns.CawfeeTypeRows and ns.CawfeeTypeRows[b.type] then
+                typeRows = ns.CawfeeTypeRows[b.type](s, Apply)
+            end
             for k = 1, #typeRows, 2 do
                 local rightCfg = typeRows[k + 1]
                 if not rightCfg then rightCfg = { type = "label", text = "" } end
