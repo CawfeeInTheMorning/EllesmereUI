@@ -713,6 +713,12 @@ local function RaidListKeep(resultID, info)
         local c = C_LFGList.GetSearchResultMemberCounts(resultID)
         if type(c) == "table" and not IsSecret(c) then
             local num = XF.Num
+            -- cawfee extras: match any role (nil without the add-on)
+            if ns.CawfeeRolesAny and ns.CawfeeRolesAny() then
+                return (roles.needsTank and (num(c, "TANK_REMAINING") or 1) > 0)
+                    or (roles.needsHealer and (num(c, "HEALER_REMAINING") or 1) > 0)
+                    or (roles.needsDamage and (num(c, "DAMAGER_REMAINING") or 1) > 0) or false
+            end
             if roles.needsTank and (num(c, "TANK_REMAINING") or 1) <= 0 then return false end
             if roles.needsHealer and (num(c, "HEALER_REMAINING") or 1) <= 0 then return false end
             if roles.needsDamage and (num(c, "DAMAGER_REMAINING") or 1) <= 0 then return false end
@@ -792,15 +798,22 @@ function XF.ExtraKeep(id, info, need)
                 if left and left < n then return false end
             end
         end
+        -- cawfee extras: match any role (nil without the add-on)
+        local any = ns.CawfeeRolesAny and ns.CawfeeRolesAny()
+        local anySet, anyHit = false, false
         for _, r in ipairs(XF.COUNT_ROLES) do
             local op, n = XF.CountRule(r.key)
             local have = op and num(counts, r.key)
             if have then
-                if op == "lt" and not (have < n) then return false end
-                if op == "gt" and not (have > n) then return false end
-                if op == "eq" and have ~= n then return false end
+                local ok = (op == "lt" and have < n) or (op == "gt" and have > n) or (op == "eq" and have == n)
+                if any then
+                    anySet, anyHit = true, anyHit or ok
+                elseif not ok then
+                    return false
+                end
             end
         end
+        if anySet and not anyHit then return false end
     end
     if c.hasLust or c.hasBrez then
         local n = info and info.numMembers
@@ -1527,6 +1540,8 @@ local function AddRoleItems(m, y, raids)
         XF.ClassLine("PALADIN", EllesmereUI.L("Intercession (Paladin)")),
         EllesmereUI.L("Engineering and other items don't count.") })
     for _, r in ipairs(XF.COUNT_ROLES) do y = XF.AddCountRow(m, y, r.key, r.label) end
+    -- cawfee extras: match any role row (nil without the add-on)
+    if ns.CawfeeRolesAnyRow then y = XF.AddFlagItem(m, y, "cawfeeRolesAny", ns.CawfeeRolesAnyRow.text, ns.CawfeeRolesAnyRow.tip) end
     return y
 end
 
@@ -1720,6 +1735,7 @@ function XF.AddFlagItem(m, y, key, text, tip)
 end
 
 XF.FLAG_KEYS = { "partyFit", "notDeclined", "hasLust", "hasBrez" }
+XF.FLAG_KEYS[#XF.FLAG_KEYS + 1] = "cawfeeRolesAny"  -- cawfee extras (no item without the add-on)
 function XF.PaintFlagItems(m)
     local c = Cfg()
     for _, key in ipairs(XF.FLAG_KEYS) do
