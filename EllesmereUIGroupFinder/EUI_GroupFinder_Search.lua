@@ -1539,9 +1539,13 @@ local function AddRoleItems(m, y, raids)
         XF.ClassLine("WARLOCK", EllesmereUI.L("Soulstone (Warlock)")),
         XF.ClassLine("PALADIN", EllesmereUI.L("Intercession (Paladin)")),
         EllesmereUI.L("Engineering and other items don't count.") })
+    -- cawfee extras: match any / exactly row above the count rows (nil without the add-on)
+    if ns.CawfeeRoleMatchRow then
+        y = ns.CawfeeRoleMatchRow(m, y, { Cfg = Cfg, Refilter = Refilter, Paint = Paint, Font = XF.Font,
+            ITEM_H = ITEM_H, ITEM_FONT = ITEM_FONT, ThemeBorder = ThemeBorder, ClickOff = XF.ClickOff,
+            Tip = XF.Tip, Untip = XF.Untip, Accent = Accent, parent = SP })
+    end
     for _, r in ipairs(XF.COUNT_ROLES) do y = XF.AddCountRow(m, y, r.key, r.label) end
-    -- cawfee extras: match any role row (nil without the add-on)
-    if ns.CawfeeRolesAnyRow then y = XF.AddFlagItem(m, y, "cawfeeRolesAny", ns.CawfeeRolesAnyRow.text, ns.CawfeeRolesAnyRow.tip) end
     return y
 end
 
@@ -1735,7 +1739,6 @@ function XF.AddFlagItem(m, y, key, text, tip)
 end
 
 XF.FLAG_KEYS = { "partyFit", "notDeclined", "hasLust", "hasBrez" }
-XF.FLAG_KEYS[#XF.FLAG_KEYS + 1] = "cawfeeRolesAny"  -- cawfee extras (no item without the add-on)
 function XF.PaintFlagItems(m)
     local c = Cfg()
     for _, key in ipairs(XF.FLAG_KEYS) do
