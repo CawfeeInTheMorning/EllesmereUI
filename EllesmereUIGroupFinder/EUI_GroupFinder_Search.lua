@@ -1927,6 +1927,8 @@ local function BuildSidePanel(m, raids)
         EllesmereUI.L("Only groups with open slots for your role, or for your whole party's roles."))
     y = XF.AddFlagItem(side, y, "notDeclined", EllesmereUI.L("Not Declined"),
         EllesmereUI.L("Hides groups that have declined you this session."))
+    -- cawfee extras: extra misc rows (nil without the add-on)
+    if ns.CawfeeFilterMisc then y = ns.CawfeeFilterMisc(side, y, XF.AddFlagItem, XF.FLAG_KEYS) end
     if not raids then y = AddRatingRow(side, y) end
     -- Both columns the same height with one border around them.
     local h = math.max(y + 3, m:GetHeight() or 0)
