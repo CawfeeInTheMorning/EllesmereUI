@@ -1530,7 +1530,8 @@ local function AddRoleItems(m, y, raids)
         ITEM_H = ITEM_H, ITEM_FONT = ITEM_FONT, CHECK_SZ = CHECK_SZ, ThemeBorder = ThemeBorder,
         ClickOff = XF.ClickOff, Tip = XF.Tip, Untip = XF.Untip, Accent = Accent, parent = SP,
         MenuItem = MenuItem, ClassLine = XF.ClassLine, FLAG_KEYS = XF.FLAG_KEYS,
-        AddCountRow = XF.AddCountRow, COUNT_ROLES = XF.COUNT_ROLES }
+        AddCountRow = XF.AddCountRow, COUNT_ROLES = XF.COUNT_ROLES,
+        CloseOpList = function() if XF.opList then XF.opList:Hide() end end }
     for _, r in ipairs(ROLES) do
         local key = r.key
         m.items["role_" .. key] = MenuItem(m, y, r.label, function()
