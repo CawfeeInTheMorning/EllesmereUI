@@ -759,6 +759,7 @@ function XF.ExtraFilterActive()
     if not SP or (SP.categoryID ~= DUNGEONS and SP.categoryID ~= RAIDS) then return false end
     local c = Cfg()
     if c.partyFit or c.notDeclined or c.hasLust or c.hasBrez then return true end
+    if ns.CawfeeClassKeep and c.cawfeeMyClass then return true end  -- cawfee extras
     for _, r in ipairs(XF.COUNT_ROLES) do if XF.CountRule(r.key) then return true end end
     return false
 end
@@ -815,7 +816,10 @@ function XF.ExtraKeep(id, info, need)
         end
         if anySet and not anyHit then return false end
     end
-    if c.hasLust or c.hasBrez then
+    -- cawfee extras: has / missing bloodlust, battle res and your class (nil without the add-on)
+    if ns.CawfeeClassKeep then
+        if not ns.CawfeeClassKeep(id, info, c) then return false end
+    elseif c.hasLust or c.hasBrez then
         local n = info and info.numMembers
         if type(n) == "number" and not IsSecret(n) then
             local lust, brez = false, false
@@ -892,14 +896,6 @@ function XF.PassesFilters(id, info)
     if P.raidOn and not RaidListKeep(id, info) then return false end
     if P.extraOn and not XF.ExtraKeep(id, info, P.need) then return false end
     return true
-end
-
--- cawfee extras: read-only filter state for sort-to-top (nil while no filter
--- is set or results are secret; unused without the add-on)
-ns.CawfeeFilterState = function(id)
-    local P = XF.Pass()
-    if P.secret or not P.any then return nil end
-    return XF.PassesFilters(id)
 end
 
 -- Filters changed: re-fade the visible rows, no search.
@@ -1529,6 +1525,11 @@ end
 
 local function AddRoleItems(m, y, raids)
     y = AddSection(m, y, EllesmereUI.L("Roles"))
+    -- cawfee extras: the menu's helpers for the add-on's rows (nil without it)
+    local K = ns.CawfeeRoleMatchRow and { Cfg = Cfg, Refilter = Refilter, Paint = Paint, Font = XF.Font,
+        ITEM_H = ITEM_H, ITEM_FONT = ITEM_FONT, CHECK_SZ = CHECK_SZ, ThemeBorder = ThemeBorder,
+        ClickOff = XF.ClickOff, Tip = XF.Tip, Untip = XF.Untip, Accent = Accent, parent = SP,
+        MenuItem = MenuItem, ClassLine = XF.ClassLine, FLAG_KEYS = XF.FLAG_KEYS }
     for _, r in ipairs(ROLES) do
         local key = r.key
         m.items["role_" .. key] = MenuItem(m, y, r.label, function()
@@ -1546,6 +1547,9 @@ local function AddRoleItems(m, y, raids)
         end)
         y = y + ITEM_H
     end
+    if K and ns.CawfeeClassRows then
+        y = ns.CawfeeClassRows(m, y, K)  -- cawfee extras: has / missing dropdown rows
+    else
     y = XF.AddFlagItem(m, y, "hasLust", EllesmereUI.L("Has Bloodlust"), {
         EllesmereUI.L("A member whose class has one of these spells:"),
         XF.ClassLine("SHAMAN", EllesmereUI.L("Bloodlust / Heroism (Shaman)")),
@@ -1560,12 +1564,9 @@ local function AddRoleItems(m, y, raids)
         XF.ClassLine("WARLOCK", EllesmereUI.L("Soulstone (Warlock)")),
         XF.ClassLine("PALADIN", EllesmereUI.L("Intercession (Paladin)")),
         EllesmereUI.L("Engineering and other items don't count.") })
-    -- cawfee extras: match any / exactly row above the count rows (nil without the add-on)
-    if ns.CawfeeRoleMatchRow then
-        y = ns.CawfeeRoleMatchRow(m, y, { Cfg = Cfg, Refilter = Refilter, Paint = Paint, Font = XF.Font,
-            ITEM_H = ITEM_H, ITEM_FONT = ITEM_FONT, ThemeBorder = ThemeBorder, ClickOff = XF.ClickOff,
-            Tip = XF.Tip, Untip = XF.Untip, Accent = Accent, parent = SP })
     end
+    -- cawfee extras: match any / exactly row above the count rows (nil without the add-on)
+    if K then y = ns.CawfeeRoleMatchRow(m, y, K) end
     for _, r in ipairs(XF.COUNT_ROLES) do y = XF.AddCountRow(m, y, r.key, r.label) end
     return y
 end
@@ -1948,8 +1949,6 @@ local function BuildSidePanel(m, raids)
         EllesmereUI.L("Only groups with open slots for your role, or for your whole party's roles."))
     y = XF.AddFlagItem(side, y, "notDeclined", EllesmereUI.L("Not Declined"),
         EllesmereUI.L("Hides groups that have declined you this session."))
-    -- cawfee extras: extra misc rows (nil without the add-on)
-    if ns.CawfeeFilterMisc then y = ns.CawfeeFilterMisc(side, y, XF.AddFlagItem, XF.FLAG_KEYS) end
     if not raids then y = AddRatingRow(side, y) end
     -- Both columns the same height with one border around them.
     local h = math.max(y + 3, m:GetHeight() or 0)
@@ -2013,6 +2012,7 @@ local function BuildMenu()
     y = AddRoleItems(menu, y, false)
     menu:SetHeight(y + 3)
     BuildSidePanel(menu, false)
+    if ns.CawfeeDecorateMenu then ns.CawfeeDecorateMenu(menu, menu.side) end  -- cawfee extras
     menu:Hide()
 end
 
@@ -2051,6 +2051,7 @@ local function BuildRaidDiffMenu()
     y = AddRoleItems(m, y, true)
     m:SetHeight(y + 3)
     BuildSidePanel(m, true)
+    if ns.CawfeeDecorateMenu then ns.CawfeeDecorateMenu(m, m.side) end  -- cawfee extras
     m:Hide()
 end
 
@@ -2252,7 +2253,7 @@ function XF.BuildGroupMenu()
     if S and S.AddBorder then S.AddBorder(m) else CM.MakeBorder(m, ThemeBorder()) end
     m.items = {}
     local y = 3
-    for _, spec in ipairs(XF.GROUP_MENU) do
+    for _, spec in ipairs(ns.CawfeeGroupMenu and ns.CawfeeGroupMenu(XF.GROUP_MENU) or XF.GROUP_MENU) do  -- cawfee extras
         if spec.title then
             y = AddSection(m, y, spec.title)
         else
@@ -2863,7 +2864,7 @@ local function CogFilterButton(btn)
     d.cogFrame:SetFrameLevel(btn:GetFrameLevel() + 3)
     d.cogFrame:EnableMouse(false)
     d.cog = d.cogFrame:CreateTexture(nil, "OVERLAY")
-    d.cog:SetAtlas(XF.PERSON_ATLAS, false)
+    if ns.CawfeePersonTex then d.cog:SetTexture(ns.CawfeePersonTex) else d.cog:SetAtlas(XF.PERSON_ATLAS, false) end  -- cawfee extras
     d.cog:SetDesaturated(true)
     d.cog:SetVertexColor(XF.GLYPH, XF.GLYPH, XF.GLYPH)
     d.cog:SetPoint("CENTER")
@@ -2925,6 +2926,7 @@ local function CogFilterButton(btn)
         if type(c.raidPlaystyles) == "table" then wipe(c.raidPlaystyles) end
         if type(c.raidRoles) == "table" then wipe(c.raidRoles) end
         c.partyFit, c.notDeclined, c.hasLust, c.hasBrez = nil, nil, nil, nil
+        c.cawfeeMyClass = nil  -- cawfee extras
         if type(c.roleCounts) == "table" then wipe(c.roleCounts) end
         PlaySound(SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON)
         Apply(f)
