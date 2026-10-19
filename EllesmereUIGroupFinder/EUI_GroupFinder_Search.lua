@@ -1949,12 +1949,15 @@ local function BuildSidePanel(m, raids)
     local y = 3
     y = AddRegionItems(side, y)
     y = AddPlaystyleItems(side, y, raids)
+    side.cawfeeMiscY = y  -- cawfee extras: where misc starts (two-column misc)
     y = AddSection(side, y, EllesmereUI.L("Misc"))
+    side.cawfeeMiscRowsY = y  -- cawfee extras
     y = XF.AddFlagItem(side, y, "partyFit", EllesmereUI.L("Party Fit"),
         EllesmereUI.L("Only groups with open slots for your role, or for your whole party's roles."))
     y = XF.AddFlagItem(side, y, "notDeclined", EllesmereUI.L("Not Declined"),
         EllesmereUI.L("Hides groups that have declined you this session."))
     if not raids then y = AddRatingRow(side, y) end
+    side.cawfeeEndY = y  -- cawfee extras
     -- Both columns the same height with one border around them.
     local h = math.max(y + 3, m:GetHeight() or 0)
     side:SetHeight(h)
