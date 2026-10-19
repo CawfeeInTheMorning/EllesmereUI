@@ -1530,8 +1530,7 @@ local function AddRoleItems(m, y, raids)
         ITEM_H = ITEM_H, ITEM_FONT = ITEM_FONT, CHECK_SZ = CHECK_SZ, ThemeBorder = ThemeBorder,
         ClickOff = XF.ClickOff, Tip = XF.Tip, Untip = XF.Untip, Accent = Accent, parent = SP,
         MenuItem = MenuItem, ClassLine = XF.ClassLine, FLAG_KEYS = XF.FLAG_KEYS,
-        AddCountRow = XF.AddCountRow, COUNT_ROLES = XF.COUNT_ROLES,
-        CloseOpList = function() if XF.opList then XF.opList:Hide() end end }
+        AddCountRow = XF.AddCountRow, COUNT_ROLES = XF.COUNT_ROLES }
     for _, r in ipairs(ROLES) do
         local key = r.key
         m.items["role_" .. key] = MenuItem(m, y, r.label, function()
@@ -1568,8 +1567,8 @@ local function AddRoleItems(m, y, raids)
         EllesmereUI.L("Engineering and other items don't count.") })
     end
     -- cawfee extras: match any / exactly row above the count rows (nil without the add-on)
-    if K and ns.CawfeeSpecificRoles then
-        y = ns.CawfeeSpecificRoles(m, y, K)  -- cawfee extras: match row + count rows in a fold-out
+    if K and ns.CawfeeRoleCounts then
+        y = ns.CawfeeRoleCounts(m, y, K)  -- cawfee extras: match row + count rows as one block
     else
         if K then y = ns.CawfeeRoleMatchRow(m, y, K) end
         for _, r in ipairs(XF.COUNT_ROLES) do y = XF.AddCountRow(m, y, r.key, r.label) end
