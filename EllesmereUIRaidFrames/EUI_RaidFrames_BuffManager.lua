@@ -1054,6 +1054,9 @@ function ns.BM_ApplyPreviewIndicators(f, index, s)
     s = f._bmPvS or s
     -- Party preview passes the party proxy as `s`; use the party scale.
     local iscale = ((s == ns._scaledPartyProxy) and ns._partyBmScale or ns._bmScale) or 1
+    -- The frames this preview stands for, which each indicator's Show In is
+    -- tested against as the live frames test it (ns.BM2_SpecIndicators).
+    local pvKind = (f._bmPvS or (s ~= nil and s == ns._scaledPartyProxy)) and "party" or "raid"
 
     -- Hide all first (reset cooldowns so they re-apply fresh)
     for _, fr in ipairs(iconPool) do
@@ -1128,7 +1131,14 @@ function ns.BM_ApplyPreviewIndicators(f, index, s)
         -- Shared per-indicator preview synthesis; idOffset shifts INHERITED
         -- copies into their display id range (BM_INH_OFFSETS) so ids stay
         -- unique for the anchor pass, selection highlight and click-resolve.
-        local function AppendPv(ind, idOffset)
+        -- list = the indicator's own bucket, where its Anchor To root lives.
+        local function AppendPv(ind, idOffset, list)
+            -- Show In: left out where the live frames of this kind leave it out.
+            local showIn = ns.BM2_EffectiveShowIn and ns.BM2_EffectiveShowIn(ind, list)
+            if (showIn == "raid" and pvKind == "party")
+                or (showIn == "party" and pvKind ~= "party") then
+                return
+            end
             local resolved
             if ns.BM2_ResolveSpells then
                 resolved = ns.BM2_ResolveSpells(ind)
@@ -1181,7 +1191,7 @@ function ns.BM_ApplyPreviewIndicators(f, index, s)
         end
         local inds = ns.BM2_SpecInds(activeSpecKey)
         if inds then
-            for i = 1, #inds do AppendPv(inds[i], nil) end
+            for i = 1, #inds do AppendPv(inds[i], nil, inds) end
         end
         -- Concrete views union the inherited group buckets, so the preview
         -- matches what the spec actually renders; per-spec disabled entries
@@ -1197,7 +1207,7 @@ function ns.BM_ApplyPreviewIndicators(f, index, s)
                         local gind = ginds[i]
                         if not (ns.BM2_InhDisabled
                             and ns.BM2_InhDisabled(activeSpecKey, gkey, gind.id)) then
-                            AppendPv(gind, off)
+                            AppendPv(gind, off, ginds)
                         end
                     end
                 end
@@ -2012,13 +2022,14 @@ function ns.BM_BuildSimplePreview(parent, s, fontPath, PP, centerX, topY, opts)
 end
 
 -- Which frames a condition group can apply on: raid (raid, battleground),
--- party (dungeon, arena, solo). Keybind and Dark Mode hold wherever the player
--- is, so a group with either reaches both; neither when it has no condition.
+-- party (dungeon, arena, solo, party). Keybind and Dark Mode hold wherever the
+-- player is, so a group with either reaches both; neither when it has no
+-- condition.
 function ns.BM_CondSides(g)
     local c = g and g.conds or {}
     if c.keybind or c.darkmode then return true, true end
     return (c.raid or c.battleground) and true or false,
-        (c.dungeon or c.arena or c.solo) and true or false
+        (c.dungeon or c.arena or c.solo or c.party) and true or false
 end
 
 -- The preview side an override editing session pins ("raid" | "party"): a
@@ -2148,6 +2159,87 @@ function ns.BM_BuildPreviewStyleToggle(parent)
         end,
     })
     return seg, btnOf
+end
+
+-------------------------------------------------------------------------------
+--  Override list for the manager sidebars (Buff Manager here, Debuff Manager
+--  in EUI_RaidFrames_ManagerPages.lua): tile rows for the override groups that
+--  own a fork, under a PAB-style header. The live fork gets the accent strip
+--  and a gold dot. Tile click = editing-as toggle, pencil = edit the group
+--  (both card parity). kind = "bm" | "dm"; returns the new y cursor.
+-------------------------------------------------------------------------------
+-- Both manager pages list override groups: the overrides core rebuilds them
+-- after a group is renamed, re-specced or deleted. Merged into any existing entry.
+do
+    local reg = EllesmereUI.SpecOverrides_GroupListingPages
+    local pages = reg.EllesmereUIRaidFrames or {}
+    pages["Buff Manager"], pages["Debuff Manager"] = true, true
+    reg.EllesmereUIRaidFrames = pages
+end
+
+function ns.BM_BuildOverrideList(parent, y, width, fontPath, kind)
+    local specGids, condGids = EllesmereUI.SpecOverrides_ManagerForkOwners(kind)
+    if #specGids + #condGids == 0 then return y end
+    -- The fork live on this page (session-applied conditional first).
+    local lockInfo = (kind == "dm") and EllesmereUI.SpecOverrides_DmPageLockInfo
+        or EllesmereUI.SpecOverrides_BmPageLockInfo
+    local liveKind, liveGid = lockInfo()
+    local ovList = {}
+    for i = 1, #specGids do
+        local g = EllesmereUI.SpecOverrides_GroupById(specGids[i])
+        if g then
+            ovList[#ovList + 1] = { kind = "spec", gid = g.id, name = g.name or "?", icon = g.icon,
+                active = liveKind == "spec" and liveGid == g.id }
+        end
+    end
+    for i = 1, #condGids do
+        local g = EllesmereUI.Conditions_GroupById(condGids[i])
+        if g then
+            ovList[#ovList + 1] = { kind = "cond", gid = g.id, name = g.name or "?", icon = g.icon,
+                active = liveKind == "cond" and liveGid == g.id }
+        end
+    end
+    if #ovList == 0 then return y end
+    local PP = EllesmereUI.PanelPP
+
+    -- PAB section header: inset divider, centered caps label.
+    local hdrLine = parent:CreateTexture(nil, "ARTWORK")
+    PP.Height(hdrLine, 1)
+    PP.Point(hdrLine, "TOPLEFT", parent, "TOPLEFT", 8, y)
+    PP.Point(hdrLine, "TOPRIGHT", parent, "TOPLEFT", width - 8, y)
+    hdrLine:SetColorTexture(1, 1, 1, 0.08)
+    local hdr = parent:CreateFontString(nil, "OVERLAY")
+    hdr:SetFont(fontPath, 11, "")
+    PP.Point(hdr, "TOP", parent, "TOPLEFT", floor(width / 2), y - 13)
+    hdr:SetTextColor(0.6, 0.6, 0.6)
+    -- Caps like the PAB headers; string.upper is ASCII-only, so a translation
+    -- with non-ASCII letters keeps its own case instead of mixing.
+    local hdrText = EllesmereUI.L("Overrides")
+    if not hdrText:find("[\128-\255]") then hdrText = string.upper(hdrText) end
+    hdr:SetText(hdrText)
+    y = y - 32
+
+    -- Rows are the shared manager tiles at the Player Aura Bars metrics (58px,
+    -- 14px pencil); the live fork is the selected tile with a gold dot.
+    -- Tile click = editing-as toggle, pencil = edit the group (card parity).
+    local applyIcon = EllesmereUI.SpecOverrides_ApplyGroupIcon
+    local gold = EllesmereUI._SPECOV_GOLD
+    for i = 1, #ovList do
+        local ov = ovList[i]
+        local tileH = EllesmereUI.BuildManagerTile(parent, y, {
+            width = width, fontPath = fontPath, height = 58, textRight = -28,
+            editSize = 14, editSnap = true,
+            title = ov.name,
+            subtitle = EllesmereUI.L(ov.kind == "spec" and "Spec" or "Conditional"),
+            iconApply = function(tex) applyIcon(tex, ov.icon) end,
+            selected = ov.active,
+            statusDot = ov.active and gold or nil,
+            onSelect = function() EllesmereUI.SpecOverrides_ToggleOverrideEdit(ov.kind, ov.gid) end,
+            onEdit = function() EllesmereUI.SpecOverrides_EditOverrideGroup(ov.kind, ov.gid) end,
+        })
+        y = y - tileH
+    end
+    return y - 8
 end
 
 function ns.BM_BuildPage(pageName, parent, yOffset)
@@ -3019,6 +3111,9 @@ function ns.BM_BuildPage(pageName, parent, yOffset)
 
         tileY = tileY - ADD_BTN_PAD - ADD_BTN_H - ADD_BTN_PAD
     end
+
+    -- Override list (shared with the Debuff Manager sidebar).
+    tileY = ns.BM_BuildOverrideList(sidebarFrame, tileY, sidebarW, fontPath, "bm")
 
     -------------------------------------------------------------------
     --  LEFT COLUMN (72%): Fixed top area + scrollable settings below
