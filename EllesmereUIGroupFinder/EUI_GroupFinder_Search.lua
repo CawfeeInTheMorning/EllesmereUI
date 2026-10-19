@@ -894,6 +894,14 @@ function XF.PassesFilters(id, info)
     return true
 end
 
+-- cawfee extras: read-only filter state for sort-to-top (nil while no filter
+-- is set or results are secret; unused without the add-on)
+ns.CawfeeFilterState = function(id)
+    local P = XF.Pass()
+    if P.secret or not P.any then return nil end
+    return XF.PassesFilters(id)
+end
+
 -- Filters changed: re-fade the visible rows, no search.
 function XF.RefilterEntry(entry)
     local id = entry.resultID
