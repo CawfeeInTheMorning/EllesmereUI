@@ -1529,7 +1529,8 @@ local function AddRoleItems(m, y, raids)
     local K = ns.CawfeeRoleMatchRow and { Cfg = Cfg, Refilter = Refilter, Paint = Paint, Font = XF.Font,
         ITEM_H = ITEM_H, ITEM_FONT = ITEM_FONT, CHECK_SZ = CHECK_SZ, ThemeBorder = ThemeBorder,
         ClickOff = XF.ClickOff, Tip = XF.Tip, Untip = XF.Untip, Accent = Accent, parent = SP,
-        MenuItem = MenuItem, ClassLine = XF.ClassLine, FLAG_KEYS = XF.FLAG_KEYS }
+        MenuItem = MenuItem, ClassLine = XF.ClassLine, FLAG_KEYS = XF.FLAG_KEYS,
+        AddCountRow = XF.AddCountRow, COUNT_ROLES = XF.COUNT_ROLES }
     for _, r in ipairs(ROLES) do
         local key = r.key
         m.items["role_" .. key] = MenuItem(m, y, r.label, function()
@@ -1566,8 +1567,12 @@ local function AddRoleItems(m, y, raids)
         EllesmereUI.L("Engineering and other items don't count.") })
     end
     -- cawfee extras: match any / exactly row above the count rows (nil without the add-on)
-    if K then y = ns.CawfeeRoleMatchRow(m, y, K) end
-    for _, r in ipairs(XF.COUNT_ROLES) do y = XF.AddCountRow(m, y, r.key, r.label) end
+    if K and ns.CawfeeSpecificRoles then
+        y = ns.CawfeeSpecificRoles(m, y, K)  -- cawfee extras: match row + count rows in a fold-out
+    else
+        if K then y = ns.CawfeeRoleMatchRow(m, y, K) end
+        for _, r in ipairs(XF.COUNT_ROLES) do y = XF.AddCountRow(m, y, r.key, r.label) end
+    end
     return y
 end
 
@@ -2291,6 +2296,7 @@ local function ToggleMenu()
         raidDiffMenu:ClearAllPoints()
         raidDiffMenu:SetPoint("TOPLEFT", diffBtn, "BOTTOMLEFT", 0, -SQ_GAP)
         raidDiffMenu:SetPoint("TOPRIGHT", refreshBtn or diffBtn, "BOTTOMRIGHT", 0, -SQ_GAP)
+        if ns.CawfeeWidenMenu then ns.CawfeeWidenMenu(raidDiffMenu, diffBtn, SQ_GAP) end  -- cawfee extras
         raidDiffMenu:Show()
         PaintMenu()
         return
@@ -2300,6 +2306,7 @@ local function ToggleMenu()
     menu:ClearAllPoints()
     menu:SetPoint("TOPLEFT", diffBtn, "BOTTOMLEFT", 0, -SQ_GAP)
     menu:SetPoint("TOPRIGHT", refreshBtn or diffBtn, "BOTTOMRIGHT", 0, -SQ_GAP)
+    if ns.CawfeeWidenMenu then ns.CawfeeWidenMenu(menu, diffBtn, SQ_GAP) end  -- cawfee extras
     menu:Show()
     PaintMenu()
 end
