@@ -1527,7 +1527,7 @@ local function AddRoleItems(m, y, raids)
     y = AddSection(m, y, EllesmereUI.L("Roles"))
     -- cawfee extras: the menu's helpers for the add-on's rows (nil without it)
     local K = ns.CawfeeClassRows and { Cfg = Cfg, Refilter = Refilter, Paint = Paint, Font = XF.Font,
-        ITEM_H = ITEM_H, ITEM_FONT = ITEM_FONT, CHECK_SZ = CHECK_SZ, ThemeBorder = ThemeBorder,
+        ITEM_H = ITEM_H, ITEM_FONT = ITEM_FONT, CHECK_SZ = CHECK_SZ, ThemeBorder = ThemeBorder, ThemeFill = ThemeFill,
         ClickOff = XF.ClickOff, Tip = XF.Tip, Untip = XF.Untip, Accent = Accent, parent = SP,
         MenuItem = MenuItem, ClassLine = XF.ClassLine, FLAG_KEYS = XF.FLAG_KEYS,
         AddCountRow = XF.AddCountRow, COUNT_ROLES = XF.COUNT_ROLES,
@@ -1985,7 +1985,9 @@ end
 -- operator list keeps the menu open.
 function XF.FiltersInside(m)
     return m:IsMouseOver() or (diffBtn and diffBtn:IsMouseOver()) or m.side:IsMouseOver()
-        or (XF.opList and XF.opList:IsShown() and XF.opList:IsMouseOver()) or false
+        or (XF.opList and XF.opList:IsShown() and XF.opList:IsMouseOver())
+        or (ns.CawfeeInside and ns.CawfeeInside())  -- cawfee extras: the add-on's dropdowns
+        or false
 end
 
 -- Filters menu, as wide as its button. The border goes around the menu and
