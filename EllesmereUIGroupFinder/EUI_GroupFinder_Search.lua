@@ -2058,6 +2058,8 @@ local function BuildRaidDiffMenu()
         end)
         y = y + ITEM_H
     end
+    -- cawfee extras: a gap for the missing Mythic+ row, so Roles lines up with the dungeon menu
+    if ns.CawfeeClassRows then y = y + math.max(0, #DIFFS - #RAID_DIFFS_MENU) * ITEM_H end
     y = AddRoleItems(m, y, true)
     m:SetHeight(y + 3)
     BuildSidePanel(m, true)
