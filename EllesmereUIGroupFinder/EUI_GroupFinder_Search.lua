@@ -2298,6 +2298,7 @@ function XF.ToggleGroupMenu(owner)
     m.owner = owner
     m:ClearAllPoints()
     m:SetPoint("TOPLEFT", owner, "BOTTOMLEFT", 0, -SQ_GAP)
+    if ns.CawfeeGroupMenuPlace then ns.CawfeeGroupMenuPlace(m, owner, refreshBtn) end  -- cawfee extras
     m:Show()
 end
 
