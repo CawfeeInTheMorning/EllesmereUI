@@ -2263,13 +2263,20 @@ function XF.BuildGroupMenu()
     if S and S.AddBorder then S.AddBorder(m) else CM.MakeBorder(m, ThemeBorder()) end
     m.items = {}
     local y = 3
-    for _, spec in ipairs(ns.CawfeeGroupMenu and ns.CawfeeGroupMenu(XF.GROUP_MENU) or XF.GROUP_MENU) do  -- cawfee extras
+    local list = ns.CawfeeGroupMenu and ns.CawfeeGroupMenu(XF.GROUP_MENU) or XF.GROUP_MENU  -- cawfee extras
+    if ns.CawfeeGroupColumns then
+        -- cawfee extras: the add-on lays the rows out in two columns (nil without it)
+        y = ns.CawfeeGroupColumns(m, list, { AddSection = AddSection, SwitchItem = XF.SwitchItem,
+            StepperItem = XF.StepperItem, ITEM_H = ITEM_H })
+    else
+    for _, spec in ipairs(list) do
         if spec.title then
             y = AddSection(m, y, spec.title)
         else
             m.items[#m.items + 1] = spec.stepper and XF.StepperItem(m, y, spec) or XF.SwitchItem(m, y, spec)
             y = y + ITEM_H
         end
+    end
     end
     m:SetHeight(y + 3)
     m:SetScript("OnShow", function(self)
