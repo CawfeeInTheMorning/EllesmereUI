@@ -713,6 +713,11 @@ local function RaidListKeep(resultID, info)
         local c = C_LFGList.GetSearchResultMemberCounts(resultID)
         if type(c) == "table" and not IsSecret(c) then
             local num = XF.Num
+            if XF.RolesAny() then
+                return (roles.needsTank and (num(c, "TANK_REMAINING") or 1) > 0)
+                    or (roles.needsHealer and (num(c, "HEALER_REMAINING") or 1) > 0)
+                    or (roles.needsDamage and (num(c, "DAMAGER_REMAINING") or 1) > 0) or false
+            end
             if roles.needsTank and (num(c, "TANK_REMAINING") or 1) <= 0 then return false end
             if roles.needsHealer and (num(c, "HEALER_REMAINING") or 1) <= 0 then return false end
             if roles.needsDamage and (num(c, "DAMAGER_REMAINING") or 1) <= 0 then return false end
@@ -752,7 +757,7 @@ end
 function XF.ExtraFilterActive()
     if not SP or (SP.categoryID ~= DUNGEONS and SP.categoryID ~= RAIDS) then return false end
     local c = Cfg()
-    if c.partyFit or c.notDeclined or c.hasLust or c.hasBrez then return true end
+    if c.partyFit or c.notDeclined or c.hasLust or c.hasBrez or c.hasMyClass then return true end
     for _, r in ipairs(XF.COUNT_ROLES) do if XF.CountRule(r.key) then return true end end
     return false
 end
@@ -792,32 +797,23 @@ function XF.ExtraKeep(id, info, need)
                 if left and left < n then return false end
             end
         end
+        -- match any: one passing count row is enough
+        local any, anySet, anyHit = XF.RolesAny(), false, false
         for _, r in ipairs(XF.COUNT_ROLES) do
             local op, n = XF.CountRule(r.key)
             local have = op and num(counts, r.key)
             if have then
-                if op == "lt" and not (have < n) then return false end
-                if op == "gt" and not (have > n) then return false end
-                if op == "eq" and have ~= n then return false end
-            end
-        end
-    end
-    if c.hasLust or c.hasBrez then
-        local n = info and info.numMembers
-        if type(n) == "number" and not IsSecret(n) then
-            local lust, brez = false, false
-            for i = 1, n do
-                local p = C_LFGList.GetSearchResultPlayerInfo(id, i)
-                local cls = p and p.classFilename
-                if cls and not IsSecret(cls) then
-                    if XF.LUST_CLASSES[cls] then lust = true end
-                    if XF.BREZ_CLASSES[cls] then brez = true end
+                local ok = (op == "lt" and have < n) or (op == "gt" and have > n) or (op == "eq" and have == n)
+                if any then
+                    anySet, anyHit = true, anyHit or ok
+                elseif not ok then
+                    return false
                 end
             end
-            if c.hasLust and not lust then return false end
-            if c.hasBrez and not brez then return false end
         end
+        if anySet and not anyHit then return false end
     end
+    if not XF.ClassKeep(id, info, c) then return false end
     return true
 end
 
@@ -1506,6 +1502,441 @@ local function PaintPlaystyleItems(m, raids)
     end
 end
 
+-------------------------------------------------------------------------------
+-- Has / missing rows, Specific Roles, menu icons
+-------------------------------------------------------------------------------
+XF.ARROW_TEX = "Interface\\AddOns\\EllesmereUI\\media\\icons\\eui-arrow.png"
+XF.ROUND_MASK = "Interface\\AddOns\\EllesmereUI\\media\\portraits\\csquare_mask.tga"
+XF.FLAG_DIR = "Interface\\AddOns\\EllesmereUIGroupFinder\\media\\flags\\"
+XF.ROLE_ART = "Interface\\AddOns\\EllesmereUIRaidFrames\\Media\\"
+XF.ROLE_FILE = { needsTank = "tank", needsHealer = "healer", needsDamage = "dps" }
+XF.ROLE_ATLAS = { needsTank = "groupfinder-icon-role-micro-tank", needsHealer = "groupfinder-icon-role-micro-heal",
+    needsDamage = "groupfinder-icon-role-micro-dps" }
+XF.HINT_GREY = 0.35
+XF.DIM_TEXT = "|cff8f8f8f"  -- the dim label colour as a solid grey, for text that also holds a class colour
+XF.filterPops = {}
+
+-- clicks in our lists / pop-up keep the filters menu open
+function XF.InFilterPop()
+    for _, f in ipairs(XF.filterPops) do
+        if f:IsShown() and f:IsMouseOver() then return true end
+    end
+    return false
+end
+
+function XF.Divider(m, y)
+    local div = m:CreateTexture(nil, "ARTWORK")
+    div:SetHeight(CM.PP.mult)
+    div:SetColorTexture(1, 1, 1, 0.10)
+    div:SetPoint("TOPLEFT", m, "TOPLEFT", 10, -y - 3)
+    div:SetPoint("TOPRIGHT", m, "TOPRIGHT", -10, -y - 3)
+    return y + 7
+end
+
+-- icon between a menu row's checkbox and its text
+function XF.MenuIcon(item, tex, w, h, atlas)
+    if not (item and item.label) then return end
+    local _, cb = item.label:GetPoint(1)
+    if not cb then return end
+    local ic = item:CreateTexture(nil, "OVERLAY")
+    if atlas then ic:SetAtlas(atlas) else ic:SetTexture(tex) end
+    ic:SetSize(w, h)
+    ic:SetPoint("LEFT", cb, "RIGHT", 6, 0)
+    item.label:ClearAllPoints()
+    item.label:SetPoint("LEFT", ic, "RIGHT", 5, 0)
+    item.label:SetPoint("RIGHT", item, "RIGHT", -4, 0)
+end
+
+-- raid frames' role art when it's installed, else blizzard's
+function XF.RoleIcon(item, key)
+    local file = XF.ROLE_FILE[key]
+    if not file then return end
+    local CA = C_AddOns
+    if CA and CA.DoesAddOnExist and CA.DoesAddOnExist("EllesmereUIRaidFrames") then
+        XF.MenuIcon(item, XF.ROLE_ART .. file .. ".png", 12, 12)
+    else
+        XF.MenuIcon(item, XF.ROLE_ATLAS[key], 12, 12, true)
+    end
+end
+
+-- label + its grey hint right after it
+function XF.TwoPart(owner)
+    local main = owner:CreateFontString(nil, "OVERLAY")
+    XF.Font(main, ITEM_FONT)
+    main:SetPoint("LEFT", owner, "LEFT", 7, 0)
+    local hint = owner:CreateFontString(nil, "OVERLAY")
+    XF.Font(hint, ITEM_FONT)
+    hint:SetPoint("LEFT", main, "RIGHT", 3, 0)
+    hint:SetTextColor(XF.HINT_GREY, XF.HINT_GREY, XF.HINT_GREY, 1)
+    return main, hint
+end
+
+-- atlas icon with rounded corners after a font string
+function XF.RoundIcon(parent, after)
+    local ic = parent:CreateTexture(nil, "OVERLAY")
+    ic:SetSize(12, 12)
+    ic:SetPoint("LEFT", after, "RIGHT", 4, 0)
+    local mask = parent:CreateMaskTexture()
+    mask:SetTexture(XF.ROUND_MASK, "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
+    mask:SetAllPoints(ic)
+    ic:AddMaskTexture(mask)
+    ic.mask = mask
+    return ic
+end
+
+-- the filters button's look: label, grey hint, icon slot, arrow. made before
+-- the skin so its restrip keeps all of them
+function XF.ArrowButton(owner)
+    local btn = CreateFrame("Button", nil, owner)
+    btn:SetHeight(ITEM_H - 2)
+    btn:SetNormalFontObject("GameFontHighlight")
+    btn:SetText(" ")
+    btn.Arrow = btn:CreateTexture(nil, "OVERLAY")
+    btn.Arrow:SetTexture(XF.ARROW_TEX)
+    btn.Arrow:SetSize(13, 13)
+    btn.Arrow:SetPoint("CENTER", btn, "RIGHT", -10, 0)
+    btn.Label, btn.Hint = XF.TwoPart(btn)
+    btn.Label:SetTextColor(CM.TEXT_DIM_R, CM.TEXT_DIM_G, CM.TEXT_DIM_B, CM.TEXT_DIM_A)
+    btn.Icon = XF.RoundIcon(btn, btn.Label)
+    btn.IconMask = btn.Icon.mask
+    btn.Icon:Hide()
+    local S = Skin()
+    if S and S.Button then
+        S.Button(btn, { "Arrow", "Label", "Hint", "Icon", "IconMask" })
+    else
+        local bg = btn:CreateTexture(nil, "BACKGROUND")
+        bg:SetAllPoints()
+        bg:SetColorTexture(0.06, 0.06, 0.06, 0.95)
+        CM.MakeBorder(btn, ThemeBorder())
+        local hl = btn:CreateTexture(nil, "HIGHLIGHT")
+        hl:SetAllPoints()
+        hl:SetColorTexture(1, 1, 1, 0.1)
+    end
+    return btn
+end
+
+-- under the button, or above it when it would hang off the menu's bottom
+function XF.OpenNear(pop, btn, bounds)
+    pop:ClearAllPoints()
+    local bb, mb = btn:GetBottom(), bounds and bounds:GetBottom()
+    if bb and mb and (bb - 2 - pop:GetHeight()) * btn:GetEffectiveScale() < mb * bounds:GetEffectiveScale() then
+        pop:SetPoint("BOTTOMLEFT", btn, "TOPLEFT", 0, 2)
+        pop:SetPoint("BOTTOMRIGHT", btn, "TOPRIGHT", 0, 2)
+    else
+        pop:SetPoint("TOPLEFT", btn, "BOTTOMLEFT", 0, -2)
+        pop:SetPoint("TOPRIGHT", btn, "BOTTOMRIGHT", 0, -2)
+    end
+    pop:Show()
+end
+
+-- arrow button + its list. modes = { { label, hint, icon, button }, ... }:
+-- icon = an atlas after the label, button = the label shown on the button
+-- (full alpha, so colour codes in it show). Get() = picked index, Set(i)
+function XF.PickButton(owner, modes, Get, Set)
+    local btn = XF.ArrowButton(owner)
+    function btn:ShowMode()
+        local mode = modes[Get()] or modes[1]
+        self.Label:SetText(mode.button or mode.label)
+        if mode.button then self.Label:SetTextColor(1, 1, 1, 1)
+        else self.Label:SetTextColor(CM.TEXT_DIM_R, CM.TEXT_DIM_G, CM.TEXT_DIM_B, CM.TEXT_DIM_A) end
+        self.Hint:SetText(mode.hint or "")
+        if mode.icon then self.Icon:SetAtlas(mode.icon); self.Icon:Show() else self.Icon:Hide() end
+    end
+    btn:ShowMode()
+
+    local list = CreateFrame("Frame", nil, SP)
+    list:SetFrameStrata("FULLSCREEN_DIALOG")
+    list:SetFrameLevel(330)
+    list:SetClampedToScreen(true)
+    list:EnableMouse(true)
+    local lbg = list:CreateTexture(nil, "BACKGROUND")
+    lbg:SetAllPoints()
+    lbg:SetColorTexture(0, 0, 0, 1)
+    CM.MakeBorder(list, ThemeBorder())
+    list.items = {}
+    for i, mode in ipairs(modes) do
+        local it = CreateFrame("Button", nil, list)
+        it:SetHeight(ITEM_H)
+        it:SetPoint("TOPLEFT", list, "TOPLEFT", 1, -(2 + (i - 1) * ITEM_H))
+        it:SetPoint("TOPRIGHT", list, "TOPRIGHT", -1, -(2 + (i - 1) * ITEM_H))
+        it.text, it.hint = XF.TwoPart(it)
+        it.text:SetText(mode.label)
+        it.hint:SetText(mode.hint or "")
+        if mode.icon then XF.RoundIcon(it, it.text):SetAtlas(mode.icon) end
+        local ihl = it:CreateTexture(nil, "HIGHLIGHT")
+        ihl:SetAllPoints()
+        ihl:SetColorTexture(1, 1, 1, CM.DD_ITEM_HL_A or 0.08)
+        it:SetScript("OnClick", function()
+            Set(i)
+            btn:ShowMode()
+            list:Hide()
+            Refilter()
+            Paint()
+        end)
+        list.items[i] = it
+    end
+    list:SetHeight(4 + #modes * ITEM_H)
+    XF.ClickOff(list, function(self) return self:IsMouseOver() or btn:IsMouseOver() end)
+    list:Hide()
+    XF.filterPops[#XF.filterPops + 1] = list
+    btn.list = list
+
+    btn:SetScript("OnClick", function()
+        if list:IsShown() then list:Hide() return end
+        XF.Untip()
+        -- the picked mode in the accent colour
+        local ar, ag, ab = Accent()
+        for i, it in ipairs(list.items) do
+            if i == Get() then it.text:SetTextColor(ar, ag, ab, 1)
+            else it.text:SetTextColor(CM.TEXT_DIM_R, CM.TEXT_DIM_G, CM.TEXT_DIM_B, CM.TEXT_DIM_A) end
+        end
+        list:ClearAllPoints()
+        list:SetPoint("TOPLEFT", btn, "BOTTOMLEFT", 0, -2)
+        list:SetPoint("TOPRIGHT", btn, "BOTTOMRIGHT", 0, -2)
+        list:Show()
+    end)
+    btn:SetScript("OnHide", function() list:Hide() end)
+    btn:SetScript("OnShow", function(self) self:ShowMode() end)
+    btn:SetScript("OnLeave", XF.Untip)
+    return btn
+end
+
+-- has / missing rows: a checkbox turns the check on, the button picks the side
+function XF.MyClass()
+    local name, file = UnitClass("player")
+    return name, file
+end
+
+function XF.PickRows()
+    if XF.pickRows then return XF.pickRows end
+    local name, file = XF.MyClass()
+    local cls = (name and file) and XF.ClassLine(file, name) or name or EllesmereUI.L("Class")
+    XF.pickRows = {
+        { key = "hasLust", pick = "lustMissing", has = EllesmereUI.L("Has Bloodlust"), missing = EllesmereUI.L("Missing Bloodlust"),
+          title = EllesmereUI.L("Bloodlust"), tip = {
+            EllesmereUI.L("A member whose class has one of these spells:"),
+            XF.ClassLine("SHAMAN", EllesmereUI.L("Bloodlust / Heroism (Shaman)")),
+            XF.ClassLine("MAGE", EllesmereUI.L("Time Warp (Mage)")),
+            XF.ClassLine("HUNTER", EllesmereUI.L("Primal Rage (Hunter pet)")),
+            XF.ClassLine("EVOKER", EllesmereUI.L("Fury of the Aspects (Evoker)")),
+            EllesmereUI.L("Drums and other items don't count.") } },
+        { key = "hasBrez", pick = "brezMissing", has = EllesmereUI.L("Has Battle Res"), missing = EllesmereUI.L("Missing Battle Res"),
+          title = EllesmereUI.L("Battle Res"), tip = {
+            EllesmereUI.L("A member whose class has one of these spells:"),
+            XF.ClassLine("DRUID", EllesmereUI.L("Rebirth (Druid)")),
+            XF.ClassLine("DEATHKNIGHT", EllesmereUI.L("Raise Ally (Death Knight)")),
+            XF.ClassLine("WARLOCK", EllesmereUI.L("Soulstone (Warlock)")),
+            XF.ClassLine("PALADIN", EllesmereUI.L("Intercession (Paladin)")),
+            EllesmereUI.L("Engineering and other items don't count.") } },
+        -- your own class, missing by default; the name in its class colour
+        { key = "hasMyClass", pick = "myClassMissing", missingDefault = true, ticks = true,
+          has = EllesmereUI.L("Has %s"):format(cls), missing = EllesmereUI.L("No %s"):format(cls),
+          hasBtn = XF.DIM_TEXT .. EllesmereUI.L("Has") .. "|r " .. cls, missingBtn = XF.DIM_TEXT .. EllesmereUI.L("No") .. "|r " .. cls,
+          icon = file and ("classicon-" .. file:lower()),
+          title = EllesmereUI.L("Your Class"), tip = {
+            ((name and name:match("^[AEIOUaeiou]")) and EllesmereUI.L("A member who's also an %s.") or EllesmereUI.L("A member who's also a %s.")):format(cls) } },
+    }
+    return XF.pickRows
+end
+
+function XF.Missing(c, row)
+    local v = c[row.pick]
+    if v == nil then return row.missingDefault == true end
+    return v == true
+end
+
+function XF.AddPickRow(m, y, row)
+    local item = MenuItem(m, y, "", function()
+        local c = Cfg()
+        c[row.key] = (not c[row.key]) or nil
+        Refilter()
+        Paint()
+    end)
+    item.label:Hide()
+    m.items["flag_" .. row.key] = item
+    local btn = XF.PickButton(item, {
+        { label = row.has, button = row.hasBtn, icon = row.icon },
+        { label = row.missing, button = row.missingBtn, icon = row.icon },
+    }, function() return XF.Missing(Cfg(), row) and 2 or 1 end, function(i)
+        local c = Cfg()
+        c[row.pick] = (i == 2)
+        if row.ticks then c[row.key] = true end
+    end)
+    btn:SetPoint("LEFT", item, "LEFT", 8 + CHECK_SZ + 7, 0)
+    btn:SetPoint("RIGHT", item, "RIGHT", -8, 0)
+    btn:SetScript("OnEnter", function(self)
+        if self.list:IsShown() then return end
+        XF.Tip(self, row.title, unpack(row.tip))
+    end)
+    return y + ITEM_H
+end
+
+-- false = drop the group; members whose class can't be read don't count
+function XF.ClassKeep(id, info, c)
+    if not (c.hasLust or c.hasBrez or c.hasMyClass) then return true end
+    local n = info and info.numMembers
+    if type(n) ~= "number" or IsSecret(n) then return true end
+    local _, mine = XF.MyClass()
+    local have = { hasLust = false, hasBrez = false, hasMyClass = false }
+    for i = 1, n do
+        local p = C_LFGList.GetSearchResultPlayerInfo(id, i)
+        if p and (IsSecret(p) or (canaccesstable and not canaccesstable(p))) then p = nil end
+        local cls = p and p.classFilename
+        if cls and not IsSecret(cls) then
+            if XF.LUST_CLASSES[cls] then have.hasLust = true end
+            if XF.BREZ_CLASSES[cls] then have.hasBrez = true end
+            if cls == mine then have.hasMyClass = true end
+        end
+    end
+    for _, row in ipairs(XF.PickRows()) do
+        if c[row.key] and have[row.key] == XF.Missing(c, row) then return false end
+    end
+    return true
+end
+
+-- the right column's misc: a divider level with the side panel's misc one,
+-- bloodlust / battle res level with its rows, your class on the next one
+-- (centred on min. rating, which is taller). if roles run past misc, they
+-- just stack. returns the column's bottom
+function XF.AddMiscColumn(m, miscY, rowsY, sideEnd)
+    local y = m.rolesEndY or 0
+    local aligned = miscY and rowsY and miscY >= y
+    if aligned then
+        XF.Divider(m, miscY)
+        y = rowsY
+    else
+        y = XF.Divider(m, y)
+    end
+    local rows = XF.PickRows()
+    y = XF.AddPickRow(m, y, rows[1])
+    y = XF.AddPickRow(m, y, rows[2])
+    local nextH = aligned and sideEnd and (sideEnd - y) or 0
+    if nextH > ITEM_H then y = y + math.floor((nextH - ITEM_H) / 2) end
+    return XF.AddPickRow(m, y, rows[3])
+end
+
+-- Specific Roles: match all / any toggles, a divider, the count rows, in a
+-- dropdown under (or over) its button. "(2 active)" while count rows are on
+XF.MATCH = {
+    { any = false, label = EllesmereUI.L("Match All"), hint = EllesmereUI.L("(and)"),
+      tip = EllesmereUI.L("Match all of the selected options below.") },
+    { any = true,  label = EllesmereUI.L("Match Any"), hint = EllesmereUI.L("(or)"),
+      tip = EllesmereUI.L("Match any of the selected options below.") },
+}
+
+function XF.RolesAny() return Cfg().rolesAny == true end
+
+function XF.CountsOn()
+    local n = 0
+    for _, r in ipairs(XF.COUNT_ROLES) do if XF.CountRule(r.key) then n = n + 1 end end
+    return n
+end
+
+function XF.AddSpecificRoles(m, y)
+    local btn = XF.ArrowButton(m)
+    btn:SetPoint("TOPLEFT", m, "TOPLEFT", 9, -y - 1)
+    btn:SetPoint("TOPRIGHT", m, "TOPRIGHT", -9, -y - 1)
+    btn.Label:SetText(EllesmereUI.L("Specific Roles"))
+
+    local pop = CreateFrame("Frame", nil, SP)
+    pop:SetFrameStrata("FULLSCREEN_DIALOG")
+    pop:SetFrameLevel(325)
+    pop:SetClampedToScreen(true)
+    pop:EnableMouse(true)
+    local pbg = pop:CreateTexture(nil, "BACKGROUND")
+    pbg:SetAllPoints()
+    local fr, fg, fb = ThemeFill()
+    pbg:SetColorTexture(fr, fg, fb, 0.98)
+    CM.MakeBorder(pop, ThemeBorder())
+    XF.filterPops[#XF.filterPops + 1] = pop
+
+    -- while open, a veil of the menu's fill fades both columns and eats their clicks
+    local veil = CreateFrame("Button", nil, SP)
+    veil:SetFrameStrata("FULLSCREEN_DIALOG")
+    veil:SetFrameLevel(m:GetFrameLevel() + 8)
+    local vt = veil:CreateTexture(nil, "BACKGROUND")
+    vt:SetAllPoints()
+    vt:SetColorTexture(fr, fg, fb, 0.7)
+    veil:Hide()
+
+    local py, toggles = 2, {}
+    local function PaintMatch()
+        local any = XF.RolesAny()
+        for _, t in ipairs(toggles) do t:SetChecked(t.any == any) end
+    end
+    for _, mode in ipairs(XF.MATCH) do
+        local t = MenuItem(pop, py, mode.label, function()
+            Cfg().rolesAny = mode.any or nil
+            PaintMatch()
+            Refilter()
+            Paint()
+        end)
+        t.any = mode.any
+        local _, cb = t.label:GetPoint(1)
+        t.label:ClearAllPoints()
+        t.label:SetPoint("LEFT", cb, "RIGHT", 7, 0)
+        local hint = t:CreateFontString(nil, "OVERLAY")
+        XF.Font(hint, ITEM_FONT)
+        hint:SetPoint("LEFT", t.label, "RIGHT", 3, 0)
+        hint:SetTextColor(XF.HINT_GREY, XF.HINT_GREY, XF.HINT_GREY, 1)
+        hint:SetText(mode.hint)
+        t:HookScript("OnEnter", function(self) XF.Tip(self, mode.tip) end)
+        t:HookScript("OnLeave", XF.Untip)
+        toggles[#toggles + 1] = t
+        py = py + ITEM_H
+    end
+    py = XF.Divider(pop, py)
+    -- count rows land in m.counts so the menu still paints them
+    m.counts = m.counts or {}
+    pop.counts = m.counts
+    for _, r in ipairs(XF.COUNT_ROLES) do py = XF.AddCountRow(pop, py, r.key, r.label) end
+    pop:SetHeight(py + 2)
+    XF.ClickOff(pop, function(self)
+        return self:IsMouseOver() or btn:IsMouseOver()
+            or (XF.opList and XF.opList:IsShown() and XF.opList:IsMouseOver()) or false
+    end)
+    pop:Hide()
+
+    local function ShowHint()
+        local n = XF.CountsOn()
+        btn.Hint:SetText(n > 0 and EllesmereUI.L("(%d active)"):format(n) or "")
+    end
+    local level = btn:GetFrameLevel()
+    pop:HookScript("OnShow", function()
+        PaintMatch()
+        veil:ClearAllPoints()
+        veil:SetPoint("TOPLEFT", m.side or m, "TOPLEFT", 0, 0)
+        veil:SetPoint("BOTTOMRIGHT", m, "BOTTOMRIGHT", 0, 0)
+        veil:Show()
+        btn:SetFrameLevel(veil:GetFrameLevel() + 1)  -- the button stays lit
+    end)
+    pop:HookScript("OnHide", function()
+        veil:Hide()
+        btn:SetFrameLevel(level)
+        if XF.opList then XF.opList:Hide() end
+        ShowHint()
+    end)
+    btn:SetScript("OnClick", function()
+        if pop:IsShown() then pop:Hide() return end
+        XF.OpenNear(pop, btn, m)
+    end)
+    btn:SetScript("OnShow", ShowHint)
+    btn:SetScript("OnHide", function() pop:Hide() end)
+    ShowHint()
+    return y + ITEM_H
+end
+
+-- the filters menu reaches left to the back button's left edge (side panel
+-- included), so the rows have room
+function XF.WidenMenu(m)
+    local back = SP and SP.BackButton
+    if not (back and back:IsVisible() and back:GetLeft() and diffBtn and diffBtn:GetLeft()) then return end
+    local sideW = m.side and m.side:GetWidth() or 0
+    local dx = (back:GetLeft() * back:GetEffectiveScale() - diffBtn:GetLeft() * diffBtn:GetEffectiveScale())
+        / m:GetEffectiveScale() + sideW
+    if dx < 0 then m:SetPoint("TOPLEFT", diffBtn, "BOTTOMLEFT", dx, -SQ_GAP) end
+end
+
 local function AddRoleItems(m, y, raids)
     y = AddSection(m, y, EllesmereUI.L("Roles"))
     for _, r in ipairs(ROLES) do
@@ -1523,23 +1954,11 @@ local function AddRoleItems(m, y, raids)
                 Apply(f)
             end
         end)
+        XF.RoleIcon(m.items["role_" .. key], key)
         y = y + ITEM_H
     end
-    y = XF.AddFlagItem(m, y, "hasLust", EllesmereUI.L("Has Bloodlust"), {
-        EllesmereUI.L("A member whose class has one of these spells:"),
-        XF.ClassLine("SHAMAN", EllesmereUI.L("Bloodlust / Heroism (Shaman)")),
-        XF.ClassLine("MAGE", EllesmereUI.L("Time Warp (Mage)")),
-        XF.ClassLine("HUNTER", EllesmereUI.L("Primal Rage (Hunter pet)")),
-        XF.ClassLine("EVOKER", EllesmereUI.L("Fury of the Aspects (Evoker)")),
-        EllesmereUI.L("Drums and other items don't count.") })
-    y = XF.AddFlagItem(m, y, "hasBrez", EllesmereUI.L("Has Battle Res"), {
-        EllesmereUI.L("A member whose class has one of these spells:"),
-        XF.ClassLine("DRUID", EllesmereUI.L("Rebirth (Druid)")),
-        XF.ClassLine("DEATHKNIGHT", EllesmereUI.L("Raise Ally (Death Knight)")),
-        XF.ClassLine("WARLOCK", EllesmereUI.L("Soulstone (Warlock)")),
-        XF.ClassLine("PALADIN", EllesmereUI.L("Intercession (Paladin)")),
-        EllesmereUI.L("Engineering and other items don't count.") })
-    for _, r in ipairs(XF.COUNT_ROLES) do y = XF.AddCountRow(m, y, r.key, r.label) end
+    y = XF.AddSpecificRoles(m, y)
+    m.rolesEndY = y
     return y
 end
 
@@ -1732,7 +2151,7 @@ function XF.AddFlagItem(m, y, key, text, tip)
     return y + ITEM_H
 end
 
-XF.FLAG_KEYS = { "partyFit", "notDeclined", "hasLust", "hasBrez" }
+XF.FLAG_KEYS = { "partyFit", "notDeclined", "hasLust", "hasBrez", "hasMyClass" }
 function XF.PaintFlagItems(m)
     local c = Cfg()
     for _, key in ipairs(XF.FLAG_KEYS) do
@@ -1853,6 +2272,7 @@ local function AddRegionItems(m, y)
             Refilter()
             Paint()
         end)
+        XF.MenuIcon(m.items["region_" .. key], XF.FLAG_DIR .. key .. ".png", 15, 10)
         y = y + ITEM_H
     end
     return y
@@ -1916,14 +2336,17 @@ local function BuildSidePanel(m, raids)
     local y = 3
     y = AddRegionItems(side, y)
     y = AddPlaystyleItems(side, y, raids)
+    local miscY = y
     y = AddSection(side, y, EllesmereUI.L("Misc"))
+    local rowsY = y
     y = XF.AddFlagItem(side, y, "partyFit", EllesmereUI.L("Party Fit"),
         EllesmereUI.L("Only groups with open slots for your role, or for your whole party's roles."))
     y = XF.AddFlagItem(side, y, "notDeclined", EllesmereUI.L("Not Declined"),
         EllesmereUI.L("Hides groups that have declined you this session."))
     if not raids then y = AddRatingRow(side, y) end
+    local my = XF.AddMiscColumn(m, miscY, rowsY, y)
     -- Both columns the same height with one border around them.
-    local h = math.max(y + 3, m:GetHeight() or 0)
+    local h = math.max(y + 3, my + 3, m:GetHeight() or 0)
     side:SetHeight(h)
     m:SetHeight(h)
     local edge = CreateFrame("Frame", nil, side)
@@ -1949,7 +2372,7 @@ end
 -- operator list keeps the menu open.
 function XF.FiltersInside(m)
     return m:IsMouseOver() or (diffBtn and diffBtn:IsMouseOver()) or m.side:IsMouseOver()
-        or (XF.opList and XF.opList:IsShown() and XF.opList:IsMouseOver()) or false
+        or (XF.opList and XF.opList:IsShown() and XF.opList:IsMouseOver()) or XF.InFilterPop()
 end
 
 -- Filters menu, as wide as its button. The border goes around the menu and
@@ -2261,6 +2684,7 @@ local function ToggleMenu()
         raidDiffMenu:ClearAllPoints()
         raidDiffMenu:SetPoint("TOPLEFT", diffBtn, "BOTTOMLEFT", 0, -SQ_GAP)
         raidDiffMenu:SetPoint("TOPRIGHT", refreshBtn or diffBtn, "BOTTOMRIGHT", 0, -SQ_GAP)
+        XF.WidenMenu(raidDiffMenu)
         raidDiffMenu:Show()
         PaintMenu()
         return
@@ -2270,6 +2694,7 @@ local function ToggleMenu()
     menu:ClearAllPoints()
     menu:SetPoint("TOPLEFT", diffBtn, "BOTTOMLEFT", 0, -SQ_GAP)
     menu:SetPoint("TOPRIGHT", refreshBtn or diffBtn, "BOTTOMRIGHT", 0, -SQ_GAP)
+    XF.WidenMenu(menu)
     menu:Show()
     PaintMenu()
 end
@@ -2895,7 +3320,7 @@ local function CogFilterButton(btn)
         if type(c.raidDiffs) == "table" then wipe(c.raidDiffs) end
         if type(c.raidPlaystyles) == "table" then wipe(c.raidPlaystyles) end
         if type(c.raidRoles) == "table" then wipe(c.raidRoles) end
-        c.partyFit, c.notDeclined, c.hasLust, c.hasBrez = nil, nil, nil, nil
+        c.partyFit, c.notDeclined, c.hasLust, c.hasBrez, c.hasMyClass = nil, nil, nil, nil, nil
         if type(c.roleCounts) == "table" then wipe(c.roleCounts) end
         PlaySound(SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON)
         Apply(f)
