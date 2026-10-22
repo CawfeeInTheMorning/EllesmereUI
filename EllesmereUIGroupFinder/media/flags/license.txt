@@ -1,0 +1,6 @@
+============================ Region Flags Attribution ============================
+The flag images in this folder are based on the flag emoji artwork from
+Google's Noto Emoji project (https://github.com/googlefonts/noto-emoji),
+used under its open-source license (Apache License 2.0).
+Changes: resized and given rounded corners.
+==================================================================================
