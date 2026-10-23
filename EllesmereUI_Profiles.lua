@@ -947,7 +947,7 @@ local function ResolveSpecProfile()
     local specProfiles = EllesmereUIDB.specProfiles
     if not specProfiles or not next(specProfiles) then return nil end
 
-    local charKey = UnitName("player") .. " - " .. GetRealmName()
+    local charKey = EllesmereUI.CharKey(" - ", EllesmereUIDB.lastSpecByChar)
     if not EllesmereUIDB.lastSpecByChar then
         EllesmereUIDB.lastSpecByChar = {}
     end
@@ -2413,6 +2413,7 @@ local FULL_EXPORT_EXCLUDED = {
     chatTellMuted         = true,
     groupFinderApps       = true,
     questWatchChars       = true,
+    cdmRepopulatePending  = true,
 }
 
 --- Builds a full-account export string, or nil.
@@ -4058,7 +4059,7 @@ do
                         specRetryTimer = nil
                         -- Record the spec so future events use the fast path
                         lastKnownSpecID = sid
-                        local ck = UnitName("player") .. " - " .. GetRealmName()
+                        local ck = EllesmereUI.CharKey(" - ")
                         lastKnownCharKey = ck
                         if not EllesmereUIDB then EllesmereUIDB = {} end
                         if not EllesmereUIDB.lastSpecByChar then
@@ -4110,7 +4111,7 @@ do
             specRetryTimer = nil
         end
 
-        local charKey = UnitName("player") .. " - " .. GetRealmName()
+        local charKey = EllesmereUI.CharKey(" - ")
         local isFirstLogin = (lastKnownSpecID == nil)
         -- charChanged is true when the active character is different from the
         -- last session (alt-swap). On a plain /reload the charKey stays the same.
