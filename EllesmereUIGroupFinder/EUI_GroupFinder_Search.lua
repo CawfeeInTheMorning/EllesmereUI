@@ -3261,7 +3261,7 @@ local function Layout()
         row1End = ns.CawfeeExprButton(SP, refreshBtn, SP.categoryID == DUNGEONS or SP.categoryID == RAIDS,
             { GlyphButton = GlyphButton, ROW1_H = ROW1_H, GAP = SQ_GAP, Refilter = Refilter, Tip = XF.Tip,
               Untip = XF.Untip, ClickOff = XF.ClickOff, Font = XF.Font, ThemeFill = ThemeFill,
-              ThemeBorder = ThemeBorder, Accent = Accent, GLYPH = XF.GLYPH }) or refreshBtn
+              ThemeBorder = ThemeBorder, Accent = Accent, GLYPH = XF.GLYPH, Dim = DimForMenu }) or refreshBtn
     end
     diffBtn:ClearAllPoints()
     diffBtn:SetPoint("RIGHT", row1End, "LEFT", -SQ_GAP, 0)
