@@ -760,6 +760,7 @@ function XF.ExtraFilterActive()
     local c = Cfg()
     if c.partyFit or c.notDeclined or c.hasLust or c.hasBrez then return true end
     if ns.CawfeeClassKeep and c.cawfeeMyClass then return true end  -- cawfee extras
+    if ns.CawfeeExprActive and ns.CawfeeExprActive() then return true end  -- cawfee extras
     for _, r in ipairs(XF.COUNT_ROLES) do if XF.CountRule(r.key) then return true end end
     return false
 end
@@ -816,6 +817,8 @@ function XF.ExtraKeep(id, info, need)
         end
         if anySet and not anyHit then return false end
     end
+    -- cawfee extras: the expressions box (nil without the add-on)
+    if ns.CawfeeExprKeep and not ns.CawfeeExprKeep(id, info) then return false end
     -- cawfee extras: has / missing bloodlust, battle res and your class (nil without the add-on)
     if ns.CawfeeClassKeep then
         if not ns.CawfeeClassKeep(id, info, c) then return false end
@@ -2984,6 +2987,7 @@ local function CogFilterButton(btn)
         if type(c.raidRoles) == "table" then wipe(c.raidRoles) end
         c.partyFit, c.notDeclined, c.hasLust, c.hasBrez = nil, nil, nil, nil
         c.cawfeeMyClass = nil  -- cawfee extras
+        if ns.CawfeeExprReset then ns.CawfeeExprReset() end  -- cawfee extras
         if type(c.roleCounts) == "table" then wipe(c.roleCounts) end
         PlaySound(SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON)
         Apply(f)
@@ -3251,18 +3255,26 @@ local function Layout()
         blzRefresh:SetAllPoints(refreshBtn)
         blzRefresh:SetFrameLevel(refreshBtn:GetFrameLevel() + 4)
     end
+    -- cawfee extras: a button left of refresh (nil without the add-on); row 1 ends at it
+    local row1End = refreshBtn
+    if ns.CawfeeExprButton then
+        row1End = ns.CawfeeExprButton(SP, refreshBtn, SP.categoryID == DUNGEONS or SP.categoryID == RAIDS,
+            { GlyphButton = GlyphButton, ROW1_H = ROW1_H, GAP = SQ_GAP, Refilter = Refilter, Tip = XF.Tip,
+              Untip = XF.Untip, ClickOff = XF.ClickOff, Font = XF.Font, ThemeFill = ThemeFill,
+              ThemeBorder = ThemeBorder, Accent = Accent, GLYPH = XF.GLYPH }) or refreshBtn
+    end
     diffBtn:ClearAllPoints()
-    diffBtn:SetPoint("RIGHT", refreshBtn, "LEFT", -SQ_GAP, 0)
+    diffBtn:SetPoint("RIGHT", row1End, "LEFT", -SQ_GAP, 0)
     diffBtn:SetShown(showDiff)
     if not showDiff or SP.categoryID ~= RAIDS then if raidDiffMenu then raidDiffMenu:Hide() end end
     if SP.categoryID ~= DUNGEONS and menu then menu:Hide() end
     tierBtn:ClearAllPoints()
-    tierBtn:SetPoint("RIGHT", refreshBtn, "LEFT", -SQ_GAP, 0)
+    tierBtn:SetPoint("RIGHT", row1End, "LEFT", -SQ_GAP, 0)
     tierBtn:SetShown(showDelves)
     if box then
         box:ClearAllPoints()
         box:SetPoint("LEFT", SP, "TOPLEFT", pad, ROW1_Y)
-        box:SetPoint("RIGHT", (showDiff and diffBtn) or (showDelves and tierBtn) or refreshBtn, "LEFT", -SQ_GAP, 0)
+        box:SetPoint("RIGHT", (showDiff and diffBtn) or (showDelves and tierBtn) or row1End, "LEFT", -SQ_GAP, 0)
         box:SetHeight(ROW1_H)
         SetBorderColor(box, ThemeBorder())
         -- Shorter prompt (runs after Blizzard sets its own).
@@ -3298,7 +3310,7 @@ local function Layout()
     local lines = LayoutDelves(size, resetBtn or filter, showDelves, math.max(1, n - 1), n)
     -- Raids: map button after the reset, bosses in the grid.
     if showBosses and not raidBtn then
-        raidBtn = GlyphButton(row, BTN, RAID_TEX)
+        raidBtn = GlyphButton(row, BTN, ns.CawfeeRaidTex or RAID_TEX)  -- cawfee extras
         raidBtn:SetScript("OnClick", ToggleRaidMenu)
         raidBtn:SetScript("OnHide", function() if raidMenu then raidMenu:Hide() end end)
         raidBtn:SetScript("OnEnter", function(self)
