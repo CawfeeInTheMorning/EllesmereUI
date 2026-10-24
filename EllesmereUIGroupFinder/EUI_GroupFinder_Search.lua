@@ -1949,6 +1949,7 @@ local function DimForMenu(on)
     if SP.FilterButton then SP.FilterButton:SetAlpha(a) end
     if SP.ScrollBox then SP.ScrollBox:SetAlpha(a) end
     if SP.ScrollBar then SP.ScrollBar:SetAlpha(a) end
+    if ns.CawfeeOnDim then ns.CawfeeOnDim(on) end  -- cawfee extras: row 1 blocked too
 end
 
 local function BuildSidePanel(m, raids)
@@ -3261,7 +3262,9 @@ local function Layout()
         row1End = ns.CawfeeExprButton(SP, refreshBtn, SP.categoryID == DUNGEONS or SP.categoryID == RAIDS,
             { GlyphButton = GlyphButton, ROW1_H = ROW1_H, GAP = SQ_GAP, Refilter = Refilter, Tip = XF.Tip,
               Untip = XF.Untip, ClickOff = XF.ClickOff, Font = XF.Font, ThemeFill = ThemeFill,
-              ThemeBorder = ThemeBorder, Accent = Accent, GLYPH = XF.GLYPH, Dim = DimForMenu }) or refreshBtn
+              ThemeBorder = ThemeBorder, Accent = Accent, GLYPH = XF.GLYPH, Dim = DimForMenu,
+              Filters = diffBtn, DIM_ALPHA = XF.DIM_ALPHA,
+              FiltersOpen = function() return (menu and menu:IsShown()) or (raidDiffMenu and raidDiffMenu:IsShown()) or false end }) or refreshBtn
     end
     diffBtn:ClearAllPoints()
     diffBtn:SetPoint("RIGHT", row1End, "LEFT", -SQ_GAP, 0)
