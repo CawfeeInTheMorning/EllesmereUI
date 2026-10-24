@@ -2606,6 +2606,11 @@ local function LayoutBosses(size, after, show, cols, slots)
     for _, b in ipairs(bosses or {}) do
         if RaidShown(b.raid) then list[#list + 1] = b end
     end
+    -- cawfee extras: one scrolling line instead of a grid (nil without the add-on)
+    if ns.CawfeeBossStrip then
+        return ns.CawfeeBossStrip(list, bossSquares, function() return MakeBossSquare(row) end,
+            size, after, show, cols, slots, row, SQ_GAP, function() Paint() end)
+    end
     for i = 1, math.max(#list, #bossSquares) do
         local d = list[i]
         local sq = bossSquares[i]
