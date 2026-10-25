@@ -137,6 +137,31 @@ local AnySecret -- further down too
 local refreshQueued = false
 local signBtn
 
+-- the application's status, except a group that delisted while you'd applied
+-- and has listed again: that one counts as fresh ("none"), so it can be
+-- picked and signed up to again. returns status, pending
+local function AppStatus(id)
+    local _, status, pending = C_LFGList.GetApplicationInfo(id)
+    if Secret(status) or Secret(pending) then return nil, nil end
+    if status == "declined_delisted" then
+        local info = C_LFGList.GetSearchResultInfo(id)
+        local delisted = Readable(info) and info.isDelisted
+        if delisted == false then status = "none" end
+    end
+    return status, pending
+end
+
+-- blizzard's row check (LFGListSearchPanelUtil_CanSelectResult), with the
+-- relisted case above
+local function Selectable(id)
+    local status, pending = AppStatus(id)
+    if status ~= "none" or pending then return false end
+    local info = C_LFGList.GetSearchResultInfo(id)
+    if not Readable(info) then return false end
+    local delisted = info.isDelisted
+    return not Secret(delisted) and not delisted
+end
+
 -- whether the selected group can be signed up to: blizzard's sign up
 -- button's own checks, read-only. returns ok, the reason when not
 local function SignUpState(id)
@@ -158,8 +183,7 @@ local function SignUpState(id)
     if not (t or h or d) then return false, LFG_LIST_MUST_CHOOSE_SPEC end
     if GroupHasOfflineMember and GroupHasOfflineMember(LE_PARTY_CATEGORY_HOME) then return false, LFG_LIST_OFFLINE_MEMBER end
     if not id then return false, LFG_LIST_SELECT_A_SEARCH_RESULT end
-    local _, status = C_LFGList.GetApplicationInfo(id)
-    if Secret(status) or (status and status ~= "none") then return false end
+    if not Selectable(id) then return false end
     return true
 end
 
@@ -466,7 +490,7 @@ local function MakeRow(i)
         -- at the application limit: cancel the oldest (group settings)
         if ns.LabCancelOldest then ns.LabCancelOldest(id) end
         -- the checks blizzard's own row click makes, read-only
-        if not LFGListSearchPanelUtil_CanSelectResult(id) then return end
+        if not Selectable(id) then return end
         if selected ~= id then
             PlaySound(SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON)
             selected = id
@@ -643,8 +667,8 @@ local function Fill(r, id)
     else
         r.score:SetText("")
     end
-    local _, appStatus = C_LFGList.GetApplicationInfo(id)
-    local st = not Secret(appStatus) and STATUS[appStatus]
+    local appStatus = AppStatus(id)
+    local st = appStatus and STATUS[appStatus]
     local delisted = info.isDelisted
     if not Secret(delisted) and delisted then st = STATUS.declined_delisted end  -- secret check first
     if st then
