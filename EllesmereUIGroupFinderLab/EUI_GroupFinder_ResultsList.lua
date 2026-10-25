@@ -216,7 +216,7 @@ local function MakeRow(i)
         -- the leader's crown above their icon (group settings: show group leader)
         local c = r:CreateTexture(nil, "OVERLAY")
         c:SetAtlas("groupfinder-icon-leader")
-        c:SetPoint("BOTTOM", t, "TOP", 0, -1)
+        c:SetPoint("BOTTOM", t, "TOP", 0, 2)
         c:Hide()
         r.crowns[k] = c
     end
@@ -266,10 +266,10 @@ local function SetSize(fs, size)
 end
 
 local function IconSize(h)
-    -- 14px at 100%, every 5% step of role icon size a whole pixel
+    -- 16px at 100%, every 5% step of role icon size a whole pixel
     local c = GFNS.Cfg and GFNS.Cfg()
     local pct = tonumber(c and c.iconSize) or (GFNS.DEFAULTS and GFNS.DEFAULTS.iconSize) or 125
-    return math.max(8, math.min(h - 4, 14 + math.floor((pct - 100) / 5 + 0.5)))
+    return math.max(8, math.min(h - 4, 16 + math.floor((pct - 100) / 5 + 0.5)))
 end
 
 local function Layout(r, h)

@@ -16,7 +16,7 @@ initFrame:RegisterEvent("PLAYER_LOGIN")
 initFrame:SetScript("OnEvent", function(self)
     self:UnregisterEvent("PLAYER_LOGIN")
 
-    local AddAppsSections
+    local AddAppsSections, AddListSections
 
     -----------------------------------------------------------------------
     -- Applications settings (greyed while the module is off)
@@ -88,7 +88,7 @@ initFrame:SetScript("OnEvent", function(self)
     end
 
     -- the lab's results list and its icons
-    local function AddListSections(parent, y)
+    function AddListSections(parent, y)
         local W = EUI.Widgets
         local _, h
         _, h = W:SectionHeader(parent, "RESULTS LIST", y); y = y - h
