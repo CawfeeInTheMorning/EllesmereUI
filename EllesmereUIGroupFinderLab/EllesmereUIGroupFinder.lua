@@ -104,7 +104,15 @@ function ns.ResetSettings()
 end
 
 function GF:OnInitialize()
-    db = EllesmereUI.Lite.NewDB("EllesmereUIGroupFinderDB", { profile = { search = DEFAULTS, apps = APPS_DEFAULTS } })
+    -- lab: its own settings slot, seeded once per profile from the live module's
+    local profiles = EllesmereUIDB and EllesmereUIDB.profiles
+    local prof = profiles and profiles[EllesmereUIDB.activeProfile or "Default"]
+    local addons = type(prof) == "table" and prof.addons
+    if type(addons) == "table" and addons.EllesmereUIGroupFinderLab == nil
+       and type(addons.EllesmereUIGroupFinder) == "table" then
+        addons.EllesmereUIGroupFinderLab = CopyTable(addons.EllesmereUIGroupFinder)
+    end
+    db = EllesmereUI.Lite.NewDB("EllesmereUIGroupFinderLabDB", { profile = { search = DEFAULTS, apps = APPS_DEFAULTS } })
 end
 
 function GF:OnEnable()

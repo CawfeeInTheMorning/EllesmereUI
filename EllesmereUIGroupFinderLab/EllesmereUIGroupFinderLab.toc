@@ -3,11 +3,11 @@
 ## Title: |cff0cd29fEllesmereUI|r Group Finder |cffff9900Lab|r
 ## Category: |cff0cd29fEllesmere|rUI
 ## Group: EllesmereUI
-## Notes: Test build of the Group Finder with our changes. Enable this OR the live Group Finder, not both. Keeps its own copy of the module's settings.
+## Notes: Test build of the Group Finder with our changes. Enable this OR the live Group Finder, not both. Keeps its own copy of the module's settings (copied from the live one the first time).
 ## Author: Ellesmere, MorningCawfee
 ## Version: 9.6.6-lab
 ## Dependencies: EllesmereUI
-## SavedVariables: EllesmereUIGroupFinderDB
+## SavedVariables: EllesmereUIGroupFinderLabDB
 ## IconTexture: Interface\AddOns\EllesmereUI\media\eg-logo.tga
 
 # Runtime, then the lab's own settings section (EUI_GroupFinder_LabOptions.lua,
