@@ -34,7 +34,7 @@ local function DB()
     end
     return t
 end
-function ns.OwnListOn() return DB().enabled == true end
+function ns.OwnListOn() return true end  -- the lab add-on itself is the switch
 function ns.OwnListRowHeight() return tonumber(DB().rowHeight) or 50 end
 function ns.OwnListOpt(k) return DB()[k] ~= false end  -- playstyle, regionTags (nil = on)
 -- text sizes: title, dungeon / raid name, the playstyle / region line
@@ -228,9 +228,10 @@ local function SetSize(fs, size)
 end
 
 local function IconSize(h)
+    -- 20px at 100%: every 5% step of role icon size is a whole pixel
     local c = GFNS.Cfg and GFNS.Cfg()
     local pct = tonumber(c and c.iconSize) or (GFNS.DEFAULTS and GFNS.DEFAULTS.iconSize) or 125
-    return math.max(8, math.min(h - 4, math.floor(16 * pct / 100 + 0.5)))
+    return math.max(8, math.min(h - 4, math.floor(20 * pct / 100 + 0.5)))
 end
 
 local function Layout(r, h)
@@ -293,7 +294,8 @@ local function LineThree(r, id, info)
     if (r.lines or 0) < 3 then return end
     local style = ""
     local ps = info.generalPlaystyle
-    if ns.OwnListOpt("playstyle") and type(ps) == "number" and not Secret(ps) then
+    local gc = GFNS.Cfg and GFNS.Cfg()
+    if not (gc and gc.cawfeeShowPlaystyle == false) and type(ps) == "number" and not Secret(ps) then
         style = _G["GROUP_FINDER_GENERAL_PLAYSTYLE" .. ps] or ""
     end
     local tag, tr, tg, tb, flag
@@ -432,7 +434,11 @@ local function Fill(r, id)
         elseif k <= cap then
             local need = needs[nextNeed]
             nextNeed = nextNeed + 1
-            if need then
+            local needTex = need and ns.RoleIconTex and ns.RoleIconTex(need)
+            if needTex then
+                t:SetTexture(needTex)
+                t:SetAlpha(0.6)
+            elseif need then
                 t:SetAtlas(NEED_ATLAS[need])
                 t:SetAlpha(0.6)
             else

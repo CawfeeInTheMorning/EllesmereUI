@@ -1,10 +1,9 @@
 if EUI_CLIENT_BLOCKED then return end -- pre-12.1 client failsafe (EllesmereUI_ClientGate.lua)
 -------------------------------------------------------------------------------
---  EUI_GroupFinder_Extras.lua  -  EllesmereUI Group Finder
---  M+ applications bar on the Premade Groups Filters row (no title), instead
---  of the shipped spot under it. Drives the inert hook in Place() of
---  EUI_GroupFinder_Applications.lua on local/cawfee. Saved account-wide as
---  EllesmereUIDB.cawfeeAppsBarOnRow (nil = on).
+--  EUI_GroupFinder_Extras.lua  -  EllesmereUI Group Finder Lab
+--  the lab's extra filters and display pieces: has / missing rows, specific
+--  roles, menu icons, two-column group settings, region tags, row art, the
+--  raid boss strip, the person / raid icons.
 -------------------------------------------------------------------------------
 local FOLDER, ns = ...
 if EllesmereUI.HELD_BACK_ADDONS[FOLDER] then return end -- held back (EllesmereUIGroupFinder.lua)
@@ -38,18 +37,6 @@ function ns.WhenGroupFinder(fn)
     end)
 end
 local GFNS = ns
-
-function ns.AppsBarOnRow()
-    return not (EllesmereUIDB and EllesmereUIDB.cawfeeAppsBarOnRow == false)
-end
-
-function ns.SetAppsBarOnRow(v)
-    if not EllesmereUIDB then EllesmereUIDB = {} end
-    EllesmereUIDB.cawfeeAppsBarOnRow = v and true or false
-    if GFNS.ApplyApplications then GFNS.ApplyApplications() end
-end
-
-GFNS.CawfeeAppsBarOnRow = ns.AppsBarOnRow
 
 -- filters menu > specific roles: two toggles picking how the role checks
 -- combine. "match all (and)" = every check (ellesmere's default),
@@ -960,14 +947,16 @@ GFNS.CawfeeGroupMenu = function(list)
             end
         end
         listingEnd = listingEnd or #list + 1
-        -- bottom of listing: compact mode, region tags (us only)
-        local listing = {
-        }
+        -- bottom of listing: region tags (us only), show playstyle
+        local listing = {}
         if GetCurrentRegion and GetCurrentRegion() == 1 then
             listing[#listing + 1] = { key = "cawfeeRegionTags", label = "Region Tags",
                 tip = "Shows OCE, NA, MEX or BRA after each group's playstyle, from the leader's realm.",
                 onToggle = RetagRows }
         end
+        listing[#listing + 1] = { key = "cawfeeShowPlaystyle", label = "Show Playstyle", default = true,
+            tip = "Each group's playstyle (Learning, Relaxed, Competitive, Carry Offered) on its third line.",
+            onToggle = RetagRows }
         local rowArt = { key = "cawfeeRowArt", label = "Row Art", onToggle = RetagRows,
             tip = "The instance's art across the left half of each group, fading out to the right." }
         for i, spec in ipairs(list) do
@@ -1046,6 +1035,12 @@ end
 --  text. hook after BuildSidePanel in EUI_GroupFinder_Search.lua.
 -------------------------------------------------------------------------------
 local ROLE_DIR = "Interface\\AddOns\\EllesmereUIRaidFrames\\media\\"
+-- the same role art for the results list's open slots (show missing roles)
+local ROLE_FILE = { TANK = "tank.png", HEALER = "healer.png", DAMAGER = "dps.png" }
+function ns.RoleIconTex(role)
+    local f = ROLE_FILE[role]
+    return f and (ROLE_DIR .. f)
+end
 local ICONS = {
     role_needsTank   = { ROLE_DIR .. "tank.png",   12, 12 },
     role_needsHealer = { ROLE_DIR .. "healer.png", 12, 12 },
