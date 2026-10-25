@@ -2415,7 +2415,7 @@ local function ToggleMenu()
         raidDiffMenu:ClearAllPoints()
         raidDiffMenu:SetPoint("TOPLEFT", diffBtn, "BOTTOMLEFT", 0, -SQ_GAP)
         raidDiffMenu:SetPoint("TOPRIGHT", refreshBtn or diffBtn, "BOTTOMRIGHT", 0, -SQ_GAP)
-        if ns.CawfeeWidenMenu then ns.CawfeeWidenMenu(raidDiffMenu, diffBtn, SQ_GAP) end  -- cawfee extras
+        if ns.CawfeeWidenMenu then ns.CawfeeWidenMenu(raidDiffMenu, diffBtn, SQ_GAP, refreshBtn or diffBtn) end  -- cawfee extras
         raidDiffMenu:Show()
         PaintMenu()
         return
@@ -2425,7 +2425,7 @@ local function ToggleMenu()
     menu:ClearAllPoints()
     menu:SetPoint("TOPLEFT", diffBtn, "BOTTOMLEFT", 0, -SQ_GAP)
     menu:SetPoint("TOPRIGHT", refreshBtn or diffBtn, "BOTTOMRIGHT", 0, -SQ_GAP)
-    if ns.CawfeeWidenMenu then ns.CawfeeWidenMenu(menu, diffBtn, SQ_GAP) end  -- cawfee extras
+    if ns.CawfeeWidenMenu then ns.CawfeeWidenMenu(menu, diffBtn, SQ_GAP, refreshBtn or diffBtn) end  -- cawfee extras
     menu:Show()
     PaintMenu()
 end

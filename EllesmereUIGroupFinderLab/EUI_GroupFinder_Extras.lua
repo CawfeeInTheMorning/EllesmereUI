@@ -495,10 +495,16 @@ end)
 
 -- filters menu (side panel included) spans the search box's left edge to
 -- refresh, the same width as the expressions menu
-GFNS.CawfeeWidenMenu = function(m, anchor, gap)
+GFNS.CawfeeWidenMenu = function(m, anchor, gap, right)
     local sp = LFGListFrame and LFGListFrame.SearchPanel
     local left = sp and (sp.SearchBox or sp.BackButton)
     if not (left and left:IsVisible() and left:GetLeft() and anchor:GetLeft()) then return end
+    -- side panel and menu split the width evenly
+    if m.side and right and right:GetRight() then
+        local total = (right:GetRight() * right:GetEffectiveScale() - left:GetLeft() * left:GetEffectiveScale())
+            / m:GetEffectiveScale()
+        if total > 100 then m.side:SetWidth(math.floor(total / 2 + 0.5)) end
+    end
     local sideW = m.side and m.side:GetWidth() or 0
     local dx = (left:GetLeft() * left:GetEffectiveScale() - anchor:GetLeft() * anchor:GetEffectiveScale())
         / m:GetEffectiveScale() + sideW
@@ -990,6 +996,8 @@ ns.SORT_MODES = {
     { key = "default", label = "Default" },
     { key = "high",    label = "Highest Score" },
     { key = "low",     label = "Lowest Score" },
+    { key = "big",     label = "Largest Group" },
+    { key = "small",   label = "Smallest Group" },
 }
 
 -- a menu row: its label, then a dropdown of spec.choice
