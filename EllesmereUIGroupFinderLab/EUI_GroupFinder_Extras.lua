@@ -983,46 +983,58 @@ GFNS.CawfeeGroupMenu = function(list)
     return groupMenu
 end
 
--- group settings in two columns: listing on the left, sign up and display
--- (from the second title on) on the right. built through the
--- hook in XF.BuildGroupMenu; returns the taller column's height. the width
--- is set each time it opens (CawfeeGroupMenuPlace).
+-- group settings in two columns: listing split across both, then sign up
+-- under it on the left and display (any later sections too) on the right.
+-- built through the hook in XF.BuildGroupMenu; returns the taller column's
+-- height. the width is set each time it opens (CawfeeGroupMenuPlace).
 local GROUP_COL_W = 200
 GFNS.CawfeeGroupColumns = function(m, list, G)
     m:SetWidth(GROUP_COL_W * 2)
-    local split
-    for i, spec in ipairs(list) do
-        if i > 1 and spec.title and not split then split = i end
+    -- sections: { title, items }
+    local sections = {}
+    for _, spec in ipairs(list) do
+        if spec.title or #sections == 0 then sections[#sections + 1] = { title = spec.title, items = {} } end
+        if not spec.title then table.insert(sections[#sections].items, spec) end
     end
-    split = split or #list + 1
     m.cawfeeCols = {}
-    local function Column(point, from, to)
+    local cols, ys = {}, {}
+    for k, point in ipairs({ "TOPLEFT", "TOP" }) do
         local col = CreateFrame("Frame", nil, m)
         col:SetPoint("TOPLEFT", m, point, 0, 0)  -- left edge, or the middle
         col:SetWidth(GROUP_COL_W)
-        m.cawfeeCols[#m.cawfeeCols + 1] = col
         col:SetHeight(1)
-        local y = 3
-        for i = from, to do
-            local spec = list[i]
-            if spec.title then
-                y = G.AddSection(col, y, spec.title)
-            else
-                m.items[#m.items + 1] = spec.stepper and G.StepperItem(col, y, spec) or G.SwitchItem(col, y, spec)
-                y = y + G.ITEM_H
-            end
-        end
-        return y
+        m.cawfeeCols[k] = col
+        cols[k], ys[k] = col, 3
     end
-    local yL = Column("TOPLEFT", 1, split - 1)
-    local yR = Column("TOP", split, #list)
+    local function Item(k, spec)
+        m.items[#m.items + 1] = spec.stepper and G.StepperItem(cols[k], ys[k], spec) or G.SwitchItem(cols[k], ys[k], spec)
+        ys[k] = ys[k] + G.ITEM_H
+    end
+    local function Section(k, sec)
+        if sec.title then ys[k] = G.AddSection(cols[k], ys[k], sec.title) end
+        for _, spec in ipairs(sec.items) do Item(k, spec) end
+    end
+    -- listing: title on the left, its rows split down both columns
+    local first = sections[1]
+    if first then
+        if first.title then
+            ys[1] = G.AddSection(cols[1], ys[1], first.title)
+            ys[2] = ys[1]
+        end
+        local half = math.ceil(#first.items / 2)
+        for i, spec in ipairs(first.items) do Item(i <= half and 1 or 2, spec) end
+        local y = math.max(ys[1], ys[2])
+        ys[1], ys[2] = y, y
+    end
+    if sections[2] then Section(1, sections[2]) end
+    for i = 3, #sections do Section(2, sections[i]) end
     -- thin line between the columns
     local div = m:CreateTexture(nil, "ARTWORK")
     div:SetWidth(CM.PP.mult)
     div:SetColorTexture(1, 1, 1, 0.10)
     div:SetPoint("TOP", m, "TOP", 0, -6)
     div:SetPoint("BOTTOM", m, "BOTTOM", 0, 6)
-    return math.max(yL, yR)
+    return math.max(ys[1], ys[2])
 end
 
 -- as wide as the top row: from the menu's left edge (the person button,
