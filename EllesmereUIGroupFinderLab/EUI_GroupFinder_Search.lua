@@ -3423,7 +3423,7 @@ function XF.SettingsCog(panel)
                 CM.PrintError(EllesmereUI.L("Cannot open options during combat."))
                 return
             end
-            CM:ShowModule(ADDON_NAME)
+            if CM.OpenPlugin then CM.OpenPlugin(FOLDER) else CM:ShowModule(ADDON_NAME) end  -- lab: its own page
         end)
         XF.cog = cog
     end

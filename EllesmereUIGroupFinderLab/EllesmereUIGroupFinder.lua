@@ -14,9 +14,8 @@ if C_AddOns.IsAddOnLoaded("EllesmereUIGroupFinder") then
     print("|cff0cd29fEllesmereUI|r Group Finder Lab is off: the live Group Finder is enabled too. Turn one of them off.")
 end
 if EllesmereUI.HELD_BACK_ADDONS[ADDON_NAME] then return end
--- lab: it stands in for the live module, under the live module's name
--- (options page, fonts, quick signup); its media comes from its own folder
-ADDON_NAME = "EllesmereUIGroupFinder"
+-- lab: registered under its own name, so the live module's settings page
+-- never picks it up; its own page comes from EUI_GroupFinder_LabOptions.lua
 EllesmereUI._ModuleNS[ADDON_NAME] = ns  -- options file grabs the ns from here
 
 local GF = EllesmereUI.Lite.NewAddon(ADDON_NAME)

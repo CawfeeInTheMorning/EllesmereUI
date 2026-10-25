@@ -10,12 +10,12 @@
 ## SavedVariables: EllesmereUIGroupFinderDB
 ## IconTexture: Interface\AddOns\EllesmereUI\media\eg-logo.tga
 
-# Runtime. The settings page lives in the LoadOnDemand EllesmereUIOptions addon
-# (EUI_GroupFinder_Options.lua), like every other module; the lab registers
-# under the live module's name, so that page drives it.
+# Runtime, then the lab's own settings section (EUI_GroupFinder_LabOptions.lua,
+# a plugin page: "Group Finder Lab" in the sidebar).
 EllesmereUIGroupFinder.lua
 EUI_GroupFinder_Search.lua
 EUI_GroupFinder_Applications.lua
 EUI_GroupFinder_Extras.lua
 EUI_GroupFinder_Expressions.lua
 EUI_GroupFinder_ResultsList.lua
+EUI_GroupFinder_LabOptions.lua
