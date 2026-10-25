@@ -3357,6 +3357,8 @@ local function Layout()
         scroll:ClearAllPoints()
         scroll:SetPoint("TOPLEFT", SP, "TOPLEFT", pad - ROW_INSET, top)
         scroll:SetPoint("BOTTOMRIGHT", SP, "BOTTOMRIGHT", -pad + ROW_INSET, bottom)
+        -- cawfee extras: re-anchors a scaled list (nil without the add-on)
+        if ns.CawfeeListPoints then ns.CawfeeListPoints(SP, scroll, pad - ROW_INSET, top, -pad + ROW_INSET, bottom) end
     end
     if inset then
         inset:ClearAllPoints()
