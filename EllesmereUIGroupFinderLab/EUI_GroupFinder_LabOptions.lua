@@ -10,6 +10,7 @@ local EUI = EllesmereUI
 if not EUI.RegisterPlugin then return end
 
 local PAGE_SEARCH = "Premade Search"
+local PAGE_APPS = "Applications"
 
 local initFrame = CreateFrame("Frame")
 initFrame:RegisterEvent("PLAYER_LOGIN")
@@ -80,8 +81,20 @@ initFrame:SetScript("OnEvent", function(self)
         -- list look, sign-up options and icon size live in the group settings
         -- menu on the panel; the lab's list and its icons here
         y = AddListSections(parent, y)
-        y = AddAppsSections(parent, y)
 
+        _, h = W:Spacer(parent, y, 20); y = y - h
+        parent:SetHeight(math.abs(y - yOffset))
+        return math.abs(y - yOffset)
+    end
+
+    -- applications: their own page, the reset buttons with them
+    local function BuildAppsPage(parent, yOffset)
+        local W = EUI.Widgets
+        local y = yOffset
+        local _, h
+        if EUI.ClearContentHeader then EUI:ClearContentHeader() end
+        parent._showRowDivider = true
+        y = AddAppsSections(parent, y)
         _, h = W:Spacer(parent, y, 20); y = y - h
         parent:SetHeight(math.abs(y - yOffset))
         return math.abs(y - yOffset)
@@ -93,14 +106,17 @@ initFrame:SetScript("OnEvent", function(self)
         local _, h
         _, h = W:SectionHeader(parent, "RESULTS LIST", y); y = y - h
         _, h = W:DualRow(parent, y,
-            { type = "slider", text = "Row Height", min = 20, max = 64, step = 1,
-              tooltip = "How tall each row is. Lines that no longer fit drop off from the bottom: the playstyle line first, then the dungeon / raid name.",
-              getValue = function() return ns.OwnListRowHeight() end,
-              setValue = function(v) ns.SetOwnListRowHeight(v) end },
             { type = "slider", text = "Title Text Size", min = 8, max = 20, step = 1,
               tooltip = "The group's title, the first line.",
               getValue = function() return ns.OwnListSize("titleSize") end,
-              setValue = function(v) ns.SetOwnListSize("titleSize", v) end })
+              setValue = function(v) ns.SetOwnListSize("titleSize", v) end },
+            { type = "toggle", text = "Colored Group Names",
+              tooltip = "Green name when a group is new, Red name when you were declined or instance locked.",
+              getValue = function() return ns.Cfg().nameColors ~= false end,
+              setValue = function(v)
+                  ns.Cfg().nameColors = v and true or false
+                  if ns.Redecorate then ns.Redecorate() end
+              end })
         y = y - h
         _, h = W:DualRow(parent, y,
             { type = "slider", text = "Dungeon / Raid Text Size", min = 8, max = 20, step = 1,
@@ -111,6 +127,13 @@ initFrame:SetScript("OnEvent", function(self)
               tooltip = "The playstyle and region tag, the third line.",
               getValue = function() return ns.OwnListSize("lineSize") end,
               setValue = function(v) ns.SetOwnListSize("lineSize", v) end })
+        y = y - h
+        _, h = W:DualRow(parent, y,
+            { type = "slider", text = "Row Height", min = 20, max = 64, step = 1,
+              tooltip = "How tall each row is. Lines that no longer fit drop off from the bottom: the playstyle line first, then the dungeon / raid name (its short name then sits ahead of the title).",
+              getValue = function() return ns.OwnListRowHeight() end,
+              setValue = function(v) ns.SetOwnListRowHeight(v) end },
+            EUI.BlankRowCfg())
         y = y - h
 
         _, h = W:SectionHeader(parent, "DISPLAY", y); y = y - h
@@ -171,7 +194,13 @@ initFrame:SetScript("OnEvent", function(self)
               values = { blizzard = "Blizzard", ellesmere = "EllesmereUI" }, order = { "blizzard", "ellesmere" },
               getValue = function() return ns.OwnListGet("missingIcons") end,
               setValue = function(v) ns.SetOwnListValue("missingIcons", v) end },
-            EUI.BlankRowCfg())
+            { type = "toggle", text = "Row Art",
+              tooltip = "The instance's art across the left half of each group, fading out to the right.",
+              getValue = function() return ns.Cfg().cawfeeRowArt == true end,
+              setValue = function(v)
+                  ns.Cfg().cawfeeRowArt = v and true or false
+                  if ns.LabRetagRows then ns.LabRetagRows() end
+              end })
         y = y - h
         return y
     end
@@ -265,6 +294,14 @@ initFrame:SetScript("OnEvent", function(self)
             EUI.RegisterWidgetRefresh(visDDRefresh)
         end
 
+        _, h = W:DualRow(parent, y,
+            { type="toggle", text="Show Title",
+              tooltip="The \"M+ Applications\" title above the bar.",
+              disabled=APOff, disabledTooltip=APOffTip,
+              getValue=function() return APGet("showTitle", true) ~= false end,
+              setValue=function(v) APSet("showTitle", v and true or false) end },
+            EUI.BlankRowCfg());  y = y - h
+
         _, h = W:SectionHeader(parent, "RESET APPLICATION COUNTS", y); y = y - h
         local function Reset(label, scope)
             return function()
@@ -295,8 +332,9 @@ initFrame:SetScript("OnEvent", function(self)
             key         = "GroupFinder",
             title       = "Group Finder",
             description = "Premade Groups search filters and our own filtered results list in the Dungeons & Raids window (lab build).",
-            pages       = { PAGE_SEARCH },
+            pages       = { PAGE_SEARCH, PAGE_APPS },
             buildPage   = function(pageName, parent, yOffset)
+                if pageName == PAGE_APPS then return BuildAppsPage(parent, yOffset) end
                 return BuildSearchPage(pageName, parent, yOffset)
             end,
             onReset     = function()

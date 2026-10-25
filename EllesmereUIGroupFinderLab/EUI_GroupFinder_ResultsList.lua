@@ -73,8 +73,9 @@ function ns.SetOwnListValue(k, v)
     if ns.OwnListRefresh then ns.OwnListRefresh() end
 end
 
--- short names for the title when the dungeon line doesn't fit: raider.io's
--- (its public profile api lists the season's dungeons), else initials
+-- short dungeon names: raider.io's (its public profile api lists the
+-- season's dungeons), else initials. the title on short rows and the
+-- dungeon row's squares (dungeon names) both use these
 local rioShort, rioTried = nil, {}
 local function RioShorts(who)
     if rioShort or rioTried[who] then return rioShort end
@@ -85,7 +86,7 @@ local function RioShorts(who)
     local k = ok and type(p) == "table" and p.mythicKeystoneProfile
     local list = type(k) == "table" and k.sortedDungeons
     if type(list) ~= "table" or #list == 0 then return end
-    local map = { act = {}, map = {} }
+    local map = { act = {}, map = {}, cm = {} }
     for _, sd in ipairs(list) do
         local d = sd.dungeon
         local short = d and (d.shortNameLocale or d.shortName)
@@ -93,6 +94,7 @@ local function RioShorts(who)
             for _, a in ipairs(d.lfd_activity_ids or {}) do map.act[a] = short end
             for _, m in ipairs(d.instance_map_ids or {}) do map.map[m] = short end
             if d.instance_map_id then map.map[d.instance_map_id] = short end
+            if d.keystone_instance then map.cm[d.keystone_instance] = short end
         end
     end
     rioShort = map
@@ -100,11 +102,13 @@ local function RioShorts(who)
 end
 local SKIP = { the = true, of = true, ["and"] = true }
 local initials = {}
-local function ShortName(act, ai, leader)
+-- by activity, instance map or challenge map id, whichever's known; name for
+-- the initials
+function ns.LabShortName(act, mapID, cmID, name, leader)
     local m = RioShorts("player") or (leader and RioShorts(leader))
-    local s = m and (m.act[act] or m.map[ai.mapID])
+    local s = m and ((act and m.act[act]) or (mapID and m.map[mapID]) or (cmID and m.cm[cmID]))
     if s then return s end
-    local full = ai.fullName or ""
+    local full = name or ""
     if initials[full] then return initials[full] end
     local base = full:gsub("%s*%b()", "")
     local out, words = "", 0
@@ -442,7 +446,7 @@ local function Fill(r, id)
     if ns.LabNameColor then nr, ng, nb = ns.LabNameColor(id, info, ai) end  -- all three values (an "and" keeps only the first)
     if nr then r.name:SetTextColor(nr, ng, nb) else r.name:SetTextColor(1, 0.82, 0) end
     r.act:SetText(ai and ai.fullName or "")
-    local short = (r.lines or 0) < 2 and ai and ShortName(act, ai, not Secret(info.leaderName) and info.leaderName or nil)
+    local short = (r.lines or 0) < 2 and ai and ns.LabShortName(act, ai.mapID, nil, ai.fullName, not Secret(info.leaderName) and info.leaderName or nil)
     if short and short ~= "" then
         local ok, path, size, flags = pcall(r.name.GetFont, r.name)
         if ok and path then r.short:SetFont(path, size, flags or "") end
@@ -609,9 +613,11 @@ local function Fill(r, id)
                 role:SetAlpha(0.6)
                 role:Show()
             elseif needTex then
-                t:SetTexture(needTex)
-                t:SetAlpha(0.6)
-                t:Show()
+                -- the small size, like the game's marks
+                t:Hide()
+                role:SetTexture(needTex)
+                role:SetAlpha(0.6)
+                role:Show()
             else
                 t:SetAtlas("groupfinder-icon-emptyslot")
                 t:SetAlpha(blizzMissing and 1 or 0.5)

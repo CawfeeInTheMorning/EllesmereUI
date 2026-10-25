@@ -927,6 +927,8 @@ local function RetagRows()
     if ns.OwnListRefresh then ns.OwnListRefresh() end
 end
 
+ns.LabRetagRows = RetagRows  -- the settings page's row art
+
 if ns.WhenGroupFinder then
     ns.WhenGroupFinder(function()
         if LFGListSearchEntry_Update then hooksecurefunc("LFGListSearchEntry_Update", TagEntry) end
@@ -957,20 +959,16 @@ GFNS.CawfeeGroupMenu = function(list)
         listing[#listing + 1] = { key = "cawfeeShowPlaystyle", label = "Show Playstyle", default = true,
             tip = "Each group's playstyle (Learning, Relaxed, Competitive, Carry Offered) on its third line.",
             onToggle = RetagRows }
-        local rowArt = { key = "cawfeeRowArt", label = "Row Art", onToggle = RetagRows,
-            tip = "The instance's art across the left half of each group, fading out to the right." }
         for i, spec in ipairs(list) do
             if i == listingEnd then for _, d in ipairs(listing) do groupMenu[#groupMenu + 1] = d end end
             if i == misc then
-                -- misc is display now (a copy, ellesmere's list stays as it is), row art first
+                -- misc is display now (a copy, ellesmere's list stays as it is)
                 groupMenu[#groupMenu + 1] = { title = "Display" }
-                groupMenu[#groupMenu + 1] = rowArt
             else
                 groupMenu[#groupMenu + 1] = spec
             end
         end
         if listingEnd > #list then for _, d in ipairs(listing) do groupMenu[#groupMenu + 1] = d end end
-        if not misc then groupMenu[#groupMenu + 1] = rowArt end
     end
     return groupMenu
 end

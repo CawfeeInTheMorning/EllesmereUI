@@ -2122,8 +2122,6 @@ end
 -- Group Settings menu (person button): list look and sign-up options.
 XF.GROUP_MENU = {
     { title = EllesmereUI.L("Listing") },
-    { key = "nameColors",     label = EllesmereUI.L("Colored Group Names"),
-      tip = EllesmereUI.L("Green name when a group is new, Red name when you were declined or instance locked. Uses Raider.IO colors when loaded.") },
     { key = "leaderRating",   label = EllesmereUI.L("Leader Rating"),
       tip = EllesmereUI.L("Shows the group leader's Mythic+ rating next to the role icons.") },
     { key = "missingRoles",   label = EllesmereUI.L("Show Missing Roles"),
@@ -2146,7 +2144,7 @@ XF.GROUP_MENU = {
       tip = EllesmereUI.L("Double-click a group listing to instantly sign up without pressing the Sign Up button. Hold Shift to keep the dialog open, e.g. to type a signup note.") },
     { title = EllesmereUI.L("Misc") },
     { key = "dungeonAbbr",    label = EllesmereUI.L("Dungeon Names"),
-      tip = EllesmereUI.L("Each dungeon square shows the dungeon's short name (e.g. KR for King's Rest, AoF for Altar of Fangs)."),
+      tip = EllesmereUI.L("Each dungeon square shows the dungeon's short name, Raider.IO's when it's loaded (e.g. KR for Kings' Rest)."),
       onToggle = function() ns.Search_Layout() end },
     { key = "dungeonScore",   label = EllesmereUI.L("Dungeon Keystone Level"),
       tip = EllesmereUI.L("Each dungeon square shows your best keystone level this season, colored by its score rarity."),
@@ -3085,7 +3083,7 @@ function XF.SquareAbbr(sq, d, size)
         -- Shrink until it fits.
         local fs = math.max(8, math.floor(size * 0.36))
         XF.Font(sq.abbr, fs, "OUTLINE")
-        sq.abbr:SetText(XF.Abbr(d.name))
+        sq.abbr:SetText(ns.LabShortName and ns.LabShortName(nil, nil, d.cmID, d.name) or XF.Abbr(d.name))  -- lab: raider.io's short names
         while fs > 8 and ((sq.abbr.GetUnboundedStringWidth and sq.abbr:GetUnboundedStringWidth()) or 0) > size - 4 do
             fs = fs - 1
             XF.Font(sq.abbr, fs, "OUTLINE")
