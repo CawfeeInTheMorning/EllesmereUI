@@ -20,7 +20,7 @@ local EUI = EllesmereUI
 
 local DUNGEONS, RAIDS = 2, 3
 local X_TEX = "Interface\\AddOns\\EllesmereUI\\media\\icons\\eui-close.png"
-local CANCEL_SZ = 24  -- the search again button's size
+local CANCEL_SZ = 14  -- the cancel x in the corner
 local GAP = 2
 local function Secret(v) return issecretvalue and issecretvalue(v) or false end
 local function Readable(t) return type(t) == "table" and not Secret(t) and not (canaccesstable and not canaccesstable(t)) end
@@ -392,13 +392,15 @@ local function Layout(r, h)
     local bpx = tonumber(ns.OwnListGet("borderSize")) or 0
     local gap = 2 + ((ns.OwnListGet("iconShape") ~= "square") and bpx * 2 or 0)  -- room for the rings
     local cw = math.max(8, math.floor(isz * 0.6 + 0.5))
-    local csz = math.min(CANCEL_SZ, h - 4)
+    -- cancel: small, tucked in the top right corner, over everything
+    local csz = math.min(CANCEL_SZ, math.max(10, h - 4))
     r.cancel:SetSize(csz, csz)
-    r.cancel.tex:SetSize(math.floor(csz * 0.5), math.floor(csz * 0.5))
+    r.cancel.tex:SetSize(math.floor(csz * 0.6), math.floor(csz * 0.6))
     r.cancel:ClearAllPoints()
-    r.cancel:SetPoint("RIGHT", r, "RIGHT", -pad, 0)
+    r.cancel:SetPoint("TOPRIGHT", r, "TOPRIGHT", -2, -2)
+    r.cancel:SetFrameLevel(r:GetFrameLevel() + 5)
     SetSize(r.score, ns.OwnListSize("scoreSize"))
-    local x = -pad - csz - 8 - ((ns.OwnListGet("iconShape") ~= "square") and bpx or 0)
+    local x = -pad - ((ns.OwnListGet("iconShape") ~= "square") and bpx or 0)
     for k = 5, 1, -1 do
         local t = r.icons[k]
         t:SetSize(isz, isz)
