@@ -613,7 +613,7 @@ local function Fill(r, id)
     local cap = ai and ai.maxNumPlayers or 5
     -- the roles still open, for the empty slots
     local needs = {}
-    if Opt("missingRoles") and cap == 5 then
+    if ns.OwnListGet("missingIcons") ~= "none" and cap == 5 then
         local counts = C_LFGList.GetSearchResultMemberCounts(id)
         if Readable(counts) then
             for _, role in ipairs({ "TANK", "HEALER", "DAMAGER" }) do

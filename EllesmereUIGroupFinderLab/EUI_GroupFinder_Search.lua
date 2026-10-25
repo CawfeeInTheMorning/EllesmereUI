@@ -1134,7 +1134,9 @@ local function DecorateIcons(entry, resultID, info, ai)
     local icons = enum and enum.Icons
     if not icons then return end
     local shown = enum:IsShown()
-    local crownOn, specOn, missOn = Opt("leaderCrown"), Opt("specIcons"), Opt("missingRoles")
+    -- lab: missing roles follow the settings page's missing role icons (none = off)
+    local crownOn, specOn = Opt("leaderCrown"), Opt("specIcons")
+    local missOn = not (ns.OwnListGet and ns.OwnListGet("missingIcons") == "none")
     local disabled = (not IsSecret(info.isDelisted) and info.isDelisted) and true or false
     -- Sort members like Blizzard fills its icons (role, then class).
     local members = wipe(XF.members)
@@ -2176,8 +2178,6 @@ XF.GROUP_MENU = {
     { title = EllesmereUI.L("Listing") },
     { key = "leaderRating",   label = EllesmereUI.L("Leader Rating"),
       tip = EllesmereUI.L("Shows the group leader's Mythic+ rating next to the role icons.") },
-    { key = "missingRoles",   label = EllesmereUI.L("Show Missing Roles"),
-      tip = EllesmereUI.L("Empty slots in 5-player groups show the role the group still needs.") },
     { key = "specIcons",      label = EllesmereUI.L("Show Specialization"),
       tip = EllesmereUI.L("Shows each member's specialization icon in place of the game's class and role icons. Off, the game's own icons stay."),
       onToggle = function(menu) XF.SpecIconsChanged(menu) end },

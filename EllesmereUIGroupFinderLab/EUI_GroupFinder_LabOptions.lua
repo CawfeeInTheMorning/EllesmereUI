@@ -120,11 +120,11 @@ initFrame:SetScript("OnEvent", function(self)
         y = y - h
         _, h = W:DualRow(parent, y,
             { type = "slider", text = "Dungeon / Raid Text Size", min = 8, max = 20, step = 1,
-              tooltip = "The dungeon or raid name, the second line.",
+              tooltip = "The dungeon or raid name text size.",
               getValue = function() return ns.OwnListSize("nameSize") end,
               setValue = function(v) ns.SetOwnListSize("nameSize", v) end },
             { type = "slider", text = "Activity Text Size", min = 8, max = 20, step = 1,
-              tooltip = "The playstyle and region tag, the third line.",
+              tooltip = "The playstyle and region tag text size.",
               getValue = function() return ns.OwnListSize("lineSize") end,
               setValue = function(v) ns.SetOwnListSize("lineSize", v) end })
         y = y - h
@@ -134,22 +134,22 @@ initFrame:SetScript("OnEvent", function(self)
               getValue = function() return ns.OwnListRowHeight() end,
               setValue = function(v) ns.SetOwnListRowHeight(v) end },
             { type = "toggle", text = "Applied Groups on Top",
-              tooltip = "Groups you apply to move to the top of the list. Off, they stay where they were.",
+              tooltip = "Groups you apply to move to the top of the list.",
               getValue = function() return ns.OwnListGet("appsFirst") ~= false end,
               setValue = function(v) ns.SetOwnListValue("appsFirst", v and true or false) end })
         y = y - h
         -- status underline: a checklist, one colour each
         local LINE_ITEMS = {
-            { key = "lineDelisted",  label = "Delisted (Grey)",   tooltip = "The group was delisted." },
-            { key = "lineAccepted",  label = "Accepted (Green)",  tooltip = "Applied and waiting, or invited." },
-            { key = "lineCancelled", label = "Canceled (Orange)", tooltip = "You cancelled the application." },
-            { key = "lineDeclined",  label = "Declined (Red)",    tooltip = "Declined, the group filled, or the application timed out." },
+            { key = "lineDelisted",  label = "Delisted (|cff999999Grey|r)",   tooltip = "The group was delisted." },
+            { key = "lineAccepted",  label = "Accepted (|cff1ae61aGreen|r)",  tooltip = "Applied and waiting, or invited." },
+            { key = "lineCancelled", label = "Canceled (|cffff8c1aOrange|r)", tooltip = "You cancelled the application." },
+            { key = "lineDeclined",  label = "Declined (|cffff3333Red|r)",    tooltip = "Declined, the group filled, or the application timed out." },
         }
         local lineRow
         lineRow, h = W:DualRow(parent, y,
             -- placeholder: carries the label; the checklist takes its place
             { type = "dropdown", text = "Status Underline",
-              tooltip = "A coloured line along the bottom of groups you applied to, by how the application stands.",
+              tooltip = "A colored line below the group you applied to to show it's status.",
               values = { __placeholder = "..." }, order = { "__placeholder" },
               getValue = function() return "__placeholder" end,
               setValue = function() end },
@@ -171,7 +171,7 @@ initFrame:SetScript("OnEvent", function(self)
         _, h = W:SectionHeader(parent, "MYTHIC+", y); y = y - h
         _, h = W:DualRow(parent, y,
             { type = "toggle", text = "Raider.IO Rating Colors",
-              tooltip = "Colours the leader's rating with Raider.IO's score colours. Off, the game's own rating colours.",
+              tooltip = "Color the leader's rating with Raider.IO's score colors. Otherwise, use the game's rating colors.",
               disabled = function() return not (RaiderIO and RaiderIO.GetScoreColor) end,
               disabledTooltip = "Raider.IO",
               getValue = function() return ns.Cfg().rioRatingColors ~= false end,
@@ -189,7 +189,7 @@ initFrame:SetScript("OnEvent", function(self)
         local function Circle() return ns.OwnListGet("iconShape") ~= "square" end
         _, h = W:DualRow(parent, y,
             { type = "dropdown", text = "Icon Shape",
-              tooltip = "The members' icons: round like the game's, or square. Spec icons or class colours with the role on top (Show Specialization in the Group Settings menu).",
+              tooltip = "The member and specialization icon shape.",
               values = { circle = "Circle", square = "Square" }, order = { "circle", "square" },
               getValue = function() return ns.OwnListGet("iconShape") end,
               setValue = function(v) ns.SetOwnListValue("iconShape", v); EUI:RefreshPage(true) end },
@@ -239,10 +239,13 @@ initFrame:SetScript("OnEvent", function(self)
         end
         _, h = W:DualRow(parent, y,
             { type = "dropdown", text = "Missing Role Icons",
-              tooltip = "How open slots show the role the group still needs (Show Missing Roles in the Group Settings menu): the game's small greyed marks, or EllesmereUI's role icons.",
-              values = { blizzard = "Blizzard", ellesmere = "EllesmereUI" }, order = { "blizzard", "ellesmere" },
+              tooltip = "When there is a missing role, add an icon to show you which one.",
+              values = { none = "None", blizzard = "Blizzard", ellesmere = "EllesmereUI" }, order = { "none", "blizzard", "ellesmere" },
               getValue = function() return ns.OwnListGet("missingIcons") end,
-              setValue = function(v) ns.SetOwnListValue("missingIcons", v) end },
+              setValue = function(v)
+                  ns.SetOwnListValue("missingIcons", v)
+                  if ns.Redecorate then ns.Redecorate() end  -- blizzard's list too
+              end },
             { type = "toggle", text = "Row Art",
               tooltip = "The instance's art across the left half of each group, fading out to the right.",
               getValue = function() return ns.Cfg().cawfeeRowArt == true end,
@@ -256,7 +259,7 @@ initFrame:SetScript("OnEvent", function(self)
         local function QuickOn() return EllesmereUIDB and EllesmereUIDB.quickSignup and true or false end
         _, h = W:DualRow(parent, y,
             { type = "toggle", text = "Quick Signup",
-              tooltip = "Hold Shift to keep the dialog open, e.g. to type a signup note.",
+              tooltip = "Hold Shift to keep the note box open when applying.",
               getValue = QuickOn,
               setValue = function(v)
                   EllesmereUIDB.quickSignup = v and true or false
@@ -264,7 +267,7 @@ initFrame:SetScript("OnEvent", function(self)
                   EUI:RefreshPage()
               end },
             { type = "dropdown", text = "Sign Up With",
-              tooltip = "How many clicks on a group sign you up.",
+              tooltip = "How many clicks it takes to sign up to a group.",
               values = { single = "Single-click", double = "Double-click", triple = "Triple-click" },
               order = { "single", "double", "triple" },
               disabled = function() return not QuickOn() end, disabledTooltip = "Quick Signup",
@@ -289,7 +292,7 @@ initFrame:SetScript("OnEvent", function(self)
         local scopeValues = { session = "Session", character = "Character", account = "Account" }
         _, h = W:DualRow(parent, y,
             { type="toggle", text="Show Applications in Group Finder",
-              tooltip="A bar at the top of the Dungeons & Raids sidebar counting your Mythic+ Group Finder applications and how they ended, each count inside its part of the bar. Other dungeon difficulties, raids, delves and other groups are not counted.",
+              tooltip="A bar at the top of the Dungeons & Raids sidebar that counts your Mythic+ application results.",
               disabled=ModOff, disabledTooltip="Group Finder",
               getValue=function() return APGet("enabled", false) == true end,
               setValue=function(v) APSet("enabled", v and true or false); EUI:RefreshPage() end },
