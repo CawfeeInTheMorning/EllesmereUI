@@ -1355,6 +1355,7 @@ function XF.Redecorate()
     if not (SP and SP:IsVisible()) then return end
     local box = SP.ScrollBox
     if box and box.ForEachFrame then box:ForEachFrame(DecorateEntry) end
+    if ns.CawfeeRedecorate then ns.CawfeeRedecorate() end  -- cawfee extras
 end
 
 -- Tooltip hint while a click would cancel your oldest application.
