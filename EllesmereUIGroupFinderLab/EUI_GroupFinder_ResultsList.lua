@@ -13,7 +13,8 @@ if EUI_CLIENT_BLOCKED then return end -- pre-12.1 client failsafe (EllesmereUI_C
 --  hooks on local/cawfee: Refilter (ns.CawfeeRefilter), filter checks
 --  (ns.CawfeePasses, ns.CawfeeResultsSecret), redecorate (ns.CawfeeRedecorate)
 -------------------------------------------------------------------------------
-local _, ns = ...
+local FOLDER, ns = ...
+if EllesmereUI.HELD_BACK_ADDONS[FOLDER] then return end -- held back (EllesmereUIGroupFinder.lua)
 local GFNS = ns
 local EUI = EllesmereUI
 
@@ -278,7 +279,7 @@ local function LineThree(r, id, info)
         style = _G["GROUP_FINDER_GENERAL_PLAYSTYLE" .. ps] or ""
     end
     local tag, tr, tg, tb, flag
-    if ns.OwnListOpt("regionTags") and ns.RegionTagOf then tag, tr, tg, tb, flag = ns.RegionTagOf(id) end
+    if ns.RegionTagOf then tag, tr, tg, tb, flag = ns.RegionTagOf(id) end  -- the region tags switch in group settings
     local prev
     local function Put(p, gap)
         p:ClearAllPoints()

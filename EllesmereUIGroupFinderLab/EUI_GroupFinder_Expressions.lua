@@ -10,11 +10,12 @@ if EUI_CLIENT_BLOCKED then return end -- pre-12.1 client failsafe (EllesmereUI_C
 --  on local/cawfee: row 1 layout (ns.CawfeeExprButton), ExtraFilterActive
 --  (ns.CawfeeExprActive), ExtraKeep (ns.CawfeeExprKeep), reset (ns.CawfeeExprReset).
 -------------------------------------------------------------------------------
-local _, ns = ...
+local FOLDER, ns = ...
+if EllesmereUI.HELD_BACK_ADDONS[FOLDER] then return end -- held back (EllesmereUIGroupFinder.lua)
 local GFNS = ns
 local CM = ns.EUI
 
-local EXPR_TEX = "Interface\\AddOns\\EllesmereUIGroupFinder\\media\\icons\\eui-expression.png"
+local EXPR_TEX = "Interface\\AddOns\\" .. FOLDER .. "\\media\\icons\\eui-expression.png"
 local function Secret(v) return issecretvalue and issecretvalue(v) or false end
 local function Readable(t) return type(t) == "table" and not Secret(t) and not (canaccesstable and not canaccesstable(t)) end
 

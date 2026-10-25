@@ -6,10 +6,11 @@ if EUI_CLIENT_BLOCKED then return end -- pre-12.1 client failsafe (EllesmereUI_C
 --  EUI_GroupFinder_Applications.lua on local/cawfee. Saved account-wide as
 --  EllesmereUIDB.cawfeeAppsBarOnRow (nil = on).
 -------------------------------------------------------------------------------
-local _, ns = ...
+local FOLDER, ns = ...
+if EllesmereUI.HELD_BACK_ADDONS[FOLDER] then return end -- held back (EllesmereUIGroupFinder.lua)
 -- the group finder's extra pieces (once cawfee extras), living in the module
 ns.EUI = EllesmereUI
-ns.CawfeeLab = true  -- cawfee extras sees this and leaves the group finder alone
+ns.CawfeeLab = true
 
 -- account-wide switches in EllesmereUIDB (nil = on)
 local function Switch(key)
@@ -78,7 +79,7 @@ local function TwoPart(owner, K)
     return main, hint
 end
 
-local ARROW = "Interface\\AddOns\\EllesmereUIGroupFinder\\media\\icons\\eui-arrow.png"
+local ARROW = "Interface\\AddOns\\" .. FOLDER .. "\\media\\icons\\eui-arrow.png"
 
 -- our dropdowns sit outside the menu's frame at times; the menu's click-off
 -- asks here first (hook in XF.FiltersInside) so clicks in them keep it open
@@ -90,7 +91,7 @@ GFNS.CawfeeInside = function()
     return false
 end
 
-local MASK = "Interface\\AddOns\\EllesmereUIGroupFinder\\media\\masks\\rounded.png"
+local MASK = "Interface\\AddOns\\" .. FOLDER .. "\\media\\masks\\rounded.png"
 
 -- atlas icon with rounded corners, after the given text
 local function RoundIcon(parent, atlas, after)
@@ -678,12 +679,12 @@ end
 local tagOf = setmetatable({}, { __mode = "k" })
 
 -- flag art per region (media/flags/<region>.png, 64x42 with clear corners)
-local FLAG_DIR = "Interface\\AddOns\\EllesmereUIGroupFinder\\media\\flags\\"
+local FLAG_DIR = "Interface\\AddOns\\" .. FOLDER .. "\\media\\flags\\"
 local FLAGS = { oce = FLAG_DIR .. "oce.png", na = FLAG_DIR .. "na.png", la = FLAG_DIR .. "la.png", br = FLAG_DIR .. "br.png" }
 
 -- for the filtered results list: a group's tag, its colour and flag (us only)
 function ns.RegionTagOf(resultID)
-    if not (GetCurrentRegion and GetCurrentRegion() == 1) then return nil end
+    if not TagsOn() then return nil end  -- the group settings switch, us only
     local region = RegionOf(resultID)
     local t = TAGS[region]
     if t then return t[1], t[2], t[3], t[4], FLAGS[region] end
@@ -809,7 +810,7 @@ local function ActivityShort(resultID)
 end
 
 local ART_SHARE, ART_ALPHA = 0.5, 0.2  -- half the row, 20% fading to 0
-local FADE_MASK = "Interface\\AddOns\\EllesmereUIGroupFinder\\media\\masks\\fade.png"
+local FADE_MASK = "Interface\\AddOns\\" .. FOLDER .. "\\media\\masks\\fade.png"
 
 -- the art sits on the row itself, under blizzard's text (a frame of ours
 -- would draw over it); the tag goes on our overlay, above
@@ -1106,6 +1107,6 @@ GFNS.CawfeeDecorateMenu = function(menu, side)
 end
 
 -- group settings button: the people icon
-GFNS.CawfeePersonTex = "Interface\\AddOns\\EllesmereUIGroupFinder\\media\\icons\\eui-person.png"
+GFNS.CawfeePersonTex = "Interface\\AddOns\\" .. FOLDER .. "\\media\\icons\\eui-person.png"
 -- raid list button: a smaller banner than the module's own
-GFNS.CawfeeRaidTex = "Interface\\AddOns\\EllesmereUIGroupFinder\\media\\icons\\eui-raid.png"
+GFNS.CawfeeRaidTex = "Interface\\AddOns\\" .. FOLDER .. "\\media\\icons\\eui-raid.png"

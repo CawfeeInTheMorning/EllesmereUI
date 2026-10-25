@@ -5,6 +5,8 @@ if EUI_CLIENT_BLOCKED then return end -- pre-12.1 client failsafe (EllesmereUI_C
 -------------------------------------------------------------------------------
 local ADDON_NAME, ns = ...
 if EllesmereUI.HELD_BACK_ADDONS[ADDON_NAME] then return end -- held back (EllesmereUIGroupFinder.lua)
+local FOLDER = ADDON_NAME  -- lab: media from the lab folder
+ADDON_NAME = "EllesmereUIGroupFinder"  -- lab: the live module's name for fonts and the options page
 local CM = EllesmereUI
 
 local DUNGEONS = GROUP_FINDER_CATEGORY_ID_DUNGEONS or 2
@@ -14,7 +16,7 @@ local GOLD_R, GOLD_G, GOLD_B = 1, 0.82, 0
 local MEDIA    = "Interface\\AddOns\\EllesmereUI\\media\\icons\\"
 local COG_TEX  = EllesmereUI.COGS_ICON  -- the inline cogs' icon
 local X_TEX    = MEDIA .. "eui-close.png"
-local RAID_TEX = "Interface\\AddOns\\" .. ADDON_NAME .. "\\media\\icons\\raid.png"  -- EUI's raid-tools.png on a clear background
+local RAID_TEX = "Interface\\AddOns\\" .. FOLDER .. "\\media\\icons\\raid.png"  -- EUI's raid-tools.png on a clear background
 
 local ROW1_Y   = -42  -- row 1 centre
 local ROW1_H    = 24

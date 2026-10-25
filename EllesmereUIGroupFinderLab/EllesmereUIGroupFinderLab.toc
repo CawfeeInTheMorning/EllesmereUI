@@ -1,22 +1,21 @@
 ## Interface: 120000, 120001, 120005, 120007, 120100, 120105, 16001
 ## AllowLoadGameType: standard
-## Title: |cff0cd29fEllesmereUI|r Group Finder
+## Title: |cff0cd29fEllesmereUI|r Group Finder |cffff9900Lab|r
 ## Category: |cff0cd29fEllesmere|rUI
 ## Group: EllesmereUI
-## Notes: Premade Group search filters, listing, and application tools.
-## Author: Ellesmere
-## Version: 9.6.6
+## Notes: Test build of the Group Finder with our changes. Enable this OR the live Group Finder, not both. Keeps its own copy of the module's settings.
+## Author: Ellesmere, MorningCawfee
+## Version: 9.6.6-lab
 ## Dependencies: EllesmereUI
 ## SavedVariables: EllesmereUIGroupFinderDB
 ## IconTexture: Interface\AddOns\EllesmereUI\media\eg-logo.tga
 
 # Runtime. The settings page lives in the LoadOnDemand EllesmereUIOptions addon
-# (EUI_GroupFinder_Options.lua), like every other module.
+# (EUI_GroupFinder_Options.lua), like every other module; the lab registers
+# under the live module's name, so that page drives it.
 EllesmereUIGroupFinder.lua
 EUI_GroupFinder_Search.lua
 EUI_GroupFinder_Applications.lua
 EUI_GroupFinder_Extras.lua
 EUI_GroupFinder_Expressions.lua
 EUI_GroupFinder_ResultsList.lua
-EUI_GroupFinder_Rail.lua
-EUI_GroupFinder_Finder.lua

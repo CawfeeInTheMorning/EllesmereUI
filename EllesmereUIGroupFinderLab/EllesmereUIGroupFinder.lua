@@ -7,7 +7,16 @@ local ADDON_NAME, ns = ...
 if not (EllesmereUI and EllesmereUI._ModuleNS and EllesmereUI.Lite and EllesmereUI.HELD_BACK_ADDONS) then EUI_CLIENT_BLOCKED = true; return end -- stale-parent guard: a partially updated install (old parent, new child) goes dormant via the line-1 failsafe instead of erroring
 -- Held back from this release (EllesmereUI.HELD_BACK_ADDONS): nothing runs,
 -- and with no namespace published the options page never registers.
+-- lab: never alongside the live group finder. holding the lab folder back
+-- makes its other files stand down too
+if C_AddOns.IsAddOnLoaded("EllesmereUIGroupFinder") then
+    EllesmereUI.HELD_BACK_ADDONS[ADDON_NAME] = true
+    print("|cff0cd29fEllesmereUI|r Group Finder Lab is off: the live Group Finder is enabled too. Turn one of them off.")
+end
 if EllesmereUI.HELD_BACK_ADDONS[ADDON_NAME] then return end
+-- lab: it stands in for the live module, under the live module's name
+-- (options page, fonts, quick signup); its media comes from its own folder
+ADDON_NAME = "EllesmereUIGroupFinder"
 EllesmereUI._ModuleNS[ADDON_NAME] = ns  -- options file grabs the ns from here
 
 local GF = EllesmereUI.Lite.NewAddon(ADDON_NAME)
