@@ -56,9 +56,65 @@ function ns.OwnListGet(k)
     if v == nil then return DISPLAY_DEFAULTS[k] end
     return v
 end
+-- the border colour as shown: the user's pick, else the style's default
+function ns.OwnListBorderColor()
+    local bc = ns.OwnListGet("borderColor")
+    if type(bc) == "table" then return bc.r or 1, bc.g or 1, bc.b or 1 end
+    local btex = ns.OwnListGet("borderTexture") or "solid"
+    if btex ~= "solid" and ns.OwnListGet("iconShape") == "square" and EUI.GetBorderStyleSelectDefaults then
+        local c = EUI.GetBorderStyleSelectDefaults(btex)
+        return c.r, c.g, c.b
+    end
+    if ns.ThemeBorder then return ns.ThemeBorder() end
+    return 1, 1, 1
+end
 function ns.SetOwnListValue(k, v)
     DB()[k] = v
     if ns.OwnListRefresh then ns.OwnListRefresh() end
+end
+
+-- short names for the title when the dungeon line doesn't fit: raider.io's
+-- (its public profile api lists the season's dungeons), else initials
+local rioShort, rioTried = nil, {}
+local function RioShorts(who)
+    if rioShort or rioTried[who] then return rioShort end
+    rioTried[who] = true
+    local rio = _G.RaiderIO
+    if not (rio and rio.GetProfile) then return end
+    local ok, p = pcall(rio.GetProfile, who)
+    local k = ok and type(p) == "table" and p.mythicKeystoneProfile
+    local list = type(k) == "table" and k.sortedDungeons
+    if type(list) ~= "table" or #list == 0 then return end
+    local map = { act = {}, map = {} }
+    for _, sd in ipairs(list) do
+        local d = sd.dungeon
+        local short = d and (d.shortNameLocale or d.shortName)
+        if short then
+            for _, a in ipairs(d.lfd_activity_ids or {}) do map.act[a] = short end
+            for _, m in ipairs(d.instance_map_ids or {}) do map.map[m] = short end
+            if d.instance_map_id then map.map[d.instance_map_id] = short end
+        end
+    end
+    rioShort = map
+    return map
+end
+local SKIP = { the = true, of = true, ["and"] = true }
+local initials = {}
+local function ShortName(act, ai, leader)
+    local m = RioShorts("player") or (leader and RioShorts(leader))
+    local s = m and (m.act[act] or m.map[ai.mapID])
+    if s then return s end
+    local full = ai.fullName or ""
+    if initials[full] then return initials[full] end
+    local base = full:gsub("%s*%b()", "")
+    local out, words = "", 0
+    for w in base:gmatch("[^%s%-:,]+") do
+        words = words + 1
+        if not SKIP[w:lower()] then out = out .. w:sub(1, 1):upper() end
+    end
+    if words == 1 then out = base:sub(1, 4):upper() end
+    initials[full] = out
+    return out
 end
 
 local SP, frame, body, rows, shown = nil, nil, nil, {}, {}
@@ -143,6 +199,9 @@ local function MakeRow(i)
     r.act = r:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
     r.act:SetJustifyH("LEFT")
     r.act:SetWordWrap(false)
+    -- the dungeon's short name ahead of the title, when its own line won't fit
+    r.short = r:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+    r.short:Hide()
     -- after the activity: "| Relaxed | OCE [flag]"
     r.sep1 = r:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
     r.sep1:SetText("||")
@@ -383,6 +442,20 @@ local function Fill(r, id)
     if ns.LabNameColor then nr, ng, nb = ns.LabNameColor(id, info, ai) end  -- all three values (an "and" keeps only the first)
     if nr then r.name:SetTextColor(nr, ng, nb) else r.name:SetTextColor(1, 0.82, 0) end
     r.act:SetText(ai and ai.fullName or "")
+    local short = (r.lines or 0) < 2 and ai and ShortName(act, ai, not Secret(info.leaderName) and info.leaderName or nil)
+    if short and short ~= "" then
+        local ok, path, size, flags = pcall(r.name.GetFont, r.name)
+        if ok and path then r.short:SetFont(path, size, flags or "") end
+        r.short:SetTextColor(r.act:GetTextColor())
+        r.short:SetText(short)
+        r.short:ClearAllPoints()
+        r.short:SetPoint("TOPLEFT", r, "TOPLEFT", r.pad or 6, -(r.lineY and r.lineY[1] or 0))
+        r.short:Show()
+        r.name:SetPoint("TOPLEFT", r.short, "TOPRIGHT", 4, 0)
+    else
+        r.short:Hide()
+        r.name:SetPoint("TOPLEFT", r, "TOPLEFT", r.pad or 6, -(r.lineY and r.lineY[1] or 0))
+    end
     LineThree(r, id, info)
     local Opt = ns.LabOpt or function() return true end
     local score = info.leaderOverallDungeonScore
@@ -459,7 +532,10 @@ local function Fill(r, id)
     local bpx = tonumber(ns.OwnListGet("borderSize")) or 0
     local btex = ns.OwnListGet("borderTexture") or "solid"
     local br, bg, bb = 1, 1, 1
-    if btex ~= "solid" and square and EUI.GetBorderStyleSelectDefaults then
+    local bc = ns.OwnListGet("borderColor")
+    if type(bc) == "table" then
+        br, bg, bb = bc.r or 1, bc.g or 1, bc.b or 1
+    elseif btex ~= "solid" and square and EUI.GetBorderStyleSelectDefaults then
         local c = EUI.GetBorderStyleSelectDefaults(btex)
         br, bg, bb = c.r, c.g, c.b
     elseif ns.ThemeBorder then

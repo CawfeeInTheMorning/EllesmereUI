@@ -2151,8 +2151,6 @@ XF.GROUP_MENU = {
     { key = "dungeonScore",   label = EllesmereUI.L("Dungeon Keystone Level"),
       tip = EllesmereUI.L("Each dungeon square shows your best keystone level this season, colored by its score rarity."),
       onToggle = function() ns.Search_Layout() end },
-    { key = "iconSize",       label = EllesmereUI.L("Role Icon Size"), stepper = { min = 100, max = 160, step = 5 },
-      tip = EllesmereUI.L("Size of the role and specialization icons in the group list.") },
 }
 XF.MENU_SW_W, XF.MENU_SW_H = 22, 12
 

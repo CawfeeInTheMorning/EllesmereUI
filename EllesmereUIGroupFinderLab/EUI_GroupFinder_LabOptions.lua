@@ -121,24 +121,57 @@ initFrame:SetScript("OnEvent", function(self)
               values = { circle = "Circle", square = "Square" }, order = { "circle", "square" },
               getValue = function() return ns.OwnListGet("iconShape") end,
               setValue = function(v) ns.SetOwnListValue("iconShape", v); EUI:RefreshPage(true) end },
-            { type = "dropdown", text = "Missing Role Icons",
-              tooltip = "How open slots show the role the group still needs (Show Missing Roles in the Group Settings menu): the game's small greyed marks, or EllesmereUI's role icons.",
-              values = { blizzard = "Blizzard", ellesmere = "EllesmereUI" }, order = { "blizzard", "ellesmere" },
-              getValue = function() return ns.OwnListGet("missingIcons") end,
-              setValue = function(v) ns.SetOwnListValue("missingIcons", v) end })
+            { type = "slider", text = "Role Icon Size", min = 100, max = 160, step = 5,
+              tooltip = "Size of the role and specialization icons in the group list.",
+              getValue = function() return tonumber(ns.Cfg().iconSize) or ns.DEFAULTS.iconSize end,
+              setValue = function(v)
+                  ns.Cfg().iconSize = v
+                  if ns.Redecorate then ns.Redecorate() end
+              end })
         y = y - h
         local texValues, texOrder = EUI.GetBorderTextureDropdown()
-        _, h = W:DualRow(parent, y,
+        local borderRow
+        borderRow, h = W:DualRow(parent, y,
             { type = "dropdown", text = "Border Style",
               tooltip = "The border around square icons.",
               values = texValues, order = texOrder,
               disabled = Circle, disabledTooltip = "Icon Shape: Square",
               getValue = function() return ns.OwnListGet("borderTexture") end,
-              setValue = function(v) ns.SetOwnListValue("borderTexture", v) end },
+              setValue = function(v)
+                  -- a new style starts on its own colour
+                  ns.SetOwnListValue("borderColor", nil)
+                  ns.SetOwnListValue("borderTexture", v)
+                  EUI:RefreshPage(true)
+              end },
             { type = "slider", text = "Border Size", min = 0, max = 4, step = 1,
-              tooltip = "In pixels. 0 for no border. Round icons get a ring in the theme's border colour.",
+              tooltip = "In pixels. 0 for no border. Round icons get a ring.",
               getValue = function() return tonumber(ns.OwnListGet("borderSize")) or 0 end,
               setValue = function(v) ns.SetOwnListValue("borderSize", v) end })
+        y = y - h
+        do
+            -- border colour swatch beside the size slider
+            local rgn = borderRow and borderRow._rightRegion
+            if rgn and EUI.BuildColorSwatch then
+                local swatch, update = EUI.BuildColorSwatch(rgn, rgn:GetFrameLevel() + 5,
+                    function()
+                        local r, g, b = ns.OwnListBorderColor()
+                        return r, g, b, 1
+                    end,
+                    function(r, g, b)
+                        ns.SetOwnListValue("borderColor", { r = r, g = g, b = b })
+                    end, false, 20)
+                swatch:SetPoint("RIGHT", rgn._lastInline or rgn._control, "LEFT", -12, 0)
+                rgn._lastInline = swatch
+                if EUI.RegisterWidgetRefresh then EUI.RegisterWidgetRefresh(update) end
+            end
+        end
+        _, h = W:DualRow(parent, y,
+            { type = "dropdown", text = "Missing Role Icons",
+              tooltip = "How open slots show the role the group still needs (Show Missing Roles in the Group Settings menu): the game's small greyed marks, or EllesmereUI's role icons.",
+              values = { blizzard = "Blizzard", ellesmere = "EllesmereUI" }, order = { "blizzard", "ellesmere" },
+              getValue = function() return ns.OwnListGet("missingIcons") end,
+              setValue = function(v) ns.SetOwnListValue("missingIcons", v) end },
+            EUI.BlankRowCfg())
         y = y - h
         return y
     end
