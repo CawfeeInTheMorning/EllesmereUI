@@ -296,7 +296,9 @@ local RR_ROLES = { "TANK", "HEALER", "DAMAGER" }
 local RR_COLORS = { TANK = { 0.16, 0.38, 0.78 }, HEALER = { 0.16, 0.62, 0.24 }, DAMAGER = { 0.72, 0.16, 0.16 } }
 -- application status: blizzard's words and colours per state
 local G, R, Y = { 0.1, 1, 0.1 }, { 1, 0.25, 0.25 }, { 1, 0.82, 0 }
-local function St(text, fallback, c) return { text or fallback, c[1], c[2], c[3] } end
+-- blizzard's words carry their own colour codes: stripped, so ours shows
+local function Plain(t) return t and (t:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")) end
+local function St(text, fallback, c) return { Plain(text) or fallback, c[1], c[2], c[3] } end
 local STATUS = {
     applied           = St(LFG_LIST_PENDING, "Pending", G),
     invited           = St(LFG_LIST_INVITED, "Invited", G),
