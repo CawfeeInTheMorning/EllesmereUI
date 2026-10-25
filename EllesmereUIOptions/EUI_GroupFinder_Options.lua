@@ -185,32 +185,6 @@ initFrame:SetScript("OnEvent", function(self)
             EUI.RegisterWidgetRefresh(visDDRefresh)
         end
 
-        -- lab only (EllesmereUIGroupFinderLab registers under this module's
-        -- name): its results list. nothing shows with the live module
-        if ns.OwnListOn then
-            _, h = W:SectionHeader(parent, "RESULTS LIST", y); y = y - h
-            _, h = W:DualRow(parent, y,
-                { type = "slider", text = "Row Height", min = 20, max = 64, step = 1,
-                  tooltip = "How tall each row is. Lines that no longer fit drop off from the bottom: the playstyle line first, then the dungeon / raid name.",
-                  getValue = function() return ns.OwnListRowHeight() end,
-                  setValue = function(v) ns.SetOwnListRowHeight(v) end },
-                { type = "slider", text = "Title Text Size", min = 8, max = 20, step = 1,
-                  tooltip = "The group's title, the first line.",
-                  getValue = function() return ns.OwnListSize("titleSize") end,
-                  setValue = function(v) ns.SetOwnListSize("titleSize", v) end })
-            y = y - h
-            _, h = W:DualRow(parent, y,
-                { type = "slider", text = "Dungeon / Raid Text Size", min = 8, max = 20, step = 1,
-                  tooltip = "The dungeon or raid name, the second line.",
-                  getValue = function() return ns.OwnListSize("nameSize") end,
-                  setValue = function(v) ns.SetOwnListSize("nameSize", v) end },
-                { type = "slider", text = "Activity Text Size", min = 8, max = 20, step = 1,
-                  tooltip = "The playstyle and region tag, the third line.",
-                  getValue = function() return ns.OwnListSize("lineSize") end,
-                  setValue = function(v) ns.SetOwnListSize("lineSize", v) end })
-            y = y - h
-        end
-
         _, h = W:SectionHeader(parent, "RESET APPLICATION COUNTS", y); y = y - h
         local function Reset(label, scope)
             return function()
