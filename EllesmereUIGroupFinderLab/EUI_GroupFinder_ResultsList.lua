@@ -5,8 +5,10 @@ if EUI_CLIENT_BLOCKED then return end -- pre-12.1 client failsafe (EllesmereUI_C
 --  hidden; in its place we draw only the groups that pass the filters,
 --  packed with no gaps, so filtered groups are gone instead of faded. we only
 --  read the results; blizzard's list, data and order are never written.
---  click a row to select it (blizzard's sign up button then works),
---  double-click to sign up - the same calls the module's quick signup makes.
+--  click a row to select it (our own selection and our own sign up button
+--  over blizzard's), quick signup's clicks sign up. nothing is written to
+--  blizzard's search panel: a selection made from addon code leaves its
+--  fields tainted, and its own list errors on them once results go secret.
 --  when results go secret (keys, restricted content) ours steps aside and
 --  blizzard's list shows again. saved in EllesmereUIDB.cawfeeOwnList
 --  { enabled, rowHeight }; nothing is built or listened to while it's off.
@@ -129,6 +131,51 @@ local scrollPx = 0
 local active = false
 local guard = false
 local lastClickID, lastClickTime, clickCount = nil, 0, 0
+local selected  -- our selection (blizzard's selectedResult is never touched)
+local Paint     -- the list's repaint, further down
+local signBtn
+
+-- whether the selected group can be signed up to: blizzard's sign up
+-- button's own checks, read-only. returns ok, the reason when not
+local function SignUpState(id)
+    local msg = LFGListUtil_GetActiveQueueMessage and LFGListUtil_GetActiveQueueMessage(true)
+    if msg then return false, msg end
+    if LFGListUtil_IsAppEmpowered and not LFGListUtil_IsAppEmpowered() then
+        return false, LFG_LIST_APP_UNEMPOWERED
+    end
+    if IsInGroup(LE_PARTY_CATEGORY_HOME) and C_LFGList.IsCurrentlyApplying and C_LFGList.IsCurrentlyApplying() then
+        return false, LFG_LIST_APP_CURRENTLY_APPLYING
+    end
+    local _, act = C_LFGList.GetNumApplications()
+    local max = MAX_LFG_LIST_APPLICATIONS or 5
+    if type(act) == "number" and act >= max then
+        return false, LFG_LIST_HIT_MAX_APPLICATIONS and string.format(LFG_LIST_HIT_MAX_APPLICATIONS, max)
+    end
+    if GetNumGroupMembers(LE_PARTY_CATEGORY_HOME) > (MAX_PARTY_MEMBERS or 4) + 1 then return false, LFG_LIST_MAX_MEMBERS end
+    local t, h, d = C_LFGList.GetAvailableRoles()
+    if not (t or h or d) then return false, LFG_LIST_MUST_CHOOSE_SPEC end
+    if GroupHasOfflineMember and GroupHasOfflineMember(LE_PARTY_CATEGORY_HOME) then return false, LFG_LIST_OFFLINE_MEMBER end
+    if not id then return false, LFG_LIST_SELECT_A_SEARCH_RESULT end
+    local _, status = C_LFGList.GetApplicationInfo(id)
+    if Secret(status) or (status and status ~= "none") then return false end
+    return true
+end
+
+-- blizzard's sign up dialog for that group, straight (what its own sign up
+-- button calls, minus the panel's selection)
+local function SignUp(id)
+    if not (id and SignUpState(id)) then return end
+    if LFGListApplicationDialog_Show and LFGListApplicationDialog then
+        LFGListApplicationDialog_Show(LFGListApplicationDialog, id)
+    end
+end
+
+local function PaintSignBtn()
+    if not signBtn then return end
+    local ok, why = SignUpState(selected)
+    signBtn:SetEnabled(ok)
+    signBtn.why = (not ok) and why or nil
+end
 -- where each group first showed in this search, so applying can leave it put
 local posOf, nextPos = {}, 0
 local function Pos(id)
@@ -412,15 +459,18 @@ local function MakeRow(i)
         lastClickID, lastClickTime = id, now
         local need = ({ single = 1, double = 2, triple = 3 })[ns.OwnListGet("signupClicks")] or 2
         local signup = EllesmereUIDB and EllesmereUIDB.quickSignup and clickCount >= need
+        -- at the application limit: cancel the oldest (group settings)
+        if ns.LabCancelOldest then ns.LabCancelOldest(id) end
         -- the checks blizzard's own row click makes, read-only
         if not LFGListSearchPanelUtil_CanSelectResult(id) then return end
-        if SP.selectedResult ~= id then
+        if selected ~= id then
             PlaySound(SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON)
-            LFGListSearchPanel_SelectResult(SP, id)
+            selected = id
+            Paint()
         end
-        if signup and SP.SignUpButton and SP.SignUpButton:IsEnabled() then
+        if signup and SignUpState(id) then
             lastClickID, clickCount = nil, 0
-            LFGListSearchPanel_SignUp(SP)
+            SignUp(id)
         end
     end)
     r:SetScript("OnEnter", function(self)
@@ -798,7 +848,7 @@ local function Fill(r, id)
         r.score:SetPoint("RIGHT", r, "RIGHT", x - 6, 0)
     end
     local ar, ag, ab = Accent()
-    r.sel:SetColorTexture(ar, ag, ab, SP.selectedResult == id and 0.18 or 0)
+    r.sel:SetColorTexture(ar, ag, ab, selected == id and 0.18 or 0)
     if dimmed[id] then r:SetAlpha(0.35)
     else r:SetAlpha((st and st ~= STATUS.applied and st ~= STATUS.invited) and 0.5 or 1) end
     r:Show()
@@ -809,7 +859,7 @@ end
 -------------------------------------------------------------------------------
 local empty, thumb
 
-local function Paint()
+function Paint()  -- the forward-declared local
     if not (frame and active) then return end
     local h = ns.OwnListRowHeight()
     local height = body:GetHeight() or 0
@@ -836,6 +886,7 @@ local function Paint()
         end
     end
     for i = slots + 1, #rows do rows[i]:Hide() end
+    PaintSignBtn()
     -- a slim thumb on the right while there's more than fits
     if maxPx > 0 then
         local share = height / (maxPx + height)
@@ -872,7 +923,7 @@ local function Build()
     if not (SP and SP.ScrollBox) then return end
     frame = CreateFrame("Frame", nil, SP)
     if LFGListSearchPanel_DoSearch then
-        hooksecurefunc("LFGListSearchPanel_DoSearch", function() wipe(posOf); nextPos = 0 end)
+        hooksecurefunc("LFGListSearchPanel_DoSearch", function() wipe(posOf); nextPos = 0; selected = nil end)
     end
     frame:SetPoint("TOPLEFT", SP.ScrollBox, "TOPLEFT", 3, 0)
     frame:SetPoint("BOTTOMRIGHT", SP.ScrollBar or SP.ScrollBox, "BOTTOMRIGHT", 0, 0)
@@ -894,6 +945,41 @@ local function Build()
     thumb = frame:CreateTexture(nil, "OVERLAY")
     thumb:SetWidth(3)
     thumb:SetColorTexture(1, 1, 1, 0.3)
+    -- our sign up button, right over blizzard's (faded while ours shows)
+    local sb = SP.SignUpButton
+    if sb then
+        signBtn = CreateFrame("Button", nil, SP)
+        signBtn:SetAllPoints(sb)
+        signBtn:SetFrameLevel(sb:GetFrameLevel() + 5)
+        signBtn:SetNormalFontObject("GameFontNormal")
+        signBtn:SetHighlightFontObject("GameFontHighlight")
+        signBtn:SetDisabledFontObject("GameFontDisable")
+        signBtn:SetText(SIGN_UP or "Sign Up")
+        signBtn:SetMotionScriptsWhileDisabled(true)
+        local skin = EUI._ModuleNS and EUI._ModuleNS.EllesmereUIBlizzardSkin
+        local S = skin and skin.WSkin
+        if S and S.Button then
+            S.Button(signBtn)
+        else
+            local bg = signBtn:CreateTexture(nil, "BACKGROUND")
+            bg:SetAllPoints()
+            bg:SetColorTexture(0.06, 0.06, 0.06, 0.95)
+            EUI.MakeBorder(signBtn, 0.25, 0.25, 0.25, 1, EUI.PanelPP)
+            local hl = signBtn:CreateTexture(nil, "HIGHLIGHT")
+            hl:SetAllPoints()
+            hl:SetColorTexture(1, 1, 1, 0.1)
+        end
+        signBtn:SetScript("OnClick", function() SignUp(selected) end)
+        signBtn:SetScript("OnEnter", function(self)
+            if not self.why then return end
+            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+            GameTooltip:SetText(self.why, 1, 1, 1, 1, true)
+            GameTooltip:Show()
+        end)
+        signBtn:SetScript("OnLeave", GameTooltip_Hide)
+        signBtn:Hide()
+        hooksecurefunc(sb, "SetAlpha", HoldHidden)
+    end
     hooksecurefunc(SP.ScrollBox, "SetAlpha", HoldHidden)
     if SP.ScrollBar then hooksecurefunc(SP.ScrollBar, "SetAlpha", HoldHidden) end
     hooksecurefunc("LFGListSearchPanel_UpdateResults", function(panel)
@@ -902,6 +988,8 @@ local function Build()
     frame:SetScript("OnEvent", function(_, event)
         if event == "LFG_LIST_SEARCH_RESULT_UPDATED" or event == "LFG_LIST_APPLICATION_STATUS_UPDATED" then
             Paint()
+        else
+            PaintSignBtn()
         end
     end)
 end
@@ -921,11 +1009,18 @@ function ns.OwnListRefresh()
         guard = true
         SP.ScrollBox:SetAlpha(a)
         if SP.ScrollBar then SP.ScrollBar:SetAlpha(a) end
+        if signBtn then SP.SignUpButton:SetAlpha(a) end
         guard = false
         frame:SetShown(active)
+        if signBtn then signBtn:SetShown(active) end
         if active then
             frame:RegisterEvent("LFG_LIST_SEARCH_RESULT_UPDATED")
             frame:RegisterEvent("LFG_LIST_APPLICATION_STATUS_UPDATED")
+            -- the sign up button's checks follow the group and the roles
+            frame:RegisterEvent("GROUP_ROSTER_UPDATE")
+            frame:RegisterEvent("LFG_LIST_AVAILABILITY_UPDATE")
+            frame:RegisterEvent("LFG_LIST_ACTIVE_ENTRY_UPDATE")
+            frame:RegisterEvent("PLAYER_SPECIALIZATION_CHANGED")
         else
             frame:UnregisterAllEvents()
         end

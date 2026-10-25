@@ -1317,6 +1317,13 @@ function XF.ShouldCancelOldest(resultID)
     return info ~= nil and not IsSecret(info.isDelisted) and not info.isDelisted
 end
 
+-- lab: the results list's rows do the same on click
+function ns.LabCancelOldest(resultID)
+    if not XF.ShouldCancelOldest(resultID) then return end
+    local oldest = XF.OldestApplication()
+    if oldest then C_LFGList.CancelApplication(oldest) end
+end
+
 -- Rows are decorated only while the panel shows; its OnShow re-inits every
 -- row, which catches them up.
 local function DecorateEntry(entry)
