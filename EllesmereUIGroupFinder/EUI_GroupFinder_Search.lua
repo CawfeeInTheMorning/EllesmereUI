@@ -713,12 +713,6 @@ local function RaidListKeep(resultID, info)
         local c = C_LFGList.GetSearchResultMemberCounts(resultID)
         if type(c) == "table" and not IsSecret(c) then
             local num = XF.Num
-            -- cawfee extras: match any role (nil without the add-on)
-            if ns.CawfeeRolesAny and ns.CawfeeRolesAny() then
-                return (roles.needsTank and (num(c, "TANK_REMAINING") or 1) > 0)
-                    or (roles.needsHealer and (num(c, "HEALER_REMAINING") or 1) > 0)
-                    or (roles.needsDamage and (num(c, "DAMAGER_REMAINING") or 1) > 0) or false
-            end
             if roles.needsTank and (num(c, "TANK_REMAINING") or 1) <= 0 then return false end
             if roles.needsHealer and (num(c, "HEALER_REMAINING") or 1) <= 0 then return false end
             if roles.needsDamage and (num(c, "DAMAGER_REMAINING") or 1) <= 0 then return false end
@@ -759,8 +753,6 @@ function XF.ExtraFilterActive()
     if not SP or (SP.categoryID ~= DUNGEONS and SP.categoryID ~= RAIDS) then return false end
     local c = Cfg()
     if c.partyFit or c.notDeclined or c.hasLust or c.hasBrez then return true end
-    if ns.CawfeeClassKeep and c.cawfeeMyClass then return true end  -- cawfee extras
-    if ns.CawfeeExprActive and ns.CawfeeExprActive() then return true end  -- cawfee extras
     for _, r in ipairs(XF.COUNT_ROLES) do if XF.CountRule(r.key) then return true end end
     return false
 end
@@ -800,29 +792,17 @@ function XF.ExtraKeep(id, info, need)
                 if left and left < n then return false end
             end
         end
-        -- cawfee extras: match any role (nil without the add-on)
-        local any = ns.CawfeeRolesAny and ns.CawfeeRolesAny()
-        local anySet, anyHit = false, false
         for _, r in ipairs(XF.COUNT_ROLES) do
             local op, n = XF.CountRule(r.key)
             local have = op and num(counts, r.key)
             if have then
-                local ok = (op == "lt" and have < n) or (op == "gt" and have > n) or (op == "eq" and have == n)
-                if any then
-                    anySet, anyHit = true, anyHit or ok
-                elseif not ok then
-                    return false
-                end
+                if op == "lt" and not (have < n) then return false end
+                if op == "gt" and not (have > n) then return false end
+                if op == "eq" and have ~= n then return false end
             end
         end
-        if anySet and not anyHit then return false end
     end
-    -- cawfee extras: the expressions box (nil without the add-on)
-    if ns.CawfeeExprKeep and not ns.CawfeeExprKeep(id, info) then return false end
-    -- cawfee extras: has / missing bloodlust, battle res and your class (nil without the add-on)
-    if ns.CawfeeClassKeep then
-        if not ns.CawfeeClassKeep(id, info, c) then return false end
-    elseif c.hasLust or c.hasBrez then
+    if c.hasLust or c.hasBrez then
         local n = info and info.numMembers
         if type(n) == "number" and not IsSecret(n) then
             local lust, brez = false, false
@@ -901,10 +881,6 @@ function XF.PassesFilters(id, info)
     return true
 end
 
--- cawfee extras: read-only filter checks for the add-on's own results list
-ns.CawfeePasses = function(id) return XF.PassesFilters(id) end
-ns.CawfeeResultsSecret = function() return XF.ResultsSecret() end
-
 -- Filters changed: re-fade the visible rows, no search.
 function XF.RefilterEntry(entry)
     local id = entry.resultID
@@ -912,7 +888,6 @@ function XF.RefilterEntry(entry)
 end
 local function Refilter()
     XF.NewPass()
-    if ns.CawfeeRefilter then ns.CawfeeRefilter() end  -- cawfee extras: its own results list
     if not (SP and SP:IsVisible()) then return end
     local box = SP.ScrollBox
     if box and box.ForEachFrame then box:ForEachFrame(XF.RefilterEntry) end
@@ -1360,7 +1335,6 @@ function XF.Redecorate()
     if not (SP and SP:IsVisible()) then return end
     local box = SP.ScrollBox
     if box and box.ForEachFrame then box:ForEachFrame(DecorateEntry) end
-    if ns.CawfeeRedecorate then ns.CawfeeRedecorate() end  -- cawfee extras
 end
 
 -- Tooltip hint while a click would cancel your oldest application.
@@ -1549,13 +1523,6 @@ end
 
 local function AddRoleItems(m, y, raids)
     y = AddSection(m, y, EllesmereUI.L("Roles"))
-    -- cawfee extras: the menu's helpers for the add-on's rows (nil without it)
-    local K = ns.CawfeeClassRows and { Cfg = Cfg, Refilter = Refilter, Paint = Paint, Font = XF.Font,
-        ITEM_H = ITEM_H, ITEM_FONT = ITEM_FONT, CHECK_SZ = CHECK_SZ, ThemeBorder = ThemeBorder, ThemeFill = ThemeFill,
-        ClickOff = XF.ClickOff, Tip = XF.Tip, Untip = XF.Untip, Accent = Accent, parent = SP,
-        MenuItem = MenuItem, ClassLine = XF.ClassLine, FLAG_KEYS = XF.FLAG_KEYS,
-        AddCountRow = XF.AddCountRow, COUNT_ROLES = XF.COUNT_ROLES,
-        OpListOver = function() return XF.opList and XF.opList:IsShown() and XF.opList:IsMouseOver() or false end }
     for _, r in ipairs(ROLES) do
         local key = r.key
         m.items["role_" .. key] = MenuItem(m, y, r.label, function()
@@ -1573,9 +1540,6 @@ local function AddRoleItems(m, y, raids)
         end)
         y = y + ITEM_H
     end
-    if K and ns.CawfeeClassRows then
-        y = ns.CawfeeClassRows(m, y, K)  -- cawfee extras: has / missing dropdown rows
-    else
     y = XF.AddFlagItem(m, y, "hasLust", EllesmereUI.L("Has Bloodlust"), {
         EllesmereUI.L("A member whose class has one of these spells:"),
         XF.ClassLine("SHAMAN", EllesmereUI.L("Bloodlust / Heroism (Shaman)")),
@@ -1590,13 +1554,7 @@ local function AddRoleItems(m, y, raids)
         XF.ClassLine("WARLOCK", EllesmereUI.L("Soulstone (Warlock)")),
         XF.ClassLine("PALADIN", EllesmereUI.L("Intercession (Paladin)")),
         EllesmereUI.L("Engineering and other items don't count.") })
-    end
-    -- cawfee extras: match any / exactly + count rows under one button (nil without the add-on)
-    if K and ns.CawfeeRoleCounts then
-        y = ns.CawfeeRoleCounts(m, y, K)
-    else
-        for _, r in ipairs(XF.COUNT_ROLES) do y = XF.AddCountRow(m, y, r.key, r.label) end
-    end
+    for _, r in ipairs(XF.COUNT_ROLES) do y = XF.AddCountRow(m, y, r.key, r.label) end
     return y
 end
 
@@ -1955,7 +1913,6 @@ local function DimForMenu(on)
     if SP.FilterButton then SP.FilterButton:SetAlpha(a) end
     if SP.ScrollBox then SP.ScrollBox:SetAlpha(a) end
     if SP.ScrollBar then SP.ScrollBar:SetAlpha(a) end
-    if ns.CawfeeOnDim then ns.CawfeeOnDim(on) end  -- cawfee extras: row 1 blocked too
 end
 
 local function BuildSidePanel(m, raids)
@@ -1974,15 +1931,12 @@ local function BuildSidePanel(m, raids)
     local y = 3
     y = AddRegionItems(side, y)
     y = AddPlaystyleItems(side, y, raids)
-    side.cawfeeMiscY = y  -- cawfee extras: where misc starts (two-column misc)
     y = AddSection(side, y, EllesmereUI.L("Misc"))
-    side.cawfeeMiscRowsY = y  -- cawfee extras
     y = XF.AddFlagItem(side, y, "partyFit", EllesmereUI.L("Party Fit"),
         EllesmereUI.L("Only groups with open slots for your role, or for your whole party's roles."))
     y = XF.AddFlagItem(side, y, "notDeclined", EllesmereUI.L("Not Declined"),
         EllesmereUI.L("Hides groups that have declined you this session."))
     if not raids then y = AddRatingRow(side, y) end
-    side.cawfeeEndY = y  -- cawfee extras
     -- Both columns the same height with one border around them.
     local h = math.max(y + 3, m:GetHeight() or 0)
     side:SetHeight(h)
@@ -2010,9 +1964,7 @@ end
 -- operator list keeps the menu open.
 function XF.FiltersInside(m)
     return m:IsMouseOver() or (diffBtn and diffBtn:IsMouseOver()) or m.side:IsMouseOver()
-        or (XF.opList and XF.opList:IsShown() and XF.opList:IsMouseOver())
-        or (ns.CawfeeInside and ns.CawfeeInside())  -- cawfee extras: the add-on's dropdowns
-        or false
+        or (XF.opList and XF.opList:IsShown() and XF.opList:IsMouseOver()) or false
 end
 
 -- Filters menu, as wide as its button. The border goes around the menu and
@@ -2047,7 +1999,6 @@ local function BuildMenu()
     y = AddRoleItems(menu, y, false)
     menu:SetHeight(y + 3)
     BuildSidePanel(menu, false)
-    if ns.CawfeeDecorateMenu then ns.CawfeeDecorateMenu(menu, menu.side) end  -- cawfee extras
     menu:Hide()
 end
 
@@ -2083,12 +2034,9 @@ local function BuildRaidDiffMenu()
         end)
         y = y + ITEM_H
     end
-    -- cawfee extras: a gap for the missing Mythic+ row, so Roles lines up with the dungeon menu
-    if ns.CawfeeClassRows then y = y + math.max(0, #DIFFS - #RAID_DIFFS_MENU) * ITEM_H end
     y = AddRoleItems(m, y, true)
     m:SetHeight(y + 3)
     BuildSidePanel(m, true)
-    if ns.CawfeeDecorateMenu then ns.CawfeeDecorateMenu(m, m.side) end  -- cawfee extras
     m:Hide()
 end
 
@@ -2309,20 +2257,13 @@ function XF.BuildGroupMenu()
     if S and S.AddBorder then S.AddBorder(m) else CM.MakeBorder(m, ThemeBorder()) end
     m.items = {}
     local y = 3
-    local list = ns.CawfeeGroupMenu and ns.CawfeeGroupMenu(XF.GROUP_MENU) or XF.GROUP_MENU  -- cawfee extras
-    if ns.CawfeeGroupColumns then
-        -- cawfee extras: the add-on lays the rows out in two columns (nil without it)
-        y = ns.CawfeeGroupColumns(m, list, { AddSection = AddSection, SwitchItem = XF.SwitchItem,
-            StepperItem = XF.StepperItem, ITEM_H = ITEM_H })
-    else
-    for _, spec in ipairs(list) do
+    for _, spec in ipairs(XF.GROUP_MENU) do
         if spec.title then
             y = AddSection(m, y, spec.title)
         else
             m.items[#m.items + 1] = spec.stepper and XF.StepperItem(m, y, spec) or XF.SwitchItem(m, y, spec)
             y = y + ITEM_H
         end
-    end
     end
     m:SetHeight(y + 3)
     m:SetScript("OnShow", function(self)
@@ -2344,7 +2285,6 @@ function XF.ToggleGroupMenu(owner)
     m.owner = owner
     m:ClearAllPoints()
     m:SetPoint("TOPLEFT", owner, "BOTTOMLEFT", 0, -SQ_GAP)
-    if ns.CawfeeGroupMenuPlace then ns.CawfeeGroupMenuPlace(m, owner, refreshBtn) end  -- cawfee extras
     m:Show()
 end
 
@@ -2355,7 +2295,6 @@ local function ToggleMenu()
         raidDiffMenu:ClearAllPoints()
         raidDiffMenu:SetPoint("TOPLEFT", diffBtn, "BOTTOMLEFT", 0, -SQ_GAP)
         raidDiffMenu:SetPoint("TOPRIGHT", refreshBtn or diffBtn, "BOTTOMRIGHT", 0, -SQ_GAP)
-        if ns.CawfeeWidenMenu then ns.CawfeeWidenMenu(raidDiffMenu, diffBtn, SQ_GAP) end  -- cawfee extras
         raidDiffMenu:Show()
         PaintMenu()
         return
@@ -2365,7 +2304,6 @@ local function ToggleMenu()
     menu:ClearAllPoints()
     menu:SetPoint("TOPLEFT", diffBtn, "BOTTOMLEFT", 0, -SQ_GAP)
     menu:SetPoint("TOPRIGHT", refreshBtn or diffBtn, "BOTTOMRIGHT", 0, -SQ_GAP)
-    if ns.CawfeeWidenMenu then ns.CawfeeWidenMenu(menu, diffBtn, SQ_GAP) end  -- cawfee extras
     menu:Show()
     PaintMenu()
 end
@@ -2611,11 +2549,6 @@ local function LayoutBosses(size, after, show, cols, slots)
     local list = {}
     for _, b in ipairs(bosses or {}) do
         if RaidShown(b.raid) then list[#list + 1] = b end
-    end
-    -- cawfee extras: one scrolling line instead of a grid (nil without the add-on)
-    if ns.CawfeeBossStrip then
-        return ns.CawfeeBossStrip(list, bossSquares, function() return MakeBossSquare(row) end,
-            size, after, show, cols, slots, row, SQ_GAP, function() Paint() end)
     end
     for i = 1, math.max(#list, #bossSquares) do
         local d = list[i]
@@ -2936,7 +2869,7 @@ local function CogFilterButton(btn)
     d.cogFrame:SetFrameLevel(btn:GetFrameLevel() + 3)
     d.cogFrame:EnableMouse(false)
     d.cog = d.cogFrame:CreateTexture(nil, "OVERLAY")
-    if ns.CawfeePersonTex then d.cog:SetTexture(ns.CawfeePersonTex) else d.cog:SetAtlas(XF.PERSON_ATLAS, false) end  -- cawfee extras
+    d.cog:SetAtlas(XF.PERSON_ATLAS, false)
     d.cog:SetDesaturated(true)
     d.cog:SetVertexColor(XF.GLYPH, XF.GLYPH, XF.GLYPH)
     d.cog:SetPoint("CENTER")
@@ -2998,8 +2931,6 @@ local function CogFilterButton(btn)
         if type(c.raidPlaystyles) == "table" then wipe(c.raidPlaystyles) end
         if type(c.raidRoles) == "table" then wipe(c.raidRoles) end
         c.partyFit, c.notDeclined, c.hasLust, c.hasBrez = nil, nil, nil, nil
-        c.cawfeeMyClass = nil  -- cawfee extras
-        if ns.CawfeeExprReset then ns.CawfeeExprReset() end  -- cawfee extras
         if type(c.roleCounts) == "table" then wipe(c.roleCounts) end
         PlaySound(SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON)
         Apply(f)
@@ -3267,28 +3198,18 @@ local function Layout()
         blzRefresh:SetAllPoints(refreshBtn)
         blzRefresh:SetFrameLevel(refreshBtn:GetFrameLevel() + 4)
     end
-    -- cawfee extras: a button left of refresh (nil without the add-on); row 1 ends at it
-    local row1End = refreshBtn
-    if ns.CawfeeExprButton then
-        row1End = ns.CawfeeExprButton(SP, refreshBtn, SP.categoryID == DUNGEONS or SP.categoryID == RAIDS,
-            { GlyphButton = GlyphButton, ROW1_H = ROW1_H, GAP = SQ_GAP, Refilter = Refilter, Tip = XF.Tip,
-              Untip = XF.Untip, ClickOff = XF.ClickOff, Font = XF.Font, ThemeFill = ThemeFill,
-              ThemeBorder = ThemeBorder, Accent = Accent, GLYPH = XF.GLYPH, Dim = DimForMenu,
-              Filters = diffBtn, DIM_ALPHA = XF.DIM_ALPHA,
-              FiltersOpen = function() return (menu and menu:IsShown()) or (raidDiffMenu and raidDiffMenu:IsShown()) or false end }) or refreshBtn
-    end
     diffBtn:ClearAllPoints()
-    diffBtn:SetPoint("RIGHT", row1End, "LEFT", -SQ_GAP, 0)
+    diffBtn:SetPoint("RIGHT", refreshBtn, "LEFT", -SQ_GAP, 0)
     diffBtn:SetShown(showDiff)
     if not showDiff or SP.categoryID ~= RAIDS then if raidDiffMenu then raidDiffMenu:Hide() end end
     if SP.categoryID ~= DUNGEONS and menu then menu:Hide() end
     tierBtn:ClearAllPoints()
-    tierBtn:SetPoint("RIGHT", row1End, "LEFT", -SQ_GAP, 0)
+    tierBtn:SetPoint("RIGHT", refreshBtn, "LEFT", -SQ_GAP, 0)
     tierBtn:SetShown(showDelves)
     if box then
         box:ClearAllPoints()
         box:SetPoint("LEFT", SP, "TOPLEFT", pad, ROW1_Y)
-        box:SetPoint("RIGHT", (showDiff and diffBtn) or (showDelves and tierBtn) or row1End, "LEFT", -SQ_GAP, 0)
+        box:SetPoint("RIGHT", (showDiff and diffBtn) or (showDelves and tierBtn) or refreshBtn, "LEFT", -SQ_GAP, 0)
         box:SetHeight(ROW1_H)
         SetBorderColor(box, ThemeBorder())
         -- Shorter prompt (runs after Blizzard sets its own).
@@ -3324,7 +3245,7 @@ local function Layout()
     local lines = LayoutDelves(size, resetBtn or filter, showDelves, math.max(1, n - 1), n)
     -- Raids: map button after the reset, bosses in the grid.
     if showBosses and not raidBtn then
-        raidBtn = GlyphButton(row, BTN, ns.CawfeeRaidTex or RAID_TEX)  -- cawfee extras
+        raidBtn = GlyphButton(row, BTN, RAID_TEX)
         raidBtn:SetScript("OnClick", ToggleRaidMenu)
         raidBtn:SetScript("OnHide", function() if raidMenu then raidMenu:Hide() end end)
         raidBtn:SetScript("OnEnter", function(self)

@@ -176,16 +176,6 @@ local function Place()
     local pad = tonumber(ns.Cfg().padding) or 12
     local x1, x2 = il - pl + pad, ir - pl - pad
     card.box:ClearAllPoints()
-    -- Cawfee Extras: the bar on the Filters row, no title (nil without the add-on).
-    if ns.CawfeeAppsBarOnRow and ns.CawfeeAppsBarOnRow() then
-        local h1 = select(4, ns.Search_Rows and ns.Search_Rows()) or 24
-        card.box:SetPoint("TOPLEFT", pve, "TOPLEFT", x1, dy + r1 + h1 / 2)
-        card.box:SetPoint("TOPRIGHT", pve, "TOPLEFT", x2, dy + r1 + h1 / 2)
-        card.box:SetHeight(h1)
-        card.title:Hide()
-        return
-    end
-    card.title:Show()
     card.box:SetPoint("TOPLEFT", pve, "TOPLEFT", x1, dy + r2)
     card.box:SetPoint("TOPRIGHT", pve, "TOPLEFT", x2, dy + r2)
     card.box:SetHeight(size)
