@@ -48,6 +48,18 @@ function ns.SetOwnListOpt(k, v)
     DB()[k] = v and true or false
     if ns.OwnListRefresh then ns.OwnListRefresh() end
 end
+-- display: iconShape (circle / square), borderTexture, borderSize (px),
+-- missingIcons (blizzard / ellesmere)
+local DISPLAY_DEFAULTS = { iconShape = "circle", borderTexture = "solid", borderSize = 1, missingIcons = "blizzard" }
+function ns.OwnListGet(k)
+    local v = DB()[k]
+    if v == nil then return DISPLAY_DEFAULTS[k] end
+    return v
+end
+function ns.SetOwnListValue(k, v)
+    DB()[k] = v
+    if ns.OwnListRefresh then ns.OwnListRefresh() end
+end
 
 local SP, frame, body, rows, shown = nil, nil, nil, {}, {}
 local scrollPx = 0
@@ -189,16 +201,22 @@ local function MakeRow(i)
         m2:SetAllPoints(t)
         r.masks = r.masks or {}
         r.masks[k] = m2
-        -- class circles: the role on top
+        -- class circles: the role on top; missing roles (blizzard style) too
         local role = r:CreateTexture(nil, "ARTWORK", nil, 3)
         role:SetPoint("CENTER", t)
         role:Hide()
         r.roles[k] = role
+        -- square icons: the border style sits on this
+        local bf = CreateFrame("Frame", nil, r)
+        bf:SetAllPoints(t)
+        bf:EnableMouse(false)
+        bf:Hide()
+        r.borders = r.borders or {}
+        r.borders[k] = bf
         -- the leader's crown above their icon (group settings: show group leader)
         local c = r:CreateTexture(nil, "OVERLAY")
         c:SetAtlas("groupfinder-icon-leader")
-        c:SetSize(12, 8)
-        c:SetPoint("BOTTOM", t, "TOP", 0, -2)
+        c:SetPoint("BOTTOM", t, "TOP", 0, -1)
         c:Hide()
         r.crowns[k] = c
     end
@@ -248,10 +266,10 @@ local function SetSize(fs, size)
 end
 
 local function IconSize(h)
-    -- 20px at 100%: every 5% step of role icon size is a whole pixel
+    -- 14px at 100%, every 5% step of role icon size a whole pixel
     local c = GFNS.Cfg and GFNS.Cfg()
     local pct = tonumber(c and c.iconSize) or (GFNS.DEFAULTS and GFNS.DEFAULTS.iconSize) or 125
-    return math.max(8, math.min(h - 4, math.floor(20 * pct / 100 + 0.5)))
+    return math.max(8, math.min(h - 4, 14 + math.floor((pct - 100) / 5 + 0.5)))
 end
 
 local function Layout(r, h)
@@ -287,14 +305,18 @@ local function Layout(r, h)
     r.pad = pad
 
     local isz = IconSize(h)
-    local x = -pad
+    local bpx = tonumber(ns.OwnListGet("borderSize")) or 0
+    local gap = 2 + ((ns.OwnListGet("iconShape") ~= "square") and bpx * 2 or 0)  -- room for the rings
+    local cw = math.max(8, math.floor(isz * 0.6 + 0.5))
+    local x = -pad - ((ns.OwnListGet("iconShape") ~= "square") and bpx or 0)
     for k = 5, 1, -1 do
         local t = r.icons[k]
         t:SetSize(isz, isz)
         r.roles[k]:SetSize(math.floor(isz * 0.7 + 0.5), math.floor(isz * 0.7 + 0.5))
+        r.crowns[k]:SetSize(cw, math.floor(cw * 0.6 + 0.5))
         t:ClearAllPoints()
         t:SetPoint("RIGHT", r, "RIGHT", x, 0)
-        x = x - isz - 2
+        x = x - isz - gap
     end
     r.score:ClearAllPoints()
     r.score:SetPoint("RIGHT", r, "RIGHT", x - 4, 0)
@@ -433,12 +455,27 @@ local function Fill(r, id)
     local NEED_ATLAS = { TANK = "groupfinder-icon-role-micro-tank", HEALER = "groupfinder-icon-role-micro-heal",
         DAMAGER = "groupfinder-icon-role-micro-dps" }
     local specOn, crownOn = Opt("specIcons"), Opt("leaderCrown")
+    local square = ns.OwnListGet("iconShape") == "square"
+    local bpx = tonumber(ns.OwnListGet("borderSize")) or 0
+    local btex = ns.OwnListGet("borderTexture") or "solid"
+    local br, bg, bb = 1, 1, 1
+    if btex ~= "solid" and square and EUI.GetBorderStyleSelectDefaults then
+        local c = EUI.GetBorderStyleSelectDefaults(btex)
+        br, bg, bb = c.r, c.g, c.b
+    elseif ns.ThemeBorder then
+        br, bg, bb = ns.ThemeBorder()
+    end
+    local bkey = btex .. ":" .. bpx .. ":" .. br .. ":" .. bg .. ":" .. bb
+    local blizzMissing = ns.OwnListGet("missingIcons") ~= "ellesmere"
     local nextNeed = 1
     for k = 1, 5 do
-        local t, m = r.icons[k], members[k]
+        local t, m, role, bf = r.icons[k], members[k], r.roles[k], r.borders[k]
         r.crowns[k]:Hide()
         r.rings[k]:Hide()
-        r.roles[k]:Hide()
+        role:Hide()
+        role:SetDesaturated(false)
+        role:SetAlpha(1)
+        bf:Hide()
         if t._masked then t:RemoveMaskTexture(r.masks[k]); t._masked = nil end
         t:SetTexCoord(0, 1, 0, 1)
         t:SetDesaturated(false)
@@ -449,18 +486,36 @@ local function Fill(r, id)
             if icon then
                 t:SetTexture(icon)
                 t:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-                t:AddMaskTexture(r.masks[k]); t._masked = true
-                local br, bg, bb = 1, 1, 1
-                if ns.ThemeBorder then br, bg, bb = ns.ThemeBorder() end
-                r.rings[k]:SetColorTexture(br, bg, bb, 1)
-                r.rings[k]:Show()
+            elseif square then
+                -- square: class colour tile, role on top
+                local cc = C_ClassColor and C_ClassColor.GetClassColor(m.cls)
+                if cc then t:SetColorTexture(cc.r * 0.75, cc.g * 0.75, cc.b * 0.75, 1) else t:SetColorTexture(0.3, 0.3, 0.3, 1) end
             else
                 -- the game's own look: class colour circle, role on top
                 t:SetAtlas("groupfinder-icon-class-color-" .. m.cls)
-                local ra = NEED_ATLAS[m.role]
-                if ra then
-                    r.roles[k]:SetAtlas(ra)
-                    r.roles[k]:Show()
+            end
+            if not icon and NEED_ATLAS[m.role] then
+                role:SetAtlas(NEED_ATLAS[m.role])
+                role:Show()
+            end
+            if square then
+                if bpx > 0 then
+                    if bf._key ~= bkey and EUI.ApplyBorderStyle then
+                        bf._key = bkey
+                        EUI.ApplyBorderStyle(bf, bpx, br, bg, bb, 1, btex)
+                    end
+                    bf:Show()
+                end
+            elseif icon then
+                -- round spec icon on a ring of the border size
+                t:AddMaskTexture(r.masks[k]); t._masked = true
+                if bpx > 0 then
+                    local ring = r.rings[k]
+                    ring:ClearAllPoints()
+                    ring:SetPoint("TOPLEFT", t, "TOPLEFT", -bpx, bpx)
+                    ring:SetPoint("BOTTOMRIGHT", t, "BOTTOMRIGHT", bpx, -bpx)
+                    ring:SetColorTexture(br, bg, bb, 1)
+                    ring:Show()
                 end
             end
             t:SetAlpha(1)
@@ -469,18 +524,23 @@ local function Fill(r, id)
         elseif k <= cap then
             local need = needs[nextNeed]
             nextNeed = nextNeed + 1
-            local needTex = need and ns.RoleIconTex and ns.RoleIconTex(need)
-            if needTex then
+            local needTex = need and not blizzMissing and ns.RoleIconTex and ns.RoleIconTex(need)
+            if need and blizzMissing then
+                -- the game's own: the small role mark, greyed and faded
+                t:Hide()
+                role:SetAtlas(NEED_ATLAS[need])
+                role:SetDesaturated(true)
+                role:SetAlpha(0.6)
+                role:Show()
+            elseif needTex then
                 t:SetTexture(needTex)
                 t:SetAlpha(0.6)
-            elseif need then
-                t:SetAtlas(NEED_ATLAS[need])
-                t:SetAlpha(0.6)
+                t:Show()
             else
                 t:SetAtlas("groupfinder-icon-emptyslot")
-                t:SetAlpha(0.5)
+                t:SetAlpha(blizzMissing and 1 or 0.5)
+                t:Show()
             end
-            t:Show()
         else
             t:Hide()
         end

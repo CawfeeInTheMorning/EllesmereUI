@@ -10,7 +10,6 @@ local EUI = EllesmereUI
 if not EUI.RegisterPlugin then return end
 
 local PAGE_SEARCH = "Premade Search"
-local PAGE_LIST = "Results List"
 
 local initFrame = CreateFrame("Frame")
 initFrame:RegisterEvent("PLAYER_LOGIN")
@@ -78,8 +77,9 @@ initFrame:SetScript("OnEvent", function(self)
               end },
             pgfNote);  y = y - h
 
-        -- List look, sign-up options and icon size live in the Group Settings
-        -- menu on the panel.
+        -- list look, sign-up options and icon size live in the group settings
+        -- menu on the panel; the lab's list and its icons here
+        y = AddListSections(parent, y)
         y = AddAppsSections(parent, y)
 
         _, h = W:Spacer(parent, y, 20); y = y - h
@@ -87,13 +87,10 @@ initFrame:SetScript("OnEvent", function(self)
         return math.abs(y - yOffset)
     end
 
-    -- the lab's results list
-    local function BuildListPage(parent, yOffset)
+    -- the lab's results list and its icons
+    local function AddListSections(parent, y)
         local W = EUI.Widgets
-        local y = yOffset
         local _, h
-        if EUI.ClearContentHeader then EUI:ClearContentHeader() end
-        parent._showRowDivider = true
         _, h = W:SectionHeader(parent, "RESULTS LIST", y); y = y - h
         _, h = W:DualRow(parent, y,
             { type = "slider", text = "Row Height", min = 20, max = 64, step = 1,
@@ -115,9 +112,35 @@ initFrame:SetScript("OnEvent", function(self)
               getValue = function() return ns.OwnListSize("lineSize") end,
               setValue = function(v) ns.SetOwnListSize("lineSize", v) end })
         y = y - h
-        _, h = W:Spacer(parent, y, 20); y = y - h
-        parent:SetHeight(math.abs(y - yOffset))
-        return math.abs(y - yOffset)
+
+        _, h = W:SectionHeader(parent, "DISPLAY", y); y = y - h
+        local function Circle() return ns.OwnListGet("iconShape") ~= "square" end
+        _, h = W:DualRow(parent, y,
+            { type = "dropdown", text = "Icon Shape",
+              tooltip = "The members' icons: round like the game's, or square. Spec icons or class colours with the role on top (Show Specialization in the Group Settings menu).",
+              values = { circle = "Circle", square = "Square" }, order = { "circle", "square" },
+              getValue = function() return ns.OwnListGet("iconShape") end,
+              setValue = function(v) ns.SetOwnListValue("iconShape", v); EUI:RefreshPage(true) end },
+            { type = "dropdown", text = "Missing Role Icons",
+              tooltip = "How open slots show the role the group still needs (Show Missing Roles in the Group Settings menu): the game's small greyed marks, or EllesmereUI's role icons.",
+              values = { blizzard = "Blizzard", ellesmere = "EllesmereUI" }, order = { "blizzard", "ellesmere" },
+              getValue = function() return ns.OwnListGet("missingIcons") end,
+              setValue = function(v) ns.SetOwnListValue("missingIcons", v) end })
+        y = y - h
+        local texValues, texOrder = EUI.GetBorderTextureDropdown()
+        _, h = W:DualRow(parent, y,
+            { type = "dropdown", text = "Border Style",
+              tooltip = "The border around square icons.",
+              values = texValues, order = texOrder,
+              disabled = Circle, disabledTooltip = "Icon Shape: Square",
+              getValue = function() return ns.OwnListGet("borderTexture") end,
+              setValue = function(v) ns.SetOwnListValue("borderTexture", v) end },
+            { type = "slider", text = "Border Size", min = 0, max = 4, step = 1,
+              tooltip = "In pixels. 0 for no border. Round icons get a ring in the theme's border colour.",
+              getValue = function() return tonumber(ns.OwnListGet("borderSize")) or 0 end,
+              setValue = function(v) ns.SetOwnListValue("borderSize", v) end })
+        y = y - h
+        return y
     end
 
     local function ResetMessage(scope)
@@ -239,9 +262,8 @@ initFrame:SetScript("OnEvent", function(self)
             key         = "GroupFinder",
             title       = "Group Finder",
             description = "Premade Groups search filters and our own filtered results list in the Dungeons & Raids window (lab build).",
-            pages       = { PAGE_SEARCH, PAGE_LIST },
+            pages       = { PAGE_SEARCH },
             buildPage   = function(pageName, parent, yOffset)
-                if pageName == PAGE_LIST then return BuildListPage(parent, yOffset) end
                 return BuildSearchPage(pageName, parent, yOffset)
             end,
             onReset     = function()
