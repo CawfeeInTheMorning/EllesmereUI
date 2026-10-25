@@ -526,8 +526,31 @@ local function Encounters(jid)
 end
 
 -- Current raid bosses in Blizzard's raid order. Nil until the journal has data.
+-- lab: this season's raids. the group finder's current season filter first,
+-- else the journal's newest tier, else the activities' own current flag
+function XF.SeasonRaidSets()
+    local F = Enum.LFGListFilter
+    local groups = {}
+    local ok, g = pcall(C_LFGList.GetAvailableActivityGroups, RAIDS, bit.bor(F.CurrentSeason, F.PvE))
+    if ok and type(g) == "table" then for _, gid in ipairs(g) do groups[gid] = true end end
+    local tier = {}
+    if EJ_GetNumTiers and EJ_SelectTier and EJ_GetInstanceByIndex then
+        local prev = EJ_GetCurrentTier and EJ_GetCurrentTier()
+        EJ_SelectTier(EJ_GetNumTiers())
+        for i = 1, 20 do
+            local jid = EJ_GetInstanceByIndex(i, true)
+            if not jid then break end
+            tier[jid] = true
+        end
+        if prev then EJ_SelectTier(prev) end
+    end
+    return groups, tier
+end
+
 local function BuildBosses()
     if not (EJ_SelectInstance and EJ_GetEncounterInfoByIndex) then return nil end
+    local seasonGroups, seasonTier = XF.SeasonRaidSets()
+    local byGroup, byTier = {}, {}
     local list, byAct, seen, raids = {}, {}, {}, {}
     local current = {}
     local names
@@ -540,6 +563,8 @@ local function BuildBosses()
             if jid then
                 byAct[aid] = jid
                 if info and info.isCurrentRaidActivity then current[jid] = true end
+                if seasonGroups[gid] then byGroup[jid] = true end
+                if seasonTier[jid] then byTier[jid] = true end
                 if not seen[jid] then
                     seen[jid] = true
                     local raidName = EJ_GetInstanceInfo and EJ_GetInstanceInfo(jid)
@@ -556,6 +581,7 @@ local function BuildBosses()
     if #list == 0 then return nil end
     -- lab: current season flags (none flagged: all count)
     wipe(XF.raidCurrent)
+    if next(byGroup) then current = byGroup elseif next(byTier) then current = byTier end
     if next(current) then
         for _, raid in ipairs(raids) do XF.raidCurrent[raid.jid] = current[raid.jid] == true end
     end
