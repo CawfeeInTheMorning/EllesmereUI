@@ -170,10 +170,30 @@ local function MakeRow(i)
     r.status:SetJustifyH("RIGHT")
     r.score = r:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     r.score:SetJustifyH("RIGHT")
-    r.icons, r.crowns = {}, {}
+    r.icons, r.crowns, r.rings, r.roles = {}, {}, {}, {}
     for k = 1, 5 do
-        local t = r:CreateTexture(nil, "ARTWORK")
+        local t = r:CreateTexture(nil, "ARTWORK", nil, 2)
         r.icons[k] = t
+        -- spec icons: round, on a 1px theme ring
+        local ring = r:CreateTexture(nil, "ARTWORK", nil, 1)
+        ring:SetPoint("TOPLEFT", t, "TOPLEFT", -1, 1)
+        ring:SetPoint("BOTTOMRIGHT", t, "BOTTOMRIGHT", 1, -1)
+        ring:Hide()
+        r.rings[k] = ring
+        local m1 = r:CreateMaskTexture()
+        m1:SetTexture("Interface\\CharacterFrame\\TempPortraitAlphaMask", "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
+        m1:SetAllPoints(ring)
+        ring:AddMaskTexture(m1)
+        local m2 = r:CreateMaskTexture()
+        m2:SetTexture("Interface\\CharacterFrame\\TempPortraitAlphaMask", "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
+        m2:SetAllPoints(t)
+        r.masks = r.masks or {}
+        r.masks[k] = m2
+        -- class circles: the role on top
+        local role = r:CreateTexture(nil, "ARTWORK", nil, 3)
+        role:SetPoint("CENTER", t)
+        role:Hide()
+        r.roles[k] = role
         -- the leader's crown above their icon (group settings: show group leader)
         local c = r:CreateTexture(nil, "OVERLAY")
         c:SetAtlas("groupfinder-icon-leader")
@@ -271,6 +291,7 @@ local function Layout(r, h)
     for k = 5, 1, -1 do
         local t = r.icons[k]
         t:SetSize(isz, isz)
+        r.roles[k]:SetSize(math.floor(isz * 0.7 + 0.5), math.floor(isz * 0.7 + 0.5))
         t:ClearAllPoints()
         t:SetPoint("RIGHT", r, "RIGHT", x, 0)
         x = x - isz - 2
@@ -416,6 +437,9 @@ local function Fill(r, id)
     for k = 1, 5 do
         local t, m = r.icons[k], members[k]
         r.crowns[k]:Hide()
+        r.rings[k]:Hide()
+        r.roles[k]:Hide()
+        if t._masked then t:RemoveMaskTexture(r.masks[k]); t._masked = nil end
         t:SetTexCoord(0, 1, 0, 1)
         t:SetDesaturated(false)
         if cap > 5 then
@@ -425,8 +449,19 @@ local function Fill(r, id)
             if icon then
                 t:SetTexture(icon)
                 t:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+                t:AddMaskTexture(r.masks[k]); t._masked = true
+                local br, bg, bb = 1, 1, 1
+                if ns.ThemeBorder then br, bg, bb = ns.ThemeBorder() end
+                r.rings[k]:SetColorTexture(br, bg, bb, 1)
+                r.rings[k]:Show()
             else
-                t:SetAtlas("classicon-" .. m.cls:lower())
+                -- the game's own look: class colour circle, role on top
+                t:SetAtlas("groupfinder-icon-class-color-" .. m.cls)
+                local ra = NEED_ATLAS[m.role]
+                if ra then
+                    r.roles[k]:SetAtlas(ra)
+                    r.roles[k]:Show()
+                end
             end
             t:SetAlpha(1)
             t:Show()

@@ -2111,22 +2111,12 @@ local function BuildRaidDiffMenu()
     m:Hide()
 end
 
--- Show Specialization / Show Spec Icons changed: off also puts Role Icon Size
--- to 100%, the game's own icons at their own size, and on back to its default
--- (owner request). The open menu repaints its rows (the stepper shows the new
--- size), then the list redecorates.
+-- show specialization changed: just redraw (lab: role icon size stays put)
 function XF.SpecIconsChanged(menu)
-    Cfg().iconSize = (Cfg().specIcons == false) and 100 or ns.DEFAULTS.iconSize
     if menu and menu.items then
         for _, it in ipairs(menu.items) do it:Paint() end
     end
     XF.Redecorate()
-end
-
--- The options page's Show Spec Icons: the same key as the menu's switch.
-function ns.SetSpecIcons(on)
-    Cfg().specIcons = on and true or false
-    XF.SpecIconsChanged(nil)
 end
 
 -- Group Settings menu (person button): list look and sign-up options.
