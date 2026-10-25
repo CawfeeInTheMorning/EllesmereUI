@@ -987,7 +987,7 @@ local function LockedOut(ai, resultID)
 end
 
 local function RatingColor(score)
-    if Opt("nameColors") and RaiderIO and RaiderIO.GetScoreColor then
+    if Opt("rioRatingColors") and RaiderIO and RaiderIO.GetScoreColor then
         local ok, r, g, b = pcall(RaiderIO.GetScoreColor, score)
         if ok and type(r) == "number" then return r, g, b end
     end
@@ -1357,6 +1357,7 @@ local function DecorateEntry(entry)
 end
 
 -- lab: the same group settings for the filtered results list's own rows
+ns.LabRatingColor = RatingColor
 ns.LabOpt = Opt
 ns.LabSpecIcon = SpecIcon
 -- the name colour a row gets (nil = blizzard's own): red when declined or

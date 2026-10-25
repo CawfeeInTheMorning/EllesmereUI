@@ -464,8 +464,11 @@ local function Fill(r, id)
     local Opt = ns.LabOpt or function() return true end
     local score = info.leaderOverallDungeonScore
     if Opt("leaderRating") and type(score) == "number" and not Secret(score) and score > 0 then
-        local c = C_ChallengeMode.GetDungeonScoreRarityColor(score)
-        r.score:SetText(c and c:WrapTextInColorCode(score) or score)
+        -- raider.io's colours or the game's (rating colors setting)
+        local cr, cg, cb = 1, 1, 1
+        if ns.LabRatingColor then cr, cg, cb = ns.LabRatingColor(score) end
+        r.score:SetText(score)
+        r.score:SetTextColor(cr, cg, cb)
     else
         r.score:SetText("")
     end

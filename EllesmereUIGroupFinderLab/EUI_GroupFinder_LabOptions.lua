@@ -133,7 +133,15 @@ initFrame:SetScript("OnEvent", function(self)
               tooltip = "How tall each row is. Lines that no longer fit drop off from the bottom: the playstyle line first, then the dungeon / raid name (its short name then sits ahead of the title).",
               getValue = function() return ns.OwnListRowHeight() end,
               setValue = function(v) ns.SetOwnListRowHeight(v) end },
-            EUI.BlankRowCfg())
+            { type = "toggle", text = "Raider.IO Rating Colors",
+              tooltip = "Colours the leader's rating with Raider.IO's score colours. Off, the game's own rating colours.",
+              disabled = function() return not (RaiderIO and RaiderIO.GetScoreColor) end,
+              disabledTooltip = "Raider.IO",
+              getValue = function() return ns.Cfg().rioRatingColors ~= false end,
+              setValue = function(v)
+                  ns.Cfg().rioRatingColors = v and true or false
+                  if ns.Redecorate then ns.Redecorate() end
+              end })
         y = y - h
 
         _, h = W:SectionHeader(parent, "DISPLAY", y); y = y - h
