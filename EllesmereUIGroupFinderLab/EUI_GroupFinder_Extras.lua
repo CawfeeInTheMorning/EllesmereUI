@@ -979,8 +979,7 @@ GFNS.CawfeeGroupMenu = function(list)
             end
         end
         if listingEnd > #list then for _, d in ipairs(listing) do groupMenu[#groupMenu + 1] = d end end
-        -- sorting: our results list's order
-        groupMenu[#groupMenu + 1] = { title = "Sorting" }
+        -- sort by: our results list's order, at the end of display
         groupMenu[#groupMenu + 1] = { key = "cawfeeSortBy", label = "Sort By", choice = ns.SORT_MODES }
     end
     return groupMenu
