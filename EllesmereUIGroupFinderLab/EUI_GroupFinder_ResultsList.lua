@@ -170,11 +170,29 @@ local function MakeRow(i)
     r.status:SetJustifyH("RIGHT")
     r.score = r:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     r.score:SetJustifyH("RIGHT")
-    r.icons = {}
+    r.icons, r.crowns = {}, {}
     for k = 1, 5 do
         local t = r:CreateTexture(nil, "ARTWORK")
         r.icons[k] = t
+        -- the leader's crown above their icon (group settings: show group leader)
+        local c = r:CreateTexture(nil, "OVERLAY")
+        c:SetAtlas("groupfinder-icon-leader")
+        c:SetSize(12, 8)
+        c:SetPoint("BOTTOM", t, "TOP", 0, -2)
+        c:Hide()
+        r.crowns[k] = c
     end
+    -- row art (group settings > display): the instance's art fading across
+    -- the left half, under the text
+    r.art = r:CreateTexture(nil, "BACKGROUND", nil, 7)
+    if ns.ROW_ART then
+        r.art:SetAlpha(ns.ROW_ART.alpha)
+        local m = r:CreateMaskTexture()
+        m:SetTexture(ns.ROW_ART.mask, "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
+        m:SetAllPoints(r.art)
+        r.art:AddMaskTexture(m)
+    end
+    r.art:Hide()
     r:SetScript("OnClick", function(self, button)
         local id = self.resultID
         if not id or not active then return end
@@ -315,10 +333,14 @@ local function Fill(r, id)
     local acts = info.activityIDs
     local act = type(acts) == "table" and not Secret(acts) and acts[1]
     local ai = act and not Secret(act) and C_LFGList.GetActivityInfoTable(act)
+    -- group settings: coloured group names (red declined / locked, green new)
+    local nr, ng, nb = ns.LabNameColor and ns.LabNameColor(id, info, ai)
+    if nr then r.name:SetTextColor(nr, ng, nb) else r.name:SetTextColor(1, 0.82, 0) end
     r.act:SetText(ai and ai.fullName or "")
     LineThree(r, id, info)
+    local Opt = ns.LabOpt or function() return true end
     local score = info.leaderOverallDungeonScore
-    if type(score) == "number" and not Secret(score) and score > 0 then
+    if Opt("leaderRating") and type(score) == "number" and not Secret(score) and score > 0 then
         local c = C_ChallengeMode.GetDungeonScoreRarityColor(score)
         r.score:SetText(c and c:WrapTextInColorCode(score) or score)
     else
@@ -334,31 +356,88 @@ local function Fill(r, id)
         r.status:SetText("")
     end
     r.cancel:SetShown(appStatus == "applied" and not Secret(appStatus))
-    -- members as class icons, tanks first; open spots greyed
+    -- row art
+    local art = ns.RowArtFor and ns.RowArtFor(id)
+    if art and ns.ROW_ART then
+        local w = r:GetWidth() or 0
+        r.art:SetTexture(art)
+        r.art:SetTexCoord(unpack(ns.ROW_ART.crop))
+        r.art:ClearAllPoints()
+        r.art:SetPoint("TOPLEFT", r, "TOPLEFT", 0, 0)
+        r.art:SetPoint("BOTTOMLEFT", r, "BOTTOMLEFT", 0, 0)
+        r.art:SetWidth(math.max(1, math.floor(w * ns.ROW_ART.share)))
+        r.art:Show()
+    else
+        r.art:Hide()
+    end
+    -- members, tanks first: spec icons or class icons (group settings: show
+    -- specialization), the leader's crown, open spots showing the role still
+    -- needed (show missing roles)
     local members = {}
     local n = info.numMembers
     if type(n) == "number" and not Secret(n) then
         for k = 1, n do
             local p = C_LFGList.GetSearchResultPlayerInfo(id, k)
             if Readable(p) and p.classFilename and not Secret(p.classFilename) then
-                members[#members + 1] = { cls = p.classFilename, role = p.assignedRole }
+                local spec = p.specName
+                if Secret(spec) then spec = nil end
+                local lead = p.isLeader
+                if Secret(lead) then lead = nil end
+                members[#members + 1] = { cls = p.classFilename, role = p.assignedRole, spec = spec, lead = lead, k = k }
             end
         end
     end
-    table.sort(members, function(a, b) return (ROLE_ORDER[a.role] or 4) < (ROLE_ORDER[b.role] or 4) end)
+    table.sort(members, function(a, b)
+        local ra, rb = ROLE_ORDER[a.role] or 4, ROLE_ORDER[b.role] or 4
+        if ra ~= rb then return ra < rb end
+        return a.k < b.k
+    end)
     local cap = ai and ai.maxNumPlayers or 5
+    -- the roles still open, for the empty slots
+    local needs = {}
+    if Opt("missingRoles") and cap == 5 then
+        local counts = C_LFGList.GetSearchResultMemberCounts(id)
+        if Readable(counts) then
+            for _, role in ipairs({ "TANK", "HEALER", "DAMAGER" }) do
+                local left = counts[role .. "_REMAINING"]
+                if type(left) == "number" and not Secret(left) then
+                    for _ = 1, left do needs[#needs + 1] = role end
+                end
+            end
+        end
+    end
+    local NEED_ATLAS = { TANK = "groupfinder-icon-role-micro-tank", HEALER = "groupfinder-icon-role-micro-heal",
+        DAMAGER = "groupfinder-icon-role-micro-dps" }
+    local specOn, crownOn = Opt("specIcons"), Opt("leaderCrown")
+    local nextNeed = 1
     for k = 1, 5 do
         local t, m = r.icons[k], members[k]
+        r.crowns[k]:Hide()
+        t:SetTexCoord(0, 1, 0, 1)
+        t:SetDesaturated(false)
         if cap > 5 then
             t:Hide()
         elseif m then
-            t:SetAtlas("classicon-" .. m.cls:lower())
-            t:SetDesaturated(false)
+            local icon = specOn and m.spec and ns.LabSpecIcon and ns.LabSpecIcon(m.cls, m.spec)
+            if icon then
+                t:SetTexture(icon)
+                t:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+            else
+                t:SetAtlas("classicon-" .. m.cls:lower())
+            end
             t:SetAlpha(1)
             t:Show()
+            if crownOn and m.lead then r.crowns[k]:Show() end
         elseif k <= cap then
-            t:SetAtlas("groupfinder-icon-emptyslot")
-            t:SetAlpha(0.5)
+            local need = needs[nextNeed]
+            nextNeed = nextNeed + 1
+            if need then
+                t:SetAtlas(NEED_ATLAS[need])
+                t:SetAlpha(0.6)
+            else
+                t:SetAtlas("groupfinder-icon-emptyslot")
+                t:SetAlpha(0.5)
+            end
             t:Show()
         else
             t:Hide()

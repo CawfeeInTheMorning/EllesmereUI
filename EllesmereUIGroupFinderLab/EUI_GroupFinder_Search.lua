@@ -1356,6 +1356,23 @@ local function DecorateEntry(entry)
     DecorateIcons(entry, resultID, info, ai)
 end
 
+-- lab: the same group settings for the filtered results list's own rows
+ns.LabOpt = Opt
+ns.LabSpecIcon = SpecIcon
+-- the name colour a row gets (nil = blizzard's own): red when declined or
+-- locked out, green when new since the last search
+function ns.LabNameColor(resultID, info, ai)
+    if not Opt("nameColors") then return nil end
+    local delisted, censored = info.isDelisted, info.censored
+    if IsSecret(delisted) or IsSecret(censored) or delisted or censored then return nil end
+    local _, appStatus = C_LFGList.GetApplicationInfo(resultID)
+    if IsSecret(appStatus) then return nil end
+    local declined = appStatus == "declined" or appStatus == "declined_full" or appStatus == "declined_delisted"
+    if declined or LockedOut(ai, resultID) then return 1, 0.25, 0.25 end
+    if prevResults and not prevResults[resultID] and (appStatus == "none" or appStatus == nil) then return 0.3, 1, 0.3 end
+    return nil
+end
+
 -- Display settings changed: redecorate the visible rows.
 function XF.Redecorate()
     XF.NewPass()

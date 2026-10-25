@@ -728,10 +728,7 @@ local NAME_X, NAME_Y = 10, -6  -- blizzard's title anchor
 local TITLE_ROOM = 34  -- kept clear left of the role icons (leader rating)
 local shifted = setmetatable({}, { __mode = "k" })  -- entry -> title width we set
 
-local function CompactOn()
-    local c = GFNS.Cfg and GFNS.Cfg()
-    return c and c.cawfeeCompact == true
-end
+local function CompactOn() return false end  -- compact mode retired
 
 local function RowArtOn()
     local c = GFNS.Cfg and GFNS.Cfg()
@@ -811,6 +808,15 @@ end
 
 local ART_SHARE, ART_ALPHA = 0.5, 0.2  -- half the row, 20% fading to 0
 local FADE_MASK = "Interface\\AddOns\\" .. FOLDER .. "\\media\\masks\\fade.png"
+
+-- the filtered results list's rows: a group's art (nil while row art is off),
+-- and how to draw it
+function ns.RowArtFor(resultID)
+    if not RowArtOn() then return nil end
+    local ai = Activity(resultID)
+    return ai and Art(ai.mapID)
+end
+ns.ROW_ART = { crop = ART_CROP, share = ART_SHARE, alpha = ART_ALPHA, mask = FADE_MASK }
 
 -- the art sits on the row itself, under blizzard's text (a frame of ours
 -- would draw over it); the tag goes on our overlay, above
@@ -930,6 +936,8 @@ local function RetagRows()
     local sp = LFGListFrame and LFGListFrame.SearchPanel
     local box = sp and sp.ScrollBox
     if box and box.ForEachFrame then box:ForEachFrame(TagEntry) end
+    -- the filtered results list draws its own rows
+    if ns.OwnListRefresh then ns.OwnListRefresh() end
 end
 
 if ns.WhenGroupFinder then
@@ -954,8 +962,6 @@ GFNS.CawfeeGroupMenu = function(list)
         listingEnd = listingEnd or #list + 1
         -- bottom of listing: compact mode, region tags (us only)
         local listing = {
-            { key = "cawfeeCompact", label = "Compact Mode", onToggle = RetagRows,
-              tip = "One centred line per group: a short activity name, then the title (e.g. MR +18, VA (Heroic) Fresh Run). Region Tags don't show while this is on, there's no line left for them." },
         }
         if GetCurrentRegion and GetCurrentRegion() == 1 then
             listing[#listing + 1] = { key = "cawfeeRegionTags", label = "Region Tags",
