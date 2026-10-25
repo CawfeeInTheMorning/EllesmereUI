@@ -901,6 +901,10 @@ function XF.PassesFilters(id, info)
     return true
 end
 
+-- cawfee extras: read-only filter checks for the add-on's own results list
+ns.CawfeePasses = function(id) return XF.PassesFilters(id) end
+ns.CawfeeResultsSecret = function() return XF.ResultsSecret() end
+
 -- Filters changed: re-fade the visible rows, no search.
 function XF.RefilterEntry(entry)
     local id = entry.resultID
@@ -908,6 +912,7 @@ function XF.RefilterEntry(entry)
 end
 local function Refilter()
     XF.NewPass()
+    if ns.CawfeeRefilter then ns.CawfeeRefilter() end  -- cawfee extras: its own results list
     if not (SP and SP:IsVisible()) then return end
     local box = SP.ScrollBox
     if box and box.ForEachFrame then box:ForEachFrame(XF.RefilterEntry) end
@@ -1285,7 +1290,6 @@ local function DecorateEntry(entry)
         end)
     end
     fd.rating:Hide()
-    if ns.CawfeeRowParts then ns.CawfeeRowParts(entry, fd.rating) end  -- cawfee extras: hands over the rating text
     entry:SetAlpha(1)
     XF.CancelLook(entry)
     -- Secret results: leave the row alone.
@@ -3357,8 +3361,6 @@ local function Layout()
         scroll:ClearAllPoints()
         scroll:SetPoint("TOPLEFT", SP, "TOPLEFT", pad - ROW_INSET, top)
         scroll:SetPoint("BOTTOMRIGHT", SP, "BOTTOMRIGHT", -pad + ROW_INSET, bottom)
-        -- cawfee extras: re-anchors a scaled list (nil without the add-on)
-        if ns.CawfeeListPoints then ns.CawfeeListPoints(SP, scroll, pad - ROW_INSET, top, -pad + ROW_INSET, bottom) end
     end
     if inset then
         inset:ClearAllPoints()
