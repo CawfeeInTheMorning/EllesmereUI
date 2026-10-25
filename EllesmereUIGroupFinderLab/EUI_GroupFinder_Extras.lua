@@ -979,8 +979,44 @@ GFNS.CawfeeGroupMenu = function(list)
             end
         end
         if listingEnd > #list then for _, d in ipairs(listing) do groupMenu[#groupMenu + 1] = d end end
+        -- sorting: our results list's order
+        groupMenu[#groupMenu + 1] = { title = "Sorting" }
+        groupMenu[#groupMenu + 1] = { key = "cawfeeSortBy", label = "Sort By", choice = ns.SORT_MODES }
     end
     return groupMenu
+end
+
+-- results list order (group settings > sorting). keys saved in cawfeeSortBy
+ns.SORT_MODES = {
+    { key = "default", label = "Default" },
+    { key = "high",    label = "Highest Score" },
+    { key = "low",     label = "Lowest Score" },
+}
+
+-- a menu row: its label, then a dropdown of spec.choice
+local function ChoiceItem(col, y, spec, G)
+    local item = CreateFrame("Frame", nil, col)
+    item:SetHeight(G.ITEM_H)
+    item:SetPoint("TOPLEFT", col, "TOPLEFT", 1, -y)
+    item:SetPoint("TOPRIGHT", col, "TOPRIGHT", -1, -y)
+    item.label = item:CreateFontString(nil, "OVERLAY")
+    G.Font(item.label, G.ITEM_FONT)
+    item.label:SetPoint("LEFT", item, "LEFT", 9, 0)
+    item.label:SetTextColor(CM.TEXT_DIM_R, CM.TEXT_DIM_G, CM.TEXT_DIM_B, CM.TEXT_DIM_A)
+    item.label:SetText(spec.label)
+    local modes = spec.choice
+    local function Get()
+        local v = G.Cfg()[spec.key]
+        for i, mode in ipairs(modes) do if mode.key == v then return i end end
+        return 1
+    end
+    local btn = Dropdown(item, G, modes, Get, function(i) G.Cfg()[spec.key] = modes[i].key end)
+    btn:SetHeight(G.ITEM_H - 2)
+    btn:SetPoint("LEFT", item.label, "RIGHT", 10, 0)
+    btn:SetPoint("RIGHT", item, "RIGHT", -8, 0)
+    item.btn = btn
+    function item:Paint() self.btn:ShowMode() end
+    return item
 end
 
 -- group settings in two columns: listing split across both, then sign up
@@ -1007,7 +1043,11 @@ GFNS.CawfeeGroupColumns = function(m, list, G)
         cols[k], ys[k] = col, 3
     end
     local function Item(k, spec)
-        m.items[#m.items + 1] = spec.stepper and G.StepperItem(cols[k], ys[k], spec) or G.SwitchItem(cols[k], ys[k], spec)
+        local item
+        if spec.choice then item = ChoiceItem(cols[k], ys[k], spec, G)
+        elseif spec.stepper then item = G.StepperItem(cols[k], ys[k], spec)
+        else item = G.SwitchItem(cols[k], ys[k], spec) end
+        m.items[#m.items + 1] = item
         ys[k] = ys[k] + G.ITEM_H
     end
     local function Section(k, sec)

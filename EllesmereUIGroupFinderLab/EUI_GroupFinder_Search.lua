@@ -2368,7 +2368,11 @@ function XF.BuildGroupMenu()
     if ns.CawfeeGroupColumns then
         -- cawfee extras: the add-on lays the rows out in two columns (nil without it)
         y = ns.CawfeeGroupColumns(m, list, { AddSection = AddSection, SwitchItem = XF.SwitchItem,
-            StepperItem = XF.StepperItem, ITEM_H = ITEM_H })
+            StepperItem = XF.StepperItem, ITEM_H = ITEM_H,
+            -- lab: for the sorting dropdown
+            Cfg = Cfg, Refilter = Refilter, Paint = Paint, Font = XF.Font, ITEM_FONT = ITEM_FONT,
+            ThemeBorder = ThemeBorder, ClickOff = XF.ClickOff, Tip = XF.Tip, Untip = XF.Untip,
+            Accent = Accent, parent = SP })
     else
     for _, spec in ipairs(list) do
         if spec.title then
@@ -2388,6 +2392,7 @@ function XF.BuildGroupMenu()
     m:SetScript("OnHide", function() DimForMenu(false) end)
     XF.ClickOff(m, function(self)
         return self:IsMouseOver() or (self.owner and self.owner:IsMouseOver())
+            or (ns.CawfeeInside and ns.CawfeeInside()) or false  -- lab: the sort dropdown's list
     end)
     m:Hide()
 end

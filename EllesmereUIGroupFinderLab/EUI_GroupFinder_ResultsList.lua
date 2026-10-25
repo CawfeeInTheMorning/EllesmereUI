@@ -181,6 +181,26 @@ local function Collect()
         end
         table.sort(shown, ByPos)
     end
+    -- group settings > sorting: by the leader's score (applications stay on top
+    -- while that's on; ties keep their place)
+    local gc = GFNS.Cfg and GFNS.Cfg()
+    local by = gc and gc.cawfeeSortBy
+    if by == "high" or by == "low" then
+        local score = {}
+        for _, id in ipairs(shown) do
+            local info = C_LFGList.GetSearchResultInfo(id)
+            local v = Readable(info) and info.leaderOverallDungeonScore
+            score[id] = (type(v) == "number" and not Secret(v)) and v or 0
+        end
+        table.sort(shown, function(a, b)
+            if appsFirst and isApp[a] ~= isApp[b] then return isApp[a] == true end
+            if score[a] ~= score[b] then
+                if by == "high" then return score[a] > score[b] end
+                return score[a] < score[b]
+            end
+            return Pos(a) < Pos(b)
+        end)
+    end
 end
 
 -------------------------------------------------------------------------------
