@@ -996,8 +996,8 @@ ns.SORT_MODES = {
     { key = "default", label = "Default" },
     { key = "high",    label = "Highest Score" },
     { key = "low",     label = "Lowest Score" },
-    { key = "big",     label = "Largest Group" },
-    { key = "small",   label = "Smallest Group" },
+    { key = "big",     label = "Largest Size" },
+    { key = "small",   label = "Lowest Size" },
 }
 
 -- a menu row: its label, then a dropdown of spec.choice
