@@ -52,7 +52,7 @@ end
 -- display: iconShape (circle / square), borderTexture, borderSize (px),
 -- missingIcons (blizzard / ellesmere)
 local DISPLAY_DEFAULTS = { iconShape = "circle", borderTexture = "solid", borderSize = 1, missingIcons = "blizzard",
-    appsFirst = true, signupClicks = "double",
+    appsFirst = true, signupClicks = "double", visibility = "hidden",
     lineDelisted = true, lineAccepted = true, lineCancelled = true, lineDeclined = true }
 function ns.OwnListGet(k)
     local v = DB()[k]
@@ -147,8 +147,12 @@ end
 --  which groups show: blizzard's order, applications first like blizzard,
 --  only the ones that pass the filters
 -------------------------------------------------------------------------------
+-- results visibility: dimmed keeps the filtered-out groups, faded
+local dimmed = {}
 local function Collect()
     wipe(shown)
+    wipe(dimmed)
+    local dim = ns.OwnListGet("visibility") == "dimmed"
     local res = SP and SP.results
     if type(res) ~= "table" then return end
     local seen, isApp = {}, {}
@@ -169,7 +173,12 @@ local function Collect()
     for _, id in ipairs(res) do
         if not Secret(id) and not seen[id] then
             seen[id] = true
-            if isApp[id] or not GFNS.CawfeePasses or GFNS.CawfeePasses(id) then shown[#shown + 1] = id end
+            if isApp[id] or not GFNS.CawfeePasses or GFNS.CawfeePasses(id) then
+                shown[#shown + 1] = id
+            elseif dim then
+                dimmed[id] = true
+                shown[#shown + 1] = id
+            end
         end
     end
     if not appsFirst then
@@ -790,7 +799,8 @@ local function Fill(r, id)
     end
     local ar, ag, ab = Accent()
     r.sel:SetColorTexture(ar, ag, ab, SP.selectedResult == id and 0.18 or 0)
-    r:SetAlpha((st and st ~= STATUS.applied and st ~= STATUS.invited) and 0.5 or 1)
+    if dimmed[id] then r:SetAlpha(0.35)
+    else r:SetAlpha((st and st ~= STATUS.applied and st ~= STATUS.invited) and 0.5 or 1) end
     r:Show()
 end
 

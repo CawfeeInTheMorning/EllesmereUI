@@ -153,7 +153,11 @@ initFrame:SetScript("OnEvent", function(self)
               values = { __placeholder = "..." }, order = { "__placeholder" },
               getValue = function() return "__placeholder" end,
               setValue = function() end },
-            EUI.BlankRowCfg())
+            { type = "dropdown", text = "Results Visibility",
+              tooltip = "Groups your filters leave out: hidden from the list, or shown dimmed.",
+              values = { dimmed = "Dimmed", hidden = "Hidden" }, order = { "dimmed", "hidden" },
+              getValue = function() return ns.OwnListGet("visibility") end,
+              setValue = function(v) ns.SetOwnListValue("visibility", v) end })
         y = y - h
         if not EUI._prebuilding and EUI.BuildVisOptsCBDropdown then
             local rgn = lineRow._leftRegion
