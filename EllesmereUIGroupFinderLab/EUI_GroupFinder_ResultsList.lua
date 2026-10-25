@@ -930,7 +930,7 @@ function Paint()  -- the forward-declared local
         thumb:Hide()
     end
     if SP.searching then
-        empty:SetText("Searching...")
+        empty:SetText("")  -- blizzard's spinner already says it
     elseif #shown == 0 then
         local total = type(SP.results) == "table" and #SP.results or 0
         empty:SetText(total > 0 and (total .. " groups found, none match your filters") or "No groups found")
