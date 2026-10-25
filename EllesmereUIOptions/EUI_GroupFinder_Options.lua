@@ -186,53 +186,26 @@ initFrame:SetScript("OnEvent", function(self)
         end
 
         -- lab only (EllesmereUIGroupFinderLab registers under this module's
-        -- name): its own settings. nothing shows with the live module
-        local function Refresh() if EUI.RefreshPage then EUI:RefreshPage() end end
-        if ns.AppsBarOnRow then
-            _, h = W:SectionHeader(parent, "LAB", y); y = y - h
-            _, h = W:DualRow(parent, y,
-                { type = "toggle", text = "M+ Bar on the Filters Row",
-                  tooltip = "On: the M+ applications bar sits at the top of the Dungeons & Raids rail, level with the Premade Groups Filters button, with no title. Off: under its \"M+ Applications\" title.",
-                  getValue = function() return ns.AppsBarOnRow() end,
-                  setValue = function(v) ns.SetAppsBarOnRow(v) end },
-                EUI.BlankRowCfg and EUI.BlankRowCfg() or nil)
-            y = y - h
-        end
+        -- name): its results list. nothing shows with the live module
         if ns.OwnListOn then
-            local function ListOff() return not ns.OwnListOn() end
-            _, h = W:SectionHeader(parent, "FILTERED RESULTS LIST (TEST)", y); y = y - h
+            _, h = W:SectionHeader(parent, "RESULTS LIST", y); y = y - h
             _, h = W:DualRow(parent, y,
-                { type = "toggle", text = "Filtered Results List",
-                  tooltip = "Premade Groups (dungeons and raids): Blizzard's list is hidden and only the groups that pass your filters are drawn, with no gaps, instead of fading the rest. Click a row to select it, double-click to sign up, right-click for the menu. In keys and restricted content Blizzard's own list comes back. Region tags follow the Region Tags switch in Group Settings.",
-                  getValue = function() return ns.OwnListOn() end,
-                  setValue = function(v) ns.SetOwnListOn(v); Refresh() end },
                 { type = "slider", text = "Row Height", min = 20, max = 64, step = 1,
                   tooltip = "How tall each row is. Lines that no longer fit drop off from the bottom: the playstyle line first, then the dungeon / raid name.",
-                  disabled = ListOff, disabledTooltip = "Filtered Results List",
                   getValue = function() return ns.OwnListRowHeight() end,
-                  setValue = function(v) ns.SetOwnListRowHeight(v) end })
-            y = y - h
-            _, h = W:DualRow(parent, y,
-                { type = "toggle", text = "Show Playstyle",
-                  tooltip = "Each group's playstyle (Learning, Relaxed, Competitive, Carry Offered) on the third line.",
-                  disabled = ListOff, disabledTooltip = "Filtered Results List",
-                  getValue = function() return ns.OwnListOpt("playstyle") end,
-                  setValue = function(v) ns.SetOwnListOpt("playstyle", v) end },
+                  setValue = function(v) ns.SetOwnListRowHeight(v) end },
                 { type = "slider", text = "Title Text Size", min = 8, max = 20, step = 1,
                   tooltip = "The group's title, the first line.",
-                  disabled = ListOff, disabledTooltip = "Filtered Results List",
                   getValue = function() return ns.OwnListSize("titleSize") end,
                   setValue = function(v) ns.SetOwnListSize("titleSize", v) end })
             y = y - h
             _, h = W:DualRow(parent, y,
                 { type = "slider", text = "Dungeon / Raid Text Size", min = 8, max = 20, step = 1,
                   tooltip = "The dungeon or raid name, the second line.",
-                  disabled = ListOff, disabledTooltip = "Filtered Results List",
                   getValue = function() return ns.OwnListSize("nameSize") end,
                   setValue = function(v) ns.SetOwnListSize("nameSize", v) end },
                 { type = "slider", text = "Activity Text Size", min = 8, max = 20, step = 1,
                   tooltip = "The playstyle and region tag, the third line.",
-                  disabled = ListOff, disabledTooltip = "Filtered Results List",
                   getValue = function() return ns.OwnListSize("lineSize") end,
                   setValue = function(v) ns.SetOwnListSize("lineSize", v) end })
             y = y - h
