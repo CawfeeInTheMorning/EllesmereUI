@@ -148,8 +148,8 @@ initFrame:SetScript("OnEvent", function(self)
         local lineRow
         lineRow, h = W:DualRow(parent, y,
             -- placeholder: carries the label; the checklist takes its place
-            { type = "dropdown", text = "Status Underline",
-              tooltip = "A colored line below the group you applied to to show it's status.",
+            { type = "dropdown", text = "Status Color",
+              tooltip = "A colored line below the group you applied to to show it's status. The status text uses the same colors.",
               values = { __placeholder = "..." }, order = { "__placeholder" },
               getValue = function() return "__placeholder" end,
               setValue = function() end },

@@ -644,7 +644,9 @@ local function Fill(r, id)
     if info.isDelisted and not Secret(info.isDelisted) then st = STATUS.declined_delisted end
     if st then
         r.status:SetText(st[1])
-        r.status:SetTextColor(st[2], st[3], st[4], 1)
+        -- the status colour: the same as its underline
+        local c = LINE_OF[st] or st
+        r.status:SetTextColor(c[2], c[3], c[4], 1)
     else
         r.status:SetText("")
     end
