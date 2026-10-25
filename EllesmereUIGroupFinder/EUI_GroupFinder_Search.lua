@@ -1285,6 +1285,7 @@ local function DecorateEntry(entry)
         end)
     end
     fd.rating:Hide()
+    if ns.CawfeeRowParts then ns.CawfeeRowParts(entry, fd.rating) end  -- cawfee extras: hands over the rating text
     entry:SetAlpha(1)
     XF.CancelLook(entry)
     -- Secret results: leave the row alone.
