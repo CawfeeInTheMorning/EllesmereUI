@@ -133,6 +133,8 @@ local guard = false
 local lastClickID, lastClickTime, clickCount = nil, 0, 0
 local selected  -- our selection (blizzard's selectedResult is never touched)
 local Paint     -- the list's repaint, further down
+local AnySecret -- further down too
+local refreshQueued = false
 local signBtn
 
 -- whether the selected group can be signed up to: blizzard's sign up
@@ -643,7 +645,8 @@ local function Fill(r, id)
     end
     local _, appStatus = C_LFGList.GetApplicationInfo(id)
     local st = not Secret(appStatus) and STATUS[appStatus]
-    if info.isDelisted and not Secret(info.isDelisted) then st = STATUS.declined_delisted end
+    local delisted = info.isDelisted
+    if not Secret(delisted) and delisted then st = STATUS.declined_delisted end  -- secret check first
     if st then
         r.status:SetText(st[1])
         -- the status colour: the same as its underline
@@ -991,11 +994,28 @@ local function Build()
     end)
     frame:SetScript("OnEvent", function(_, event)
         if event == "LFG_LIST_SEARCH_RESULT_UPDATED" or event == "LFG_LIST_APPLICATION_STATUS_UPDATED" then
-            Paint()
+            -- results can go secret mid-list: re-check (once per frame), step aside
+            if not refreshQueued then
+                refreshQueued = true
+                C_Timer.After(0, function() refreshQueued = false; ns.OwnListRefresh() end)
+            end
         else
             PaintSignBtn()
         end
     end)
+end
+
+-- any result gone secret (the module's check reads the first one only):
+-- then blizzard's list shows instead of ours
+function AnySecret()
+    local res = SP and SP.results
+    if type(res) ~= "table" then return false end
+    for _, id in ipairs(res) do
+        if Secret(id) then return true end
+        local info = C_LFGList.GetSearchResultInfo(id)
+        if info and (not Readable(info) or Secret(info.activityIDs) or Secret(info.isDelisted)) then return true end
+    end
+    return false
 end
 
 -- on or off for the current state: ours only with the setting on, the panel
@@ -1005,7 +1025,7 @@ function ns.OwnListRefresh()
     if want and not frame then Build() end
     if not frame then return end
     local cat = SP.categoryID
-    local secret = GFNS.CawfeeResultsSecret and GFNS.CawfeeResultsSecret()
+    local secret = (GFNS.CawfeeResultsSecret and GFNS.CawfeeResultsSecret()) or AnySecret()
     local now = want and SP:IsVisible() and (cat == DUNGEONS or cat == RAIDS or cat == DELVES) and not secret
     if now ~= active then
         active = now
