@@ -35,7 +35,11 @@ local CLASS_ART_MAP       = EllesmereUI.CLASS_ART_MAP
 local playerClass         = EllesmereUI._playerClass
 local modules             = EUI_NS.modules
 local _widgetRefreshList  = EllesmereUI._widgetRefreshList
-local IsAddonLoaded       = C_AddOns.IsAddOnLoaded
+-- local/cawfee: the group finder lab add-on stands in for the group finder
+local IsAddonLoaded       = function(name)
+    if name == "EllesmereUIGroupFinder" and C_AddOns.IsAddOnLoaded("EllesmereUIGroupFinderLab") then return true end
+    return C_AddOns.IsAddOnLoaded(name)
+end
 
 -- ONE paste point for Ellesmere's Twitch channel (the footer's Twitch icon and
 -- the EUI Legends page's donate link).
