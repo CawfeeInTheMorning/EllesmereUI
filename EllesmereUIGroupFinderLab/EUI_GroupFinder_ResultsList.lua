@@ -19,6 +19,7 @@ local GFNS = ns
 local EUI = EllesmereUI
 
 local DUNGEONS, RAIDS = 2, 3
+local DELVES = GROUP_FINDER_CATEGORY_ID_DELVES or 121
 local X_TEX = "Interface\\AddOns\\EllesmereUI\\media\\icons\\eui-close.png"
 local CANCEL_SZ = 17  -- the cancel x in the corner
 local GAP = 2
@@ -903,7 +904,7 @@ function ns.OwnListRefresh()
     if not frame then return end
     local cat = SP.categoryID
     local secret = GFNS.CawfeeResultsSecret and GFNS.CawfeeResultsSecret()
-    local now = want and SP:IsVisible() and (cat == DUNGEONS or cat == RAIDS) and not secret
+    local now = want and SP:IsVisible() and (cat == DUNGEONS or cat == RAIDS or cat == DELVES) and not secret
     if now ~= active then
         active = now
         local a = active and 0 or 1
