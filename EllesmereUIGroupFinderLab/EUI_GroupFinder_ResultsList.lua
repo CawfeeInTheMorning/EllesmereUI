@@ -50,7 +50,8 @@ function ns.SetOwnListOpt(k, v)
 end
 -- display: iconShape (circle / square), borderTexture, borderSize (px),
 -- missingIcons (blizzard / ellesmere)
-local DISPLAY_DEFAULTS = { iconShape = "circle", borderTexture = "solid", borderSize = 1, missingIcons = "blizzard" }
+local DISPLAY_DEFAULTS = { iconShape = "circle", borderTexture = "solid", borderSize = 1, missingIcons = "blizzard",
+    appsFirst = true, underline = true, signupClicks = "double" }
 function ns.OwnListGet(k)
     local v = DB()[k]
     if v == nil then return DISPLAY_DEFAULTS[k] end
@@ -125,7 +126,14 @@ local SP, frame, body, rows, shown = nil, nil, nil, {}, {}
 local scrollPx = 0
 local active = false
 local guard = false
-local lastClickID, lastClickTime = nil, 0
+local lastClickID, lastClickTime, clickCount = nil, 0, 0
+-- where each group first showed in this search, so applying can leave it put
+local posOf, nextPos = {}, 0
+local function Pos(id)
+    if not posOf[id] then nextPos = nextPos + 1; posOf[id] = nextPos end
+    return posOf[id]
+end
+local function ByPos(a, b) return Pos(a) < Pos(b) end
 
 local function Accent()
     local a = EUI.ELLESMERE_GREEN
@@ -141,19 +149,36 @@ local function Collect()
     wipe(shown)
     local res = SP and SP.results
     if type(res) ~= "table" then return end
-    local seen = {}
+    local seen, isApp = {}, {}
+    local appsFirst = ns.OwnListGet("appsFirst") ~= false
+    for _, id in ipairs(res) do if not Secret(id) then Pos(id) end end
     local apps = C_LFGList.GetApplications() or {}
     for _, id in ipairs(apps) do
-        if not Secret(id) and not seen[id] then
-            seen[id] = true
-            shown[#shown + 1] = id
+        if not Secret(id) then isApp[id] = true end
+    end
+    if appsFirst then
+        for _, id in ipairs(apps) do
+            if not Secret(id) and not seen[id] then
+                seen[id] = true
+                shown[#shown + 1] = id
+            end
         end
     end
     for _, id in ipairs(res) do
         if not Secret(id) and not seen[id] then
             seen[id] = true
-            if not GFNS.CawfeePasses or GFNS.CawfeePasses(id) then shown[#shown + 1] = id end
+            if isApp[id] or not GFNS.CawfeePasses or GFNS.CawfeePasses(id) then shown[#shown + 1] = id end
         end
+    end
+    if not appsFirst then
+        -- applications from an earlier search, then everything back in place
+        for _, id in ipairs(apps) do
+            if not Secret(id) and not seen[id] then
+                seen[id] = true
+                shown[#shown + 1] = id
+            end
+        end
+        table.sort(shown, ByPos)
     end
 end
 
@@ -329,16 +354,18 @@ local function MakeRow(i)
         if not id or not active then return end
         if button == "RightButton" then return ns.OwnListMenu(self, id) end
         local now = GetTime()
-        local double = lastClickID == id and (now - lastClickTime) < 0.4
+        if lastClickID == id and (now - lastClickTime) < 0.4 then clickCount = clickCount + 1 else clickCount = 1 end
         lastClickID, lastClickTime = id, now
+        local need = ({ single = 1, double = 2, triple = 3 })[ns.OwnListGet("signupClicks")] or 2
+        local signup = EllesmereUIDB and EllesmereUIDB.quickSignup and clickCount >= need
         -- the checks blizzard's own row click makes, read-only
         if not LFGListSearchPanelUtil_CanSelectResult(id) then return end
         if SP.selectedResult ~= id then
             PlaySound(SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON)
             LFGListSearchPanel_SelectResult(SP, id)
         end
-        if double and SP.SignUpButton and SP.SignUpButton:IsEnabled() then
-            lastClickID = nil
+        if signup and SP.SignUpButton and SP.SignUpButton:IsEnabled() then
+            lastClickID, clickCount = nil, 0
             LFGListSearchPanel_SignUp(SP)
         end
     end)
@@ -515,7 +542,9 @@ local function Fill(r, id)
         r.status:SetText("")
     end
     r.cancel:SetShown(appStatus == "applied" and not Secret(appStatus))
-    if st == STATUS.declined_delisted then
+    if ns.OwnListGet("underline") == false then
+        r.under:Hide()
+    elseif st == STATUS.declined_delisted then
         r.under:SetColorTexture(1, 0.2, 0.2, 0.9)
         r.under:Show()
     elseif st == STATUS.applied or st == STATUS.invited then
@@ -778,6 +807,9 @@ local function Build()
     SP = LFGListFrame and LFGListFrame.SearchPanel
     if not (SP and SP.ScrollBox) then return end
     frame = CreateFrame("Frame", nil, SP)
+    if LFGListSearchPanel_DoSearch then
+        hooksecurefunc("LFGListSearchPanel_DoSearch", function() wipe(posOf); nextPos = 0 end)
+    end
     frame:SetPoint("TOPLEFT", SP.ScrollBox, "TOPLEFT", 3, 0)
     frame:SetPoint("BOTTOMRIGHT", SP.ScrollBar or SP.ScrollBox, "BOTTOMRIGHT", 0, 0)
     frame:SetFrameLevel(SP.ScrollBox:GetFrameLevel() + 10)

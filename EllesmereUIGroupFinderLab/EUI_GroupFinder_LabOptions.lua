@@ -133,6 +133,16 @@ initFrame:SetScript("OnEvent", function(self)
               tooltip = "How tall each row is. Lines that no longer fit drop off from the bottom: the playstyle line first, then the dungeon / raid name (its short name then sits ahead of the title).",
               getValue = function() return ns.OwnListRowHeight() end,
               setValue = function(v) ns.SetOwnListRowHeight(v) end },
+            { type = "toggle", text = "Applied Groups on Top",
+              tooltip = "Groups you apply to move to the top of the list. Off, they stay where they were.",
+              getValue = function() return ns.OwnListGet("appsFirst") ~= false end,
+              setValue = function(v) ns.SetOwnListValue("appsFirst", v and true or false) end })
+        y = y - h
+        _, h = W:DualRow(parent, y,
+            { type = "toggle", text = "Status Underline",
+              tooltip = "A green line along the bottom of groups you applied to, red when the group was delisted.",
+              getValue = function() return ns.OwnListGet("underline") ~= false end,
+              setValue = function(v) ns.SetOwnListValue("underline", v and true or false) end },
             EUI.BlankRowCfg())
         y = y - h
 
@@ -218,6 +228,26 @@ initFrame:SetScript("OnEvent", function(self)
                   ns.Cfg().cawfeeRowArt = v and true or false
                   if ns.LabRetagRows then ns.LabRetagRows() end
               end })
+        y = y - h
+
+        _, h = W:SectionHeader(parent, "SIGN UP", y); y = y - h
+        local function QuickOn() return EllesmereUIDB and EllesmereUIDB.quickSignup and true or false end
+        _, h = W:DualRow(parent, y,
+            { type = "toggle", text = "Quick Signup",
+              tooltip = "Hold Shift to keep the dialog open, e.g. to type a signup note.",
+              getValue = QuickOn,
+              setValue = function(v)
+                  EllesmereUIDB.quickSignup = v and true or false
+                  if EUI._applyQuickSignup then EUI._applyQuickSignup() end
+                  EUI:RefreshPage()
+              end },
+            { type = "dropdown", text = "Sign Up With",
+              tooltip = "How many clicks on a group sign you up.",
+              values = { single = "Single-click", double = "Double-click", triple = "Triple-click" },
+              order = { "single", "double", "triple" },
+              disabled = function() return not QuickOn() end, disabledTooltip = "Quick Signup",
+              getValue = function() return ns.OwnListGet("signupClicks") end,
+              setValue = function(v) ns.SetOwnListValue("signupClicks", v) end })
         y = y - h
         return y
     end

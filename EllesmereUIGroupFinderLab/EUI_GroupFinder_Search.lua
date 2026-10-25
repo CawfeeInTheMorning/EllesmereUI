@@ -2166,8 +2166,6 @@ XF.GROUP_MENU = {
     -- Life's rows.
     { key = "persistSignupNote", label = EllesmereUI.L("Persistent Signup Note"), core = "_applyPersistSignupNote",
       tip = EllesmereUI.L("Keeps a saved signup note you can copy into the Sign Up dialog with the Copy button.") },
-    { key = "quickSignup",    label = EllesmereUI.L("Quick Signup"), core = "_applyQuickSignup",
-      tip = EllesmereUI.L("Double-click a group listing to instantly sign up without pressing the Sign Up button. Hold Shift to keep the dialog open, e.g. to type a signup note.") },
     { title = EllesmereUI.L("Misc") },
     { key = "dungeonAbbr",    label = EllesmereUI.L("Dungeon Names"),
       tip = EllesmereUI.L("Each dungeon square shows the dungeon's short name, Raider.IO's when it's loaded (e.g. KR for Kings' Rest)."),
