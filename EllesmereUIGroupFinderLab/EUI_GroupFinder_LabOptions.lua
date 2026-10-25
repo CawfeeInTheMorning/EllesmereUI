@@ -138,13 +138,35 @@ initFrame:SetScript("OnEvent", function(self)
               getValue = function() return ns.OwnListGet("appsFirst") ~= false end,
               setValue = function(v) ns.SetOwnListValue("appsFirst", v and true or false) end })
         y = y - h
-        _, h = W:DualRow(parent, y,
-            { type = "toggle", text = "Status Underline",
-              tooltip = "A green line along the bottom of groups you applied to, red when the group was delisted.",
-              getValue = function() return ns.OwnListGet("underline") ~= false end,
-              setValue = function(v) ns.SetOwnListValue("underline", v and true or false) end },
+        -- status underline: a checklist, one colour each
+        local LINE_ITEMS = {
+            { key = "lineDelisted",  label = "Delisted (Grey)",   tooltip = "The group was delisted." },
+            { key = "lineAccepted",  label = "Accepted (Green)",  tooltip = "Applied and waiting, or invited." },
+            { key = "lineCancelled", label = "Canceled (Orange)", tooltip = "You cancelled the application." },
+            { key = "lineDeclined",  label = "Declined (Red)",    tooltip = "Declined, the group filled, or the application timed out." },
+        }
+        local lineRow
+        lineRow, h = W:DualRow(parent, y,
+            -- placeholder: carries the label; the checklist takes its place
+            { type = "dropdown", text = "Status Underline",
+              tooltip = "A coloured line along the bottom of groups you applied to, by how the application stands.",
+              values = { __placeholder = "..." }, order = { "__placeholder" },
+              getValue = function() return "__placeholder" end,
+              setValue = function() end },
             EUI.BlankRowCfg())
         y = y - h
+        if not EUI._prebuilding and EUI.BuildVisOptsCBDropdown then
+            local rgn = lineRow._leftRegion
+            if rgn._control then rgn._control:Hide() end
+            local dd, ddRefresh = EUI.BuildVisOptsCBDropdown(
+                rgn, 210, rgn:GetFrameLevel() + 2, LINE_ITEMS,
+                function(key) return ns.OwnListGet(key) ~= false end,
+                function(key, v) ns.SetOwnListValue(key, v and true or false) end)
+            EUI.PanelPP.Point(dd, "RIGHT", rgn, "RIGHT", -20, 0)
+            rgn._control = dd
+            rgn._lastInline = nil
+            EUI.RegisterWidgetRefresh(ddRefresh)
+        end
 
         _, h = W:SectionHeader(parent, "MYTHIC+", y); y = y - h
         _, h = W:DualRow(parent, y,

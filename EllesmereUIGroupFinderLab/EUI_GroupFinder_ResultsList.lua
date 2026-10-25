@@ -20,7 +20,7 @@ local EUI = EllesmereUI
 
 local DUNGEONS, RAIDS = 2, 3
 local X_TEX = "Interface\\AddOns\\EllesmereUI\\media\\icons\\eui-close.png"
-local CANCEL_SZ = 14  -- the cancel x in the corner
+local CANCEL_SZ = 17  -- the cancel x in the corner
 local GAP = 2
 local function Secret(v) return issecretvalue and issecretvalue(v) or false end
 local function Readable(t) return type(t) == "table" and not Secret(t) and not (canaccesstable and not canaccesstable(t)) end
@@ -51,7 +51,8 @@ end
 -- display: iconShape (circle / square), borderTexture, borderSize (px),
 -- missingIcons (blizzard / ellesmere)
 local DISPLAY_DEFAULTS = { iconShape = "circle", borderTexture = "solid", borderSize = 1, missingIcons = "blizzard",
-    appsFirst = true, underline = true, signupClicks = "double" }
+    appsFirst = true, signupClicks = "double",
+    lineDelisted = true, lineAccepted = true, lineCancelled = true, lineDeclined = true }
 function ns.OwnListGet(k)
     local v = DB()[k]
     if v == nil then return DISPLAY_DEFAULTS[k] end
@@ -210,6 +211,9 @@ end
 --  a row
 -------------------------------------------------------------------------------
 local ROLE_ORDER = { TANK = 1, HEALER = 2, DAMAGER = 3 }
+-- raid rows: the role counts, each on its colour
+local RR_ROLES = { "TANK", "HEALER", "DAMAGER" }
+local RR_COLORS = { TANK = { 0.16, 0.38, 0.78 }, HEALER = { 0.16, 0.62, 0.24 }, DAMAGER = { 0.72, 0.16, 0.16 } }
 -- application status: blizzard's words and colours per state
 local G, R, Y = { 0.1, 1, 0.1 }, { 1, 0.25, 0.25 }, { 1, 0.82, 0 }
 local function St(text, fallback, c) return { text or fallback, c[1], c[2], c[3] } end
@@ -224,6 +228,18 @@ local STATUS = {
     timedout          = St(LFG_LIST_APP_TIMED_OUT, "Timed Out", R),
     cancelled         = St(LFG_LIST_APP_CANCELLED, "Cancelled", Y),
     failed            = St(LFG_LIST_APP_FAILED, "Failed", R),
+}
+-- underline: setting key and colour per status
+local LINE_DELISTED  = { "lineDelisted", 0.6, 0.6, 0.6 }
+local LINE_ACCEPTED  = { "lineAccepted", 0.1, 0.9, 0.1 }
+local LINE_CANCELLED = { "lineCancelled", 1, 0.55, 0.1 }
+local LINE_DECLINED  = { "lineDeclined", 1, 0.2, 0.2 }
+local LINE_OF = {
+    [STATUS.declined_delisted] = LINE_DELISTED,
+    [STATUS.applied] = LINE_ACCEPTED, [STATUS.invited] = LINE_ACCEPTED, [STATUS.inviteaccepted] = LINE_ACCEPTED,
+    [STATUS.cancelled] = LINE_CANCELLED,
+    [STATUS.declined] = LINE_DECLINED, [STATUS.declined_full] = LINE_DECLINED, [STATUS.timedout] = LINE_DECLINED,
+    [STATUS.invitedeclined] = LINE_DECLINED, [STATUS.failed] = LINE_DECLINED,
 }
 
 local function MakeRow(i)
@@ -332,11 +348,16 @@ local function MakeRow(i)
     -- raids: tank / healer / dps counts, each beside its role icon
     r.rr = {}
     for k = 1, 3 do
-        local t = r:CreateTexture(nil, "ARTWORK", nil, 2)
+        local bg = r:CreateTexture(nil, "ARTWORK", nil, 1)
+        local mask = r:CreateMaskTexture()
+        mask:SetTexture("Interface\\CharacterFrame\\TempPortraitAlphaMask", "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
+        mask:SetAllPoints(bg)
+        local t = r:CreateTexture(nil, "ARTWORK", nil, 3)
+        t:SetPoint("CENTER", bg)
         local c = r:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-        c:SetJustifyH("RIGHT")
-        t:Hide(); c:Hide()
-        r.rr[k] = { icon = t, count = c }
+        c:SetJustifyH("CENTER")
+        bg:Hide(); t:Hide(); c:Hide()
+        r.rr[k] = { bg = bg, mask = mask, icon = t, count = c }
     end
     -- row art (group settings > display): the instance's art fading across
     -- the left half, under the text
@@ -402,7 +423,10 @@ local function Layout(r, h)
     local room = h - 4
     local lines = { tS + 2 }
     if room >= tS + nS + 6 then lines[2] = nS + 2 end
-    if lines[2] and room >= tS + nS + lS + 10 then lines[3] = lS + 2 end
+    local gc = GFNS.Cfg and GFNS.Cfg()
+    local third = not (gc and gc.cawfeeShowPlaystyle == false)
+        or (gc and gc.cawfeeRegionTags == true and GetCurrentRegion and GetCurrentRegion() == 1)
+    if lines[2] and third and room >= tS + nS + lS + 10 then lines[3] = lS + 2 end
     local total = 0
     for _, lh in ipairs(lines) do total = total + lh end
     total = total + (#lines - 1) * 2
@@ -542,13 +566,10 @@ local function Fill(r, id)
         r.status:SetText("")
     end
     r.cancel:SetShown(appStatus == "applied" and not Secret(appStatus))
-    if ns.OwnListGet("underline") == false then
-        r.under:Hide()
-    elseif st == STATUS.declined_delisted then
-        r.under:SetColorTexture(1, 0.2, 0.2, 0.9)
-        r.under:Show()
-    elseif st == STATUS.applied or st == STATUS.invited then
-        r.under:SetColorTexture(0.1, 0.9, 0.1, 0.9)
+    -- status underline: each kind its own colour, each its own switch
+    local line = st and LINE_OF[st]
+    if line and ns.OwnListGet(line[1]) ~= false then
+        r.under:SetColorTexture(line[2], line[3], line[4], 0.9)
         r.under:Show()
     else
         r.under:Hide()
@@ -708,26 +729,35 @@ local function Fill(r, id)
     local ellIcons = ns.OwnListGet("missingIcons") == "ellesmere"
     local x = -(r.pad or 6)
     local isz = r.icons[1]:GetWidth() or 16
-    local rsz = math.floor(isz * 0.85 + 0.5)
+    local fsz = ns.OwnListSize("scoreSize")
+    local round = ns.OwnListGet("iconShape") ~= "square"
     for k = 3, 1, -1 do
         local p = r.rr[k]
-        local role = ({ "TANK", "HEALER", "DAMAGER" })[k]
+        local role = RR_ROLES[k]
         local num = counts and counts[role]
         if counts and type(num) == "number" and not Secret(num) then
+            -- the count above, the pair centred on the row
+            local c = RR_COLORS[role]
+            p.bg:SetColorTexture(c[1], c[2], c[3], 1)
+            if round and not p.masked then p.bg:AddMaskTexture(p.mask); p.masked = true
+            elseif not round and p.masked then p.bg:RemoveMaskTexture(p.mask); p.masked = nil end
+            p.bg:SetSize(isz, isz)
+            p.bg:ClearAllPoints()
+            p.bg:SetPoint("RIGHT", r, "RIGHT", x, -math.floor(fsz / 2 + 1))
+            p.bg:Show()
             local tex = ellIcons and ns.RoleIconTex and ns.RoleIconTex(role)
             if tex then p.icon:SetTexture(tex) else p.icon:SetAtlas(NEED_ATLAS[role]) end
-            p.icon:SetSize(rsz, rsz)
-            p.icon:ClearAllPoints()
-            p.icon:SetPoint("RIGHT", r, "RIGHT", x, 0)
+            local gsz = math.floor(isz * 0.7 + 0.5)
+            p.icon:SetSize(gsz, gsz)
             p.icon:Show()
-            SetSize(p.count, ns.OwnListSize("scoreSize"))
+            SetSize(p.count, fsz)
             p.count:SetText(num)
             p.count:ClearAllPoints()
-            p.count:SetPoint("RIGHT", p.icon, "LEFT", -2, 0)
+            p.count:SetPoint("BOTTOM", p.bg, "TOP", 0, 1)
             p.count:Show()
-            x = x - rsz - 2 - math.ceil(p.count:GetStringWidth() or 8) - 8
+            x = x - math.max(isz, math.ceil(p.count:GetStringWidth() or 8)) - 6
         else
-            p.icon:Hide(); p.count:Hide()
+            p.bg:Hide(); p.icon:Hide(); p.count:Hide()
         end
     end
     if counts then

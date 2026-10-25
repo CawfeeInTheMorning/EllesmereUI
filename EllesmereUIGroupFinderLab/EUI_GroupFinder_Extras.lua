@@ -1028,12 +1028,6 @@ GFNS.CawfeeGroupColumns = function(m, list, G)
     end
     if sections[2] then Section(1, sections[2]) end
     for i = 3, #sections do Section(2, sections[i]) end
-    -- thin line between the columns
-    local div = m:CreateTexture(nil, "ARTWORK")
-    div:SetWidth(CM.PP.mult)
-    div:SetColorTexture(1, 1, 1, 0.10)
-    div:SetPoint("TOP", m, "TOP", 0, -6)
-    div:SetPoint("BOTTOM", m, "BOTTOM", 0, 6)
     return math.max(ys[1], ys[2])
 end
 
