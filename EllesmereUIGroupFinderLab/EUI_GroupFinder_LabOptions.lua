@@ -133,6 +133,11 @@ initFrame:SetScript("OnEvent", function(self)
               tooltip = "How tall each row is. Lines that no longer fit drop off from the bottom: the playstyle line first, then the dungeon / raid name (its short name then sits ahead of the title).",
               getValue = function() return ns.OwnListRowHeight() end,
               setValue = function(v) ns.SetOwnListRowHeight(v) end },
+            EUI.BlankRowCfg())
+        y = y - h
+
+        _, h = W:SectionHeader(parent, "MYTHIC+", y); y = y - h
+        _, h = W:DualRow(parent, y,
             { type = "toggle", text = "Raider.IO Rating Colors",
               tooltip = "Colours the leader's rating with Raider.IO's score colours. Off, the game's own rating colours.",
               disabled = function() return not (RaiderIO and RaiderIO.GetScoreColor) end,
@@ -141,7 +146,11 @@ initFrame:SetScript("OnEvent", function(self)
               setValue = function(v)
                   ns.Cfg().rioRatingColors = v and true or false
                   if ns.Redecorate then ns.Redecorate() end
-              end })
+              end },
+            { type = "slider", text = "Rating Text Size", min = 8, max = 20, step = 1,
+              tooltip = "The leader's Mythic+ rating beside the role icons.",
+              getValue = function() return ns.OwnListSize("scoreSize") end,
+              setValue = function(v) ns.SetOwnListSize("scoreSize", v) end })
         y = y - h
 
         _, h = W:SectionHeader(parent, "DISPLAY", y); y = y - h

@@ -986,9 +986,12 @@ local function LockedOut(ai, resultID)
     return false
 end
 
+-- raider.io's api, looked up once (each global read logs a taint line)
+local rioApi
 local function RatingColor(score)
-    if Opt("rioRatingColors") and RaiderIO and RaiderIO.GetScoreColor then
-        local ok, r, g, b = pcall(RaiderIO.GetScoreColor, score)
+    if rioApi == nil then rioApi = _G.RaiderIO or false end
+    if Opt("rioRatingColors") and rioApi and rioApi.GetScoreColor then
+        local ok, r, g, b = pcall(rioApi.GetScoreColor, score)
         if ok and type(r) == "number" then return r, g, b end
     end
     local c = C_ChallengeMode and C_ChallengeMode.GetDungeonScoreRarityColor and C_ChallengeMode.GetDungeonScoreRarityColor(score)

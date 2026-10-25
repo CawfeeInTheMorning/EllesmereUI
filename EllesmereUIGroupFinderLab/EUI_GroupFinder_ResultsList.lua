@@ -38,7 +38,7 @@ function ns.OwnListOn() return true end  -- the lab add-on itself is the switch
 function ns.OwnListRowHeight() return tonumber(DB().rowHeight) or 50 end
 function ns.OwnListOpt(k) return DB()[k] ~= false end  -- playstyle, regionTags (nil = on)
 -- text sizes: title, dungeon / raid name, the playstyle / region line
-local SIZE_DEFAULTS = { titleSize = 12, nameSize = 10, lineSize = 10 }
+local SIZE_DEFAULTS = { titleSize = 12, nameSize = 10, lineSize = 10, scoreSize = 10 }
 function ns.OwnListSize(k) return tonumber(DB()[k]) or SIZE_DEFAULTS[k] end
 function ns.SetOwnListSize(k, v)
     DB()[k] = v
@@ -185,6 +185,21 @@ end
 --  a row
 -------------------------------------------------------------------------------
 local ROLE_ORDER = { TANK = 1, HEALER = 2, DAMAGER = 3 }
+-- application status: blizzard's words and colours per state
+local G, R, Y = { 0.1, 1, 0.1 }, { 1, 0.25, 0.25 }, { 1, 0.82, 0 }
+local function St(text, fallback, c) return { text or fallback, c[1], c[2], c[3] } end
+local STATUS = {
+    applied           = St(LFG_LIST_PENDING, "Pending", G),
+    invited           = St(LFG_LIST_INVITED, "Invited", G),
+    inviteaccepted    = St(LFG_LIST_APP_INVITE_ACCEPTED, "Invite Accepted", G),
+    invitedeclined    = St(LFG_LIST_APP_INVITE_DECLINED, "Invite Declined", R),
+    declined          = St(LFG_LIST_APP_DECLINED, "Declined", R),
+    declined_full     = St(LFG_LIST_APP_FULL, "Full", R),
+    declined_delisted = St(LFG_LIST_APP_DELISTED, "Delisted", R),
+    timedout          = St(LFG_LIST_APP_TIMED_OUT, "Timed Out", R),
+    cancelled         = St(LFG_LIST_APP_CANCELLED, "Cancelled", Y),
+    failed            = St(LFG_LIST_APP_FAILED, "Failed", R),
+}
 
 local function MakeRow(i)
     local r = CreateFrame("Button", nil, body)
@@ -194,6 +209,12 @@ local function MakeRow(i)
     r.bg:SetColorTexture(1, 1, 1, 0.03)
     r.sel = r:CreateTexture(nil, "BORDER")
     r.sel:SetAllPoints()
+    -- applied: green line along the bottom, delisted: red
+    r.under = r:CreateTexture(nil, "ARTWORK", nil, 7)
+    r.under:SetPoint("BOTTOMLEFT", r, "BOTTOMLEFT", 0, 0)
+    r.under:SetPoint("BOTTOMRIGHT", r, "BOTTOMRIGHT", 0, 0)
+    r.under:SetHeight(2)
+    r.under:Hide()
     r.hl = r:CreateTexture(nil, "HIGHLIGHT")
     r.hl:SetAllPoints()
     r.hl:SetColorTexture(1, 1, 1, 0.06)
@@ -371,7 +392,13 @@ local function Layout(r, h)
     local bpx = tonumber(ns.OwnListGet("borderSize")) or 0
     local gap = 2 + ((ns.OwnListGet("iconShape") ~= "square") and bpx * 2 or 0)  -- room for the rings
     local cw = math.max(8, math.floor(isz * 0.6 + 0.5))
-    local x = -pad - ((ns.OwnListGet("iconShape") ~= "square") and bpx or 0)
+    local csz = math.min(CANCEL_SZ, h - 4)
+    r.cancel:SetSize(csz, csz)
+    r.cancel.tex:SetSize(math.floor(csz * 0.5), math.floor(csz * 0.5))
+    r.cancel:ClearAllPoints()
+    r.cancel:SetPoint("RIGHT", r, "RIGHT", -pad, 0)
+    SetSize(r.score, ns.OwnListSize("scoreSize"))
+    local x = -pad - csz - 8 - ((ns.OwnListGet("iconShape") ~= "square") and bpx or 0)
     for k = 5, 1, -1 do
         local t = r.icons[k]
         t:SetSize(isz, isz)
@@ -383,13 +410,8 @@ local function Layout(r, h)
     end
     r.score:ClearAllPoints()
     r.score:SetPoint("RIGHT", r, "RIGHT", x - 4, 0)
-    local csz = math.min(CANCEL_SZ, h - 4)
-    r.cancel:SetSize(csz, csz)
-    r.cancel.tex:SetSize(math.floor(csz * 0.5), math.floor(csz * 0.5))
-    r.cancel:ClearAllPoints()
-    r.cancel:SetPoint("RIGHT", r.score, "LEFT", -8, 0)
     r.status:ClearAllPoints()
-    r.status:SetPoint("RIGHT", r.cancel, "LEFT", -6, 0)
+    r.status:SetPoint("RIGHT", r.score, "LEFT", -8, 0)
     r.name:SetPoint("RIGHT", r.status, "LEFT", -8, 0)
     r.act:SetPoint("RIGHT", r.status, "LEFT", -8, 0)
 end
@@ -482,6 +504,15 @@ local function Fill(r, id)
         r.status:SetText("")
     end
     r.cancel:SetShown(appStatus == "applied" and not Secret(appStatus))
+    if st == STATUS.declined_delisted then
+        r.under:SetColorTexture(1, 0.2, 0.2, 0.9)
+        r.under:Show()
+    elseif st == STATUS.applied or st == STATUS.invited then
+        r.under:SetColorTexture(0.1, 0.9, 0.1, 0.9)
+        r.under:Show()
+    else
+        r.under:Hide()
+    end
     -- row art
     local art = ns.RowArtFor and ns.RowArtFor(id)
     if art and ns.ROW_ART then
