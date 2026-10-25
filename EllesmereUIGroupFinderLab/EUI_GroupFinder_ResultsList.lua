@@ -736,14 +736,14 @@ local function Fill(r, id)
         local role = RR_ROLES[k]
         local num = counts and counts[role]
         if counts and type(num) == "number" and not Secret(num) then
-            -- the count above, the pair centred on the row
+            -- the icon centred on the row, its count above
             local c = RR_COLORS[role]
             p.bg:SetColorTexture(c[1], c[2], c[3], 1)
             if round and not p.masked then p.bg:AddMaskTexture(p.mask); p.masked = true
             elseif not round and p.masked then p.bg:RemoveMaskTexture(p.mask); p.masked = nil end
             p.bg:SetSize(isz, isz)
             p.bg:ClearAllPoints()
-            p.bg:SetPoint("RIGHT", r, "RIGHT", x, -math.floor(fsz / 2 + 1))
+            p.bg:SetPoint("RIGHT", r, "RIGHT", x, 0)
             p.bg:Show()
             local tex = ellIcons and ns.RoleIconTex and ns.RoleIconTex(role)
             if tex then p.icon:SetTexture(tex) else p.icon:SetAtlas(NEED_ATLAS[role]) end
@@ -762,7 +762,7 @@ local function Fill(r, id)
     end
     if counts then
         r.score:ClearAllPoints()
-        r.score:SetPoint("RIGHT", r, "RIGHT", x + 4, 0)
+        r.score:SetPoint("RIGHT", r, "RIGHT", x - 6, 0)
     end
     local ar, ag, ab = Accent()
     r.sel:SetColorTexture(ar, ag, ab, SP.selectedResult == id and 0.18 or 0)
