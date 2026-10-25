@@ -15,3 +15,8 @@
 EllesmereUIGroupFinder.lua
 EUI_GroupFinder_Search.lua
 EUI_GroupFinder_Applications.lua
+EUI_GroupFinder_Extras.lua
+EUI_GroupFinder_Expressions.lua
+EUI_GroupFinder_ResultsList.lua
+EUI_GroupFinder_Rail.lua
+EUI_GroupFinder_Finder.lua
