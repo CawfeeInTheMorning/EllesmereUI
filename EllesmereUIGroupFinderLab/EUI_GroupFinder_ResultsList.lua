@@ -334,7 +334,8 @@ local function Fill(r, id)
     local act = type(acts) == "table" and not Secret(acts) and acts[1]
     local ai = act and not Secret(act) and C_LFGList.GetActivityInfoTable(act)
     -- group settings: coloured group names (red declined / locked, green new)
-    local nr, ng, nb = ns.LabNameColor and ns.LabNameColor(id, info, ai)
+    local nr, ng, nb
+    if ns.LabNameColor then nr, ng, nb = ns.LabNameColor(id, info, ai) end  -- all three values (an "and" keeps only the first)
     if nr then r.name:SetTextColor(nr, ng, nb) else r.name:SetTextColor(1, 0.82, 0) end
     r.act:SetText(ai and ai.fullName or "")
     LineThree(r, id, info)
