@@ -529,6 +529,7 @@ end
 local function BuildBosses()
     if not (EJ_SelectInstance and EJ_GetEncounterInfoByIndex) then return nil end
     local list, byAct, seen, raids = {}, {}, {}, {}
+    local current = {}
     local names
     local function byName() names = names or JournalRaidsByName(); return names end
     for _, gid in ipairs(RaidGroups()) do
@@ -538,6 +539,7 @@ local function BuildBosses()
             local jid = JournalInstance(info, groupName, byName)
             if jid then
                 byAct[aid] = jid
+                if info and info.isCurrentRaidActivity then current[jid] = true end
                 if not seen[jid] then
                     seen[jid] = true
                     local raidName = EJ_GetInstanceInfo and EJ_GetInstanceInfo(jid)
@@ -552,23 +554,38 @@ local function BuildBosses()
         end
     end
     if #list == 0 then return nil end
+    -- lab: current season flags (none flagged: all count)
+    wipe(XF.raidCurrent)
+    if next(current) then
+        for _, raid in ipairs(raids) do XF.raidCurrent[raid.jid] = current[raid.jid] == true end
+    end
     return list, byAct, raids
+end
+
+-- lab: current season only (raid menu, on by default): older raids are
+-- out. raidCurrent[jid] is true / false once the raids are built; when the
+-- game flags none as current, every raid counts
+XF.raidCurrent = {}
+function XF.SeasonOnly() return Cfg().cawfeeSeasonRaids ~= false end
+function XF.RaidEligible(jid)
+    return not (XF.SeasonOnly() and XF.raidCurrent[jid] == false)
 end
 
 -- Raids are shown unless hidden in the raid menu, so new raids show up by
 -- default.
 local function RaidShown(jid)
+    if not XF.RaidEligible(jid) then return false end
     local h = Cfg().raidsHidden
     if not (type(h) == "table" and h[jid]) then return true end
     for _, raid in ipairs(raidList or {}) do
-        if not h[raid.jid] then return false end
+        if XF.RaidEligible(raid.jid) and not h[raid.jid] then return false end
     end
     return true
 end
 
 function XF.AnyRaidHidden()
     for _, raid in ipairs(raidList or {}) do
-        if not RaidShown(raid.jid) then return true end
+        if XF.RaidEligible(raid.jid) and not RaidShown(raid.jid) then return true end
     end
     return false
 end
@@ -1492,6 +1509,11 @@ local function MenuItem(parent, y, text, onClick)
     item:SetScript("OnEnter", function() item.label:SetTextColor(1, 1, 1, 1); hl:SetColorTexture(1, 1, 1, CM.DD_ITEM_HL_A) end)
     item:SetScript("OnLeave", function() item.label:SetTextColor(tR, tG, tB, tA); hl:SetColorTexture(1, 1, 1, 0) end)
     item:SetScript("OnClick", onClick)
+    -- lab: dimmed and unclickable (raid menu: current season only)
+    function item:SetDimmed(off)
+        self:EnableMouse(not off)
+        self:SetAlpha(off and 0.35 or 1)
+    end
     -- The tick takes the accent colour as it is now.
     function item:SetChecked(on)
         local r, g, b = Accent()
@@ -2574,6 +2596,16 @@ end
 local function LayoutDelves(size, after, show, cols, slots)
     local list = delves or {}
     local font = gfFont or "GameFontHighlight"
+    -- lab: one scrolling line, like the raid bosses
+    if ns.CawfeeDelveStrip then
+        ns.LabDressDelve = function(sq, d)
+            sq:SetNormalFontObject(font)
+            sq:SetHighlightFontObject(font)
+            sq:SetText(d.abbr)
+        end
+        return ns.CawfeeDelveStrip(list, delveSquares, function() return MakeDelveSquare(row) end,
+            size, after, show, cols, slots, row, SQ_GAP, function() Paint() end)
+    end
     for i = 1, math.max(#list, #delveSquares) do
         local d = list[i]
         local sq = delveSquares[i]
@@ -2658,6 +2690,25 @@ local function BuildRaidMenu()
     if S and S.AddBorder then S.AddBorder(raidMenu) else CM.MakeBorder(raidMenu, ThemeBorder()) end
     raidMenu.items = {}
     local y = 3
+    -- lab: current season only, older raids dimmed and out
+    raidMenu.items.season = MenuItem(raidMenu, y, EllesmereUI.L("Current Season Only"), function()
+        local c = Cfg()
+        c.cawfeeSeasonRaids = not XF.SeasonOnly()
+        if type(c.bosses) == "table" then
+            for _, bo in ipairs(bosses or {}) do
+                if not RaidShown(bo.raid) then c.bosses[bo.key] = nil end
+            end
+        end
+        ns.Search_Layout()
+        Refilter()
+    end)
+    y = y + ITEM_H
+    local sdiv = raidMenu:CreateTexture(nil, "ARTWORK")
+    sdiv:SetHeight(1)
+    sdiv:SetColorTexture(1, 1, 1, 0.10)
+    sdiv:SetPoint("TOPLEFT", raidMenu, "TOPLEFT", 1, -y - 3)
+    sdiv:SetPoint("TOPRIGHT", raidMenu, "TOPRIGHT", -1, -y - 3)
+    y = y + 7
     for _, raid in ipairs(raidList or {}) do
         local jid = raid.jid
         raidMenu.items[jid] = MenuItem(raidMenu, y, raid.name, function()
@@ -2704,8 +2755,12 @@ local function PaintRaidMenu()
     if not (raidMenu and raidMenu:IsShown()) then return end
     for _, raid in ipairs(raidList or {}) do
         local item = raidMenu.items[raid.jid]
-        if item then item:SetChecked(RaidShown(raid.jid)) end
+        if item then
+            item:SetChecked(RaidShown(raid.jid))
+            item:SetDimmed(not XF.RaidEligible(raid.jid))
+        end
     end
+    if raidMenu.items.season then raidMenu.items.season:SetChecked(XF.SeasonOnly()) end
     if raidMenu.items.worldBosses then raidMenu.items.worldBosses:SetChecked(not HideWorldBosses()) end
 end
 
@@ -2860,7 +2915,7 @@ Paint = function()
     PaintRaidMenu()
     if raidBtn then
         local hidden = false
-        for _, raid in ipairs(raidList or XF.EMPTY) do if not RaidShown(raid.jid) then hidden = true end end
+        for _, raid in ipairs(raidList or XF.EMPTY) do if XF.RaidEligible(raid.jid) and not RaidShown(raid.jid) then hidden = true end end
         if HideWorldBosses() then hidden = true end
         if hidden then raidBtn.Glyph:SetVertexColor(Accent()) else raidBtn.Glyph:SetVertexColor(1, 1, 1) end
     end

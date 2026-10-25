@@ -365,33 +365,19 @@ GFNS.CawfeeRoleCounts = function(m, y, K)
 end
 
 -------------------------------------------------------------------------------
---  raids: the boss squares in one line that scrolls sideways (arrows at each
---  end, mouse wheel too) instead of a grid that pushes the list down. the
---  module's own squares, moved into a clipped window. hook in LayoutBosses
---  of EUI_GroupFinder_Search.lua on local/cawfee; returns 1 line
+--  raids and delves: the squares in one line that scrolls sideways (arrows at
+--  each end, mouse wheel too) instead of a grid that pushes the list down. the
+--  module's own squares, moved into a clipped window. hooks in LayoutBosses
+--  and LayoutDelves of EUI_GroupFinder_Search.lua; returns 1 line
 -------------------------------------------------------------------------------
-local strip = { offset = 0 }
 local ARROW_W = 14
 local ARROW_DIR = "Interface\\AddOns\\EllesmereUI\\media\\icons\\"
 
-local function StripArrow(row, file, step)
-    local b = CreateFrame("Button", nil, row)
-    b.tex = b:CreateTexture(nil, "OVERLAY")
-    b.tex:SetTexture(ARROW_DIR .. file)
-    b.tex:SetSize(16, 16)
-    b.tex:SetPoint("CENTER")
-    b:SetScript("OnClick", function() strip.Scroll(step) end)
-    b:SetScript("OnEnter", function(self) if self.live then self.tex:SetAlpha(1) end end)
-    b:SetScript("OnLeave", function(self) self.tex:SetAlpha(self.live and 0.8 or 0.2) end)
-    return b
-end
-
-local function PlaceStrip()
-    local s = strip
+local function PlaceStrip(s)
     if not s.list then return end
     local per = s.size + s.gap
     -- whole steps only, so the squares never shift by a sliver; the end stops
-    -- once the last boss is fully in view (any space left is under a square)
+    -- once the last square is fully in view (any space left is under a square)
     local full = math.max(1, math.floor((s.clipW + s.gap) / per))
     local maxOff = math.max(0, #s.list - full)
     s.offset = math.max(0, math.min(s.offset, maxOff))
@@ -414,74 +400,98 @@ local function PlaceStrip()
     end
 end
 
-function strip.Scroll(step)
-    strip.offset = strip.offset + step
-    PlaceStrip()
-    if strip.paint then strip.paint() end  -- the module colours the squares now in view
+local function ScrollStrip(s, step)
+    s.offset = s.offset + step
+    PlaceStrip(s)
+    if s.paint then s.paint() end  -- the module colours the squares now in view
 end
 
-GFNS.CawfeeBossStrip = function(list, squares, Make, size, after, show, cols, slots, row, gap, paint)
-    local s = strip
-    s.paint = paint
-    if not s.clip then
-        s.clip = CreateFrame("Frame", nil, row)
-        s.clip:SetClipsChildren(true)
-        s.clip:EnableMouseWheel(true)
-        s.clip:SetScript("OnMouseWheel", function(_, delta) strip.Scroll(delta > 0 and -1 or 1) end)
-        s.left = StripArrow(row, "eui-arrow-left.png", -1)
-        s.right = StripArrow(row, "eui-arrow-right.png", 1)
-    end
-    if not show or #list == 0 or not after then
-        for _, sq in ipairs(squares) do sq.boss = nil; sq:Hide() end
-        s.clip:Hide(); s.left:Hide(); s.right:Hide()
-        s.list = nil
+local function StripArrow(s, row, file, step)
+    local b = CreateFrame("Button", nil, row)
+    b.tex = b:CreateTexture(nil, "OVERLAY")
+    b.tex:SetTexture(ARROW_DIR .. file)
+    b.tex:SetSize(16, 16)
+    b.tex:SetPoint("CENTER")
+    b:SetScript("OnClick", function() ScrollStrip(s, step) end)
+    b:SetScript("OnEnter", function(self) if self.live then self.tex:SetAlpha(1) end end)
+    b:SetScript("OnLeave", function(self) self.tex:SetAlpha(self.live and 0.8 or 0.2) end)
+    return b
+end
+
+-- one strip: key is the square's data field (boss / delve), fill dresses a
+-- square for its entry
+local function NewStrip(key, fill)
+    local s = { offset = 0 }
+    return function(list, squares, Make, size, after, show, cols, slots, row, gap, paint)
+        s.paint = paint
+        if not s.clip then
+            s.clip = CreateFrame("Frame", nil, row)
+            s.clip:SetClipsChildren(true)
+            s.clip:EnableMouseWheel(true)
+            s.clip:SetScript("OnMouseWheel", function(_, delta) ScrollStrip(s, delta > 0 and -1 or 1) end)
+            s.left = StripArrow(s, row, "eui-arrow-left.png", -1)
+            s.right = StripArrow(s, row, "eui-arrow-right.png", 1)
+        end
+        if not show or #list == 0 or not after then
+            for _, sq in ipairs(squares) do sq[key] = nil; sq:Hide() end
+            s.clip:Hide(); s.left:Hide(); s.right:Hide()
+            s.list = nil
+            return 1
+        end
+        -- the grid's room (after the raid button's slot), one line high
+        local per = size + gap
+        local startX = gap + (slots - cols) * per
+        local room = cols * per - gap
+        local fits = #list * per - gap <= room
+        local vis = fits and #list or math.max(1, math.floor((room - 2 * (ARROW_W + gap) + gap) / per))
+        s.clip:ClearAllPoints()
+        s.left:ClearAllPoints()
+        s.right:ClearAllPoints()
+        s.left:SetSize(ARROW_W, size)
+        s.right:SetSize(ARROW_W, size)
+        if fits then
+            s.left:Hide(); s.right:Hide()
+            s.clip:SetPoint("LEFT", after, "RIGHT", startX, 0)
+        else
+            s.left:SetPoint("LEFT", after, "RIGHT", startX, 0)
+            s.left:Show()
+            s.clip:SetPoint("LEFT", s.left, "RIGHT", gap, 0)
+        end
+        -- scrolling: the window runs to the row's right edge (in line with row 1),
+        -- the last square there can show cut off
+        local clipW = vis * per - gap
+        if fits then
+            s.clip:SetSize(clipW, size)
+        else
+            s.right:SetPoint("RIGHT", row, "RIGHT", 4, 0)  -- a touch wider so the last square's border isn't clipped
+            s.right:Show()
+            s.clip:SetPoint("RIGHT", s.right, "LEFT", -gap, 0)
+            s.clip:SetHeight(size)
+            clipW = room + 4 - 2 * (ARROW_W + gap)
+        end
+        s.clip:Show()
+        for i, d in ipairs(list) do
+            local sq = squares[i]
+            if not sq then sq = Make(); squares[i] = sq end
+            if sq:GetParent() ~= s.clip then sq:SetParent(s.clip) end
+            sq[key] = d
+            fill(sq, d)
+            sq:SetSize(size, size)
+        end
+        for i = #list + 1, #squares do squares[i][key] = nil; squares[i]:Hide() end
+        s.list, s.squares, s.size, s.gap, s.clipW = list, squares, size, gap, clipW
+        PlaceStrip(s)
         return 1
     end
-    -- the grid's room (after the raid button's slot), one line high
-    local per = size + gap
-    local startX = gap + (slots - cols) * per
-    local room = cols * per - gap
-    local fits = #list * per - gap <= room
-    local vis = fits and #list or math.max(1, math.floor((room - 2 * (ARROW_W + gap) + gap) / per))
-    s.clip:ClearAllPoints()
-    s.left:ClearAllPoints()
-    s.right:ClearAllPoints()
-    s.left:SetSize(ARROW_W, size)
-    s.right:SetSize(ARROW_W, size)
-    if fits then
-        s.left:Hide(); s.right:Hide()
-        s.clip:SetPoint("LEFT", after, "RIGHT", startX, 0)
-    else
-        s.left:SetPoint("LEFT", after, "RIGHT", startX, 0)
-        s.left:Show()
-        s.clip:SetPoint("LEFT", s.left, "RIGHT", gap, 0)
-    end
-    -- scrolling: the window runs to the row's right edge (in line with row 1),
-    -- the last square there can show cut off
-    local clipW = vis * per - gap
-    if fits then
-        s.clip:SetSize(clipW, size)
-    else
-        s.right:SetPoint("RIGHT", row, "RIGHT", 4, 0)  -- a touch wider so the last square's border isn't clipped
-        s.right:Show()
-        s.clip:SetPoint("RIGHT", s.right, "LEFT", -gap, 0)
-        s.clip:SetHeight(size)
-        clipW = room + 4 - 2 * (ARROW_W + gap)
-    end
-    s.clip:Show()
-    for i, d in ipairs(list) do
-        local sq = squares[i]
-        if not sq then sq = Make(); squares[i] = sq end
-        if sq:GetParent() ~= s.clip then sq:SetParent(s.clip) end
-        sq.boss = d
-        sq.icon:SetTexture(d.icon or "Interface\\Icons\\INV_Misc_QuestionMark")
-        sq:SetSize(size, size)
-    end
-    for i = #list + 1, #squares do squares[i].boss = nil; squares[i]:Hide() end
-    s.list, s.squares, s.size, s.gap, s.clipW = list, squares, size, gap, clipW
-    PlaceStrip()
-    return 1
 end
+
+GFNS.CawfeeBossStrip = NewStrip("boss", function(sq, d)
+    sq.icon:SetTexture(d.icon or "Interface\\Icons\\INV_Misc_QuestionMark")
+end)
+-- delves: the module dresses its own squares (font, short name) first
+GFNS.CawfeeDelveStrip = NewStrip("delve", function(sq, d)
+    if GFNS.LabDressDelve then GFNS.LabDressDelve(sq, d) end
+end)
 
 -- filters menu (side panel included) spans the search box's left edge to
 -- refresh, the same width as the expressions menu

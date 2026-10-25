@@ -304,6 +304,15 @@ local function MakeRow(i)
         c:Hide()
         r.crowns[k] = c
     end
+    -- raids: tank / healer / dps counts, each beside its role icon
+    r.rr = {}
+    for k = 1, 3 do
+        local t = r:CreateTexture(nil, "ARTWORK", nil, 2)
+        local c = r:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        c:SetJustifyH("RIGHT")
+        t:Hide(); c:Hide()
+        r.rr[k] = { icon = t, count = c }
+    end
     -- row art (group settings > display): the instance's art fading across
     -- the left half, under the text
     r.art = r:CreateTexture(nil, "BACKGROUND", nil, 7)
@@ -663,9 +672,38 @@ local function Fill(r, id)
             t:Hide()
         end
     end
-    if cap > 5 then
-        -- raids: just the count
-        r.score:SetText((n or "?") .. "/" .. cap)
+    -- raids: role counts (tank, healer, dps) right-aligned like the icons,
+    -- the leader's rating to their left
+    local counts = cap > 5 and C_LFGList.GetSearchResultMemberCounts(id)
+    if not Readable(counts) then counts = nil end
+    local ellIcons = ns.OwnListGet("missingIcons") == "ellesmere"
+    local x = -(r.pad or 6)
+    local isz = r.icons[1]:GetWidth() or 16
+    local rsz = math.floor(isz * 0.85 + 0.5)
+    for k = 3, 1, -1 do
+        local p = r.rr[k]
+        local role = ({ "TANK", "HEALER", "DAMAGER" })[k]
+        local num = counts and counts[role]
+        if counts and type(num) == "number" and not Secret(num) then
+            local tex = ellIcons and ns.RoleIconTex and ns.RoleIconTex(role)
+            if tex then p.icon:SetTexture(tex) else p.icon:SetAtlas(NEED_ATLAS[role]) end
+            p.icon:SetSize(rsz, rsz)
+            p.icon:ClearAllPoints()
+            p.icon:SetPoint("RIGHT", r, "RIGHT", x, 0)
+            p.icon:Show()
+            SetSize(p.count, ns.OwnListSize("scoreSize"))
+            p.count:SetText(num)
+            p.count:ClearAllPoints()
+            p.count:SetPoint("RIGHT", p.icon, "LEFT", -2, 0)
+            p.count:Show()
+            x = x - rsz - 2 - math.ceil(p.count:GetStringWidth() or 8) - 8
+        else
+            p.icon:Hide(); p.count:Hide()
+        end
+    end
+    if counts then
+        r.score:ClearAllPoints()
+        r.score:SetPoint("RIGHT", r, "RIGHT", x + 4, 0)
     end
     local ar, ag, ab = Accent()
     r.sel:SetColorTexture(ar, ag, ab, SP.selectedResult == id and 0.18 or 0)
