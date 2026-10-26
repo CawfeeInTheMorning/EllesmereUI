@@ -23,7 +23,7 @@ local EUI = EllesmereUI
 local DUNGEONS, RAIDS = 2, 3
 local DELVES = GROUP_FINDER_CATEGORY_ID_DELVES or 121
 local X_TEX = "Interface\\AddOns\\EllesmereUI\\media\\icons\\eui-close.png"
-local CANCEL_SZ = 17  -- the cancel x in the corner
+local CANCEL_H = 12  -- the cancel bar under the pending text
 local GAP = 2
 local function Secret(v) return issecretvalue and issecretvalue(v) or false end
 local function Readable(t) return type(t) == "table" and not Secret(t) and not (canaccesstable and not canaccesstable(t)) end
@@ -563,12 +563,9 @@ local function Layout(r, h)
     local bpx = tonumber(ns.OwnListGet("borderSize")) or 0
     local gap = 2 + ((ns.OwnListGet("iconShape") ~= "square") and bpx * 2 or 0)  -- room for the rings
     local cw = math.max(8, math.floor(isz * 0.6 + 0.5))
-    -- cancel: small, tucked in the top right corner, over everything
-    local csz = math.min(CANCEL_SZ, math.max(10, h - 4))
-    r.cancel:SetSize(csz, csz)
-    r.cancel.tex:SetSize(math.floor(csz * 0.6), math.floor(csz * 0.6))
-    r.cancel:ClearAllPoints()
-    r.cancel:SetPoint("TOPRIGHT", r, "TOPRIGHT", -2, -2)
+    -- cancel: a slim bar under the status text, as wide as it (placed in Fill)
+    r.cancel:SetHeight(CANCEL_H)
+    r.cancel.tex:SetSize(CANCEL_H - 4, CANCEL_H - 4)
     r.cancel:SetFrameLevel(r:GetFrameLevel() + 5)
     SetSize(r.score, ns.OwnListSize("scoreSize"))
     local x = -pad - ((ns.OwnListGet("iconShape") ~= "square") and bpx or 0)
@@ -679,7 +676,15 @@ local function Fill(r, id)
     else
         r.status:SetText("")
     end
-    r.cancel:SetShown(appStatus == "applied" and not Secret(appStatus))
+    -- pending: the cancel bar under the status, the pair centred on the row
+    local canCancel = appStatus == "applied"
+    r.status:SetPoint("RIGHT", r.score, "LEFT", -8, canCancel and math.floor((CANCEL_H + 2) / 2) or 0)
+    if canCancel then
+        r.cancel:ClearAllPoints()
+        r.cancel:SetPoint("TOPLEFT", r.status, "BOTTOMLEFT", 0, -2)
+        r.cancel:SetPoint("TOPRIGHT", r.status, "BOTTOMRIGHT", 0, -2)
+    end
+    r.cancel:SetShown(canCancel)
     -- status underline: each kind its own colour, each its own switch
     local line = st and LINE_OF[st]
     if line and ns.OwnListGet(line[1]) ~= false then
