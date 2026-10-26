@@ -23,7 +23,7 @@ local EUI = EllesmereUI
 local DUNGEONS, RAIDS = 2, 3
 local DELVES = GROUP_FINDER_CATEGORY_ID_DELVES or 121
 local X_TEX = "Interface\\AddOns\\EllesmereUI\\media\\icons\\eui-close.png"
-local CANCEL_H = 12  -- the cancel bar under the pending text
+local CANCEL_H = 18  -- the cancel bar under the pending text
 local GAP = 2
 local function Secret(v) return issecretvalue and issecretvalue(v) or false end
 local function Readable(t) return type(t) == "table" and not Secret(t) and not (canaccesstable and not canaccesstable(t)) end
@@ -565,7 +565,7 @@ local function Layout(r, h)
     local cw = math.max(8, math.floor(isz * 0.6 + 0.5))
     -- cancel: a slim bar under the status text, as wide as it (placed in Fill)
     r.cancel:SetHeight(CANCEL_H)
-    r.cancel.tex:SetSize(CANCEL_H - 4, CANCEL_H - 4)
+    r.cancel.tex:SetSize(CANCEL_H - 8, CANCEL_H - 8)
     r.cancel:SetFrameLevel(r:GetFrameLevel() + 5)
     SetSize(r.score, ns.OwnListSize("scoreSize"))
     local x = -pad - ((ns.OwnListGet("iconShape") ~= "square") and bpx or 0)
