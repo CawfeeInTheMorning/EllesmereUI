@@ -191,8 +191,15 @@ end
 -- button calls, minus the panel's selection)
 local function SignUp(id)
     if not (id and SignUpState(id)) then return end
-    if LFGListApplicationDialog_Show and LFGListApplicationDialog then
-        LFGListApplicationDialog_Show(LFGListApplicationDialog, id)
+    local dlg = LFGListApplicationDialog
+    if not (LFGListApplicationDialog_Show and dlg) then return end
+    LFGListApplicationDialog_Show(dlg, id)
+    -- quick signup: the dialog confirms itself, shift keeps it open. the core
+    -- helper does this too when it's awake (quality of life loaded); then the
+    -- dialog's already gone and this does nothing
+    if EllesmereUIDB and EllesmereUIDB.quickSignup and not IsShiftKeyDown()
+        and dlg:IsShown() and dlg.SignUpButton and dlg.SignUpButton:IsEnabled() then
+        dlg.SignUpButton:Click()
     end
 end
 

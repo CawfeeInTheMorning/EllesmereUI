@@ -2032,7 +2032,8 @@ XF.DIM_ALPHA = 0.35
 local function DimForMenu(on)
     local a = on and XF.DIM_ALPHA or 1
     if row then row:SetAlpha(a) end
-    if SP.FilterButton then SP.FilterButton:SetAlpha(a) end
+    local face = XF.FilterFace()
+    if face then face:SetAlpha(a) end
     if SP.ScrollBox then SP.ScrollBox:SetAlpha(a) end
     if SP.ScrollBar then SP.ScrollBar:SetAlpha(a) end
     if ns.CawfeeOnDim then ns.CawfeeOnDim(on) end  -- cawfee extras: row 1 blocked too
@@ -2394,7 +2395,8 @@ function XF.BuildGroupMenu()
     m:SetScript("OnShow", function(self)
         for _, it in ipairs(self.items) do it:Paint() end
         DimForMenu(true)
-        if SP.FilterButton then SP.FilterButton:SetAlpha(1) end
+        local face = XF.FilterFace()
+        if face then face:SetAlpha(1) end
     end)
     m:SetScript("OnHide", function() DimForMenu(false) end)
     XF.ClickOff(m, function(self)
@@ -3024,6 +3026,14 @@ end
 -------------------------------------------------------------------------------
 -- Layout
 -------------------------------------------------------------------------------
+-- lab: the group settings button as seen (our face), else blizzard's
+function XF.FilterFace()
+    local f = SP and SP.FilterButton
+    local d = f and FFD[f]
+    return d and d.face or f
+end
+ns.LabFilterFace = XF.FilterFace
+
 -- Blizzard's Filter dropdown becomes our cog.
 local function CogFilterButton(btn)
     if not btn or FFD[btn] then return end
@@ -3031,9 +3041,16 @@ local function CogFilterButton(btn)
     FFD[btn] = d
     if btn.Text then btn.Text:SetAlpha(0) end
     if btn.Background then btn.Background:SetAlpha(0) end
-    d.cogFrame = CreateFrame("Frame", nil, btn)
-    d.cogFrame:SetAllPoints(btn)
-    d.cogFrame:SetFrameLevel(btn:GetFrameLevel() + 3)
+    -- lab: our own fixed-size face. blizzard's button widens with its text
+    -- and is only sized back out of combat, so the row anchors to this instead
+    -- and blizzard's stays invisible underneath
+    btn:SetAlpha(0)
+    d.face = CreateFrame("Frame", nil, SP)
+    d.face:SetSize(BTN, BTN)
+    d.face:SetFrameLevel(row:GetFrameLevel() + 3)
+    d.cogFrame = CreateFrame("Frame", nil, d.face)
+    d.cogFrame:SetAllPoints(d.face)
+    d.cogFrame:SetFrameLevel(d.face:GetFrameLevel() + 3)
     d.cogFrame:EnableMouse(false)
     d.cog = d.cogFrame:CreateTexture(nil, "OVERLAY")
     if ns.CawfeePersonTex then d.cog:SetTexture(ns.CawfeePersonTex) else d.cog:SetAtlas(XF.PERSON_ATLAS, false) end  -- cawfee extras
@@ -3056,8 +3073,8 @@ local function CogFilterButton(btn)
     -- Blizzard's button.
     btn:EnableMouse(false)
     local catcher = CreateFrame("Button", nil, row)
-    catcher:SetAllPoints(btn)
-    catcher:SetFrameLevel(btn:GetFrameLevel() + 6)
+    catcher:SetAllPoints(d.face)
+    catcher:SetFrameLevel(d.face:GetFrameLevel() + 6)
     local wash = catcher:CreateTexture(nil, "HIGHLIGHT")
     wash:SetAllPoints()
     wash:SetColorTexture(1, 1, 1, 0.1)
@@ -3410,6 +3427,11 @@ local function Layout()
         filter:SetSize(size, size)
         filter:ClearAllPoints()
         filter:SetPoint("LEFT", row, "LEFT", 0, 0)
+        fd.face:SetSize(size, size)
+        fd.face:ClearAllPoints()
+        fd.face:SetPoint("LEFT", row, "LEFT", 0, 0)
+        fd.face:Show()
+        filter = fd.face  -- the row anchors to our face from here
     end
     if resetBtn then
         resetBtn:SetSize(size, size)

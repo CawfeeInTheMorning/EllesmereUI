@@ -819,8 +819,9 @@ GFNS.CawfeeOnDim = function(on)
     Block(K.Filters, exprOpen)
     Block(btn and btn.refresh, exprOpen or filtersOpen)
     Block(SP.SearchBox, exprOpen or filtersOpen)
-    Block(SP.FilterButton, filtersOpen)
-    if filtersOpen and SP.FilterButton then SP.FilterButton:SetAlpha(K.DIM_ALPHA or 0.35) end
+    local face = GFNS.LabFilterFace and GFNS.LabFilterFace() or SP.FilterButton
+    Block(face, filtersOpen)
+    if filtersOpen and face then face:SetAlpha(K.DIM_ALPHA or 0.35) end
 end
 
 GFNS.CawfeeExprButton = function(SP, refresh, show, K)
