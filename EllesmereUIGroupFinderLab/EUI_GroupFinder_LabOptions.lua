@@ -426,7 +426,7 @@ initFrame:SetScript("OnEvent", function(self)
         modules = { {
             key         = "GroupFinder",
             title       = "Group Finder",
-            description = "Premade Groups search filters and our own filtered results list in the Dungeons & Raids window (lab build).",
+            description = "Cawfee's test version of Premade Group search filters, listing, and application tools. Separate settings from the live version. Only have one of those modules active at a time.",
             pages       = { PAGE_SEARCH, PAGE_APPS },
             buildPage   = function(pageName, parent, yOffset)
                 if pageName == PAGE_APPS then return BuildAppsPage(parent, yOffset) end

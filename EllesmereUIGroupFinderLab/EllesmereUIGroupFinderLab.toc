@@ -3,7 +3,7 @@
 ## Title: |cff0cd29fEllesmereUI|r Group Finder |cffff9900Lab|r
 ## Category: |cff0cd29fEllesmere|rUI
 ## Group: EllesmereUI
-## Notes: Test build of the Group Finder with our changes. Enable this OR the live Group Finder, not both. Keeps its own copy of the module's settings (copied from the live one the first time).
+## Notes: Cawfee's test version of Premade Group search filters, listing, and application tools. Separate settings from the live version. Only have one of those modules active at a time.
 ## Author: Ellesmere, MorningCawfee
 ## Version: 9.6.6-lab
 ## Dependencies: EllesmereUI
