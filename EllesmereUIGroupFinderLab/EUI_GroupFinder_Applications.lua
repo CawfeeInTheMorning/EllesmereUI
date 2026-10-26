@@ -5,7 +5,7 @@ if EUI_CLIENT_BLOCKED then return end -- pre-12.1 client failsafe (EllesmereUI_C
 -------------------------------------------------------------------------------
 local ADDON_NAME, ns = ...
 if EllesmereUI.HELD_BACK_ADDONS[ADDON_NAME] then return end -- held back (EllesmereUIGroupFinder.lua)
-ADDON_NAME = "EllesmereUIGroupFinder"  -- lab: the live module's name for its fonts
+ADDON_NAME = "EllesmereUIGroupFinder"  -- lab: live module's name, for its fonts
 local CM = EllesmereUI
 
 local IsSecret, PlainString = EllesmereUI.IsSecret, EllesmereUI.PlainString

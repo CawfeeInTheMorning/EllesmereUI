@@ -1,14 +1,8 @@
 if EUI_CLIENT_BLOCKED then return end -- pre-12.1 client failsafe (EllesmereUI_ClientGate.lua)
 -------------------------------------------------------------------------------
---  Expressions.lua  -  EllesmereUI Group Finder
---  group finder: an Expressions button left of refresh opens a box where you
---  type a filter, e.g. "hasBL and hasBR and healers > 0". groups that don't
---  match fade like every other filter. our own little language (words,
---  numbers, and / or / not, compares, + - * /), parsed once into closures:
---  nothing typed ever runs as lua. saved in the group finder's search
---  settings as cawfeeExpr. comes in through hooks in EUI_GroupFinder_Search.lua
---  on local/cawfee: row 1 layout (ns.CawfeeExprButton), ExtraFilterActive
---  (ns.CawfeeExprActive), ExtraKeep (ns.CawfeeExprKeep), reset (ns.CawfeeExprReset).
+--  Expressions.lua - type a filter like "hasBL and hasBR and healers > 0"
+--  our own little language, parsed into closures: nothing typed ever runs
+--  as lua. saved as cawfeeExpr
 -------------------------------------------------------------------------------
 local FOLDER, ns = ...
 if EllesmereUI.HELD_BACK_ADDONS[FOLDER] then return end -- held back (EllesmereUIGroupFinder.lua)
@@ -20,7 +14,7 @@ local function Secret(v) return issecretvalue and issecretvalue(v) or false end
 local function Readable(t) return type(t) == "table" and not Secret(t) and not (canaccesstable and not canaccesstable(t)) end
 
 -------------------------------------------------------------------------------
---  words you can use; lower case here, typed in any case
+--  words you can use (any case)
 -------------------------------------------------------------------------------
 local CLASS_WORDS = {
     warrior = "WARRIOR", paladin = "PALADIN", hunter = "HUNTER", rogue = "ROGUE", priest = "PRIEST",
@@ -30,7 +24,7 @@ local CLASS_WORDS = {
 local WORDS = {
     tank = "tanks", healer = "healers", dps = "dps", members = "members",
     tankopen = "tanksLeft", healeropen = "healersLeft", dpsopen = "dpsLeft",
-    -- older names, still read
+    -- old names, still read
     tanks = "tanks", healers = "healers", heals = "healers",
     tanksleft = "tanksLeft", healersleft = "healersLeft", dpsleft = "dpsLeft",
     hastank = "tanks", hasheal = "healers", hashealer = "healers", hasdps = "dps",
@@ -84,9 +78,8 @@ local function Tokens(src)
 end
 
 -------------------------------------------------------------------------------
---  parser: each rule hands back a function(env) -> number. true = 1,
---  false = 0, anything not 0 counts as true. a word we can't read for a
---  group throws, and that group is kept
+--  parser: each rule returns function(env) -> number (true = 1).
+--  a word we can't read for a group throws, and the group is kept
 -------------------------------------------------------------------------------
 local UNREADABLE = {}
 local function Truth(v) return v ~= 0 end
@@ -195,7 +188,7 @@ local function Compile(src)
 end
 
 -------------------------------------------------------------------------------
---  the saved expression, compiled when it changes (profile swaps too)
+--  the saved expression, recompiled when it changes
 -------------------------------------------------------------------------------
 local compiled, compiledFor, compileErr
 
@@ -212,7 +205,7 @@ end
 
 GFNS.CawfeeExprActive = function() return Current() ~= nil end
 
--- one group's words; a word stays nil when the game hides it
+-- one group's words, nil when the game hides one
 local env = {}
 local function Fill(id, info)
     wipe(env)
@@ -241,7 +234,7 @@ local function Fill(id, info)
                 all = false
             end
         end
-        -- a member we couldn't read: the class words can't be trusted
+        -- unreadable member: class words can't be trusted
         if all then
             env.hasBL, env.hasBR, env.myClass = lust, brez, same
         else
@@ -270,11 +263,9 @@ end
 -------------------------------------------------------------------------------
 --  the button and its box
 -------------------------------------------------------------------------------
--- the reference under the box: sections of boxes holding coloured tags.
--- hover a tag for what it means, click it to type it in
+-- the reference under the box: hover a tag for help, click to type it
 local SECTIONS = {
     { title = "Words", boxes = {
-        -- cols = 1: one full-width button per row
         { title = "Open Slots", color = { 0.35, 0.65, 1 }, cols = 1, examples = {
             { "tankOpen >= 1", "room for a tank" },
             { "healerOpen > 0 and dpsOpen > 0", "room for a healer and a dps" },
@@ -328,7 +319,7 @@ local SECTIONS = {
             { "not", "Flips true and false." } } },
     } },
 }
--- the typing box colours words like their tags; unknown words red
+-- color words like their tags, unknown ones red
 local HUE = {}
 do
     local byKey = {}
@@ -380,9 +371,9 @@ local function Colorize(text)
 end
 
 local TAG_H, TAG_PAD, TAG_GAP, BOX_PAD, BOX_GAP = 16, 6, 4, 6, 6
-local VPAD, ROW_GAP = 6, 8  -- a group's top / bottom padding; the gap between untitled rows
+local VPAD, ROW_GAP = 6, 8  -- group padding, gap between untitled rows
 
--- a tag: a small button box, tinted fill and border in its colour
+-- a tag: small tinted box
 local function Tag(parent, K, spec, color, onClick)
     local t = CreateFrame("Button", nil, parent)
     t:SetHeight(TAG_H)
@@ -411,7 +402,7 @@ local function Tag(parent, K, spec, color, onClick)
     return t
 end
 
--- builds the sections once; Layout(width) places them and returns the height
+-- builds the sections once, Layout(width) places them
 local function BuildHelp(panel, K, onClick)
     local help = { sections = {} }
     for _, sec in ipairs(SECTIONS) do
@@ -424,7 +415,6 @@ local function BuildHelp(panel, K, onClick)
         end
         for _, spec in ipairs(sec.boxes) do
             local bx = CreateFrame("Frame", nil, panel)
-            -- a slightly dark box behind each group
             local shade = bx:CreateTexture(nil, "BACKGROUND")
             shade:SetAllPoints()
             shade:SetColorTexture(0, 0, 0, 0.22)
@@ -435,7 +425,7 @@ local function BuildHelp(panel, K, onClick)
                 bx.title:SetTextColor(spec.color[1], spec.color[2], spec.color[3], 0.8)
                 bx.title:SetText(spec.title:upper())
                 if spec.examples then
-                    -- "?" right of the name: hover for examples
+                    -- "?" next to the name: hover for examples
                     local q = CreateFrame("Frame", nil, bx)
                     q:SetSize(12, 12)
                     q:SetPoint("LEFT", bx.title, "RIGHT", 3, 0)
@@ -449,7 +439,7 @@ local function BuildHelp(panel, K, onClick)
                         qt:SetTextColor(1, 1, 1, 1)
                         local lines = {}
                         for _, ex in ipairs(spec.examples) do
-                            -- starts with a colour code so the tooltip keeps our colours
+                            -- starts with a color code so the tooltip keeps our colors
                             lines[#lines + 1] = "|cffffffff|r" .. Colorize(ex[1]) .. "   |cff8f8f8f" .. ex[2] .. "|r"
                         end
                         K.Tip(self, spec.title .. " Examples", unpack(lines))
@@ -464,7 +454,6 @@ local function BuildHelp(panel, K, onClick)
             bx.tags = {}
             for _, tg in ipairs(spec.tags) do bx.tags[#bx.tags + 1] = Tag(bx, K, tg, spec.color, onClick) end
             if spec.text then
-                -- plain text, nothing to click
                 bx.plain = bx:CreateFontString(nil, "OVERLAY")
                 K.Font(bx.plain, 9)
                 bx.plain:SetJustifyH("LEFT")
@@ -476,7 +465,7 @@ local function BuildHelp(panel, K, onClick)
         help.sections[#help.sections + 1] = S
     end
 
-    -- tags flow left to right and wrap; returns the box's height
+    -- tags wrap left to right, returns the height
     local function FlowBox(bx, w)
         local top = bx.title and (VPAD + 10 + 4) or VPAD
         if bx.plain then
@@ -511,7 +500,7 @@ local function BuildHelp(panel, K, onClick)
         return y + TAG_H + VPAD
     end
 
-    -- fill: the height left for the reference; the last row grows into it
+    -- the last row grows into the leftover height
     function help.Layout(anchor, width, fill)
         local y = 0
         for si, S in ipairs(help.sections) do
@@ -562,7 +551,7 @@ end
 local function Build(SP, K)
     btn = K.GlyphButton(SP, K.ROW1_H, EXPR_TEX)
     btn.Glyph:SetSize(14, 14)
-    -- green edge over the skin's border while an expression filters
+    -- green edge while an expression is filtering
     btn.activeEdge = CreateFrame("Frame", nil, btn)
     btn.activeEdge:SetAllPoints()
     btn.activeEdge:SetFrameLevel(btn:GetFrameLevel() + 3)
@@ -588,7 +577,7 @@ local function Build(SP, K)
     title:SetPoint("TOPLEFT", panel, "TOPLEFT", 9, -7)
     title:SetText("Expressions")
 
-    -- clear: the skin's button look, like the menu's other buttons
+    -- clear button, skinned
     local clear = CreateFrame("Button", nil, panel)
     clear:SetSize(46, 16)
     clear:SetPoint("TOPRIGHT", panel, "TOPRIGHT", -8, -4)
@@ -616,7 +605,7 @@ local function Build(SP, K)
     clear:HookScript("OnEnter", function() ct:SetTextColor(1, 1, 1, 1) end)
     clear:HookScript("OnLeave", function() ct:SetTextColor(CM.TEXT_DIM_R, CM.TEXT_DIM_G, CM.TEXT_DIM_B, CM.TEXT_DIM_A) end)
 
-    -- the typing box: dark well, several lines
+    -- the typing box
     local well = CreateFrame("Frame", nil, panel)
     well:SetPoint("TOPLEFT", panel, "TOPLEFT", 8, -22)
     well:SetPoint("TOPRIGHT", panel, "TOPRIGHT", -8, -22)
@@ -632,10 +621,9 @@ local function Build(SP, K)
     box:SetPoint("TOPLEFT", well, "TOPLEFT", 6, -5)
     box:SetPoint("BOTTOMRIGHT", well, "BOTTOMRIGHT", -6, 5)
     box:SetFontObject("ChatFontNormal")
-    K.Font(box, 10)  -- smaller than chat
+    K.Font(box, 10)
     box:SetTextColor(1, 1, 1, 0)
-    -- the coloured copy (and our cursor) on a layer above the box, so its
-    -- selection highlight sits under the text
+    -- colored copy on a layer above, so the selection sits under it
     local ink = CreateFrame("Frame", nil, box)
     ink:SetAllPoints(box)
     ink:SetFrameLevel(box:GetFrameLevel() + 2)
@@ -647,7 +635,7 @@ local function Build(SP, K)
     shown:SetJustifyH("LEFT")
     shown:SetJustifyV("TOP")
     shown:SetWordWrap(true)
-    -- placeholder: an example, gone once you type
+    -- placeholder example
     hint = well:CreateFontString(nil, "OVERLAY")
     K.Font(hint, 10)
     hint:SetPoint("TOPLEFT", box, "TOPLEFT", 0, 0)
@@ -656,8 +644,7 @@ local function Build(SP, K)
     well:EnableMouse(true)
     well:SetScript("OnMouseDown", function() box:SetFocus() end)
     box:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
-    -- our own cursor: the real one takes the (invisible) text colour. the box
-    -- says where it is; it blinks only while you type
+    -- our own cursor, blinks while you type
     local caret = ink:CreateTexture(nil, "OVERLAY")
     caret:SetColorTexture(1, 1, 1, 0.9)
     caret:SetSize(1, 12)
@@ -709,7 +696,7 @@ local function Build(SP, K)
     status:SetJustifyH("LEFT")
     status:SetWordWrap(false)
 
-    -- click a tag: type it in at the cursor, with spaces around it
+    -- click a tag: typed in at the cursor
     local function Insert(word)
         local text, pos = box:GetText(), box:GetCursorPosition()
         if not box:HasFocus() then pos = #text end
@@ -726,7 +713,6 @@ local function Build(SP, K)
     end
     local help = BuildHelp(panel, K, Insert)
     local TOP, BOTTOM = 22 + 58, 10
-    -- as tall as the reference needs
     local function LayoutPanel()
         local w = panel:GetWidth()
         if not w or w < 50 then return end
@@ -776,14 +762,9 @@ local function Build(SP, K)
     end
 end
 
--- row 1: our button left of refresh (dungeons and raids). returns the frame
--- the row now ends at
+-- row 1: our button left of refresh
 -------------------------------------------------------------------------------
---  one menu at a time, visibly: while Filters is open, Expressions, Search
---  Again, the search box and the Group Settings button dim and take no
---  clicks; while Expressions is open, Filters, Search Again and the search
---  box do. a click on a blocked control is eaten (the open menu's click-off
---  still closes it). runs from the module's DimForMenu (hook on local/cawfee)
+--  one menu at a time: whatever the open menu blocks dims and eats clicks
 -------------------------------------------------------------------------------
 local lastK, lastSP
 local blockers = {}
@@ -835,7 +816,7 @@ GFNS.CawfeeExprButton = function(SP, refresh, show, K)
     return show and btn or refresh
 end
 
--- reset filters with no box built yet
+-- reset with no box built yet
 GFNS.CawfeeExprReset = function()
     local c = GFNS.Cfg and GFNS.Cfg()
     if c then c.cawfeeExpr = nil end

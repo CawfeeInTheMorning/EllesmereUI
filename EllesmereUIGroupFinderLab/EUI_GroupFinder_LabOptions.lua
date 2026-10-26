@@ -1,8 +1,7 @@
 if EUI_CLIENT_BLOCKED then return end -- pre-12.1 client failsafe (EllesmereUI_ClientGate.lua)
 -------------------------------------------------------------------------------
--- EUI_GroupFinder_LabOptions.lua: the lab's settings, its own sidebar section
--- ("Group Finder Lab", through the plugin api). the live module's page, plus
--- a Results List page. the live module's own page stays untouched.
+-- EUI_GroupFinder_LabOptions.lua: the lab's own settings section
+-- ("Group Finder Lab", via the plugin api). the live page stays untouched
 -------------------------------------------------------------------------------
 local FOLDER, ns = ...
 if EllesmereUI.HELD_BACK_ADDONS[FOLDER] then return end -- held back (EllesmereUIGroupFinder.lua)
@@ -20,7 +19,7 @@ initFrame:SetScript("OnEvent", function(self)
     local AddAppsSections, AddListSections
 
     -----------------------------------------------------------------------
-    -- Applications settings (greyed while the module is off)
+    -- applications settings (greyed while the module's off)
     -----------------------------------------------------------------------
     local function APCfg() return ns.AppsCfg() end
     local function APGet(key, default)
@@ -46,9 +45,7 @@ initFrame:SetScript("OnEvent", function(self)
         if EUI.ClearContentHeader then EUI:ClearContentHeader() end
         parent._showRowDivider = true
 
-        -- off until enabled; toggling reloads. beside it the note while the
-        -- competing filter is loaded (show specialization lives in the
-        -- window's group settings menu)
+        -- enable toggle reloads. beside it, the pgf warning when it's loaded
         local PGFLoaded = ns.Blocked
         local pgfNote = PGFLoaded()
             and { type = "label", text = EUI.COLOR_CODES.ERROR
@@ -64,7 +61,7 @@ initFrame:SetScript("OnEvent", function(self)
               setValue = function(v)
                   v = v and true or false
                   if v == ns.Enabled() then return end
-                  -- Only saved once the reload is confirmed.
+                  -- only saved once the reload's confirmed
                   EUI:ShowConfirmPopup({
                       title       = v and "Enable Group Finder" or "Disable Group Finder",
                       message     = v and "Your UI will reload to turn on the Group Finder."
@@ -78,8 +75,6 @@ initFrame:SetScript("OnEvent", function(self)
               end },
             pgfNote);  y = y - h
 
-        -- list look, sign-up options and icon size live in the group settings
-        -- menu on the panel; the lab's list and its icons here
         y = AddListSections(parent, y)
 
         _, h = W:Spacer(parent, y, 20); y = y - h
@@ -87,7 +82,7 @@ initFrame:SetScript("OnEvent", function(self)
         return math.abs(y - yOffset)
     end
 
-    -- applications: their own page, the reset buttons with them
+    -- applications page, reset buttons with it
     local function BuildAppsPage(parent, yOffset)
         local W = EUI.Widgets
         local y = yOffset
@@ -100,7 +95,7 @@ initFrame:SetScript("OnEvent", function(self)
         return math.abs(y - yOffset)
     end
 
-    -- the lab's results list and its icons
+    -- results list, mythic+, display, sign up
     function AddListSections(parent, y)
         local W = EUI.Widgets
         local _, h
@@ -138,7 +133,7 @@ initFrame:SetScript("OnEvent", function(self)
               getValue = function() return ns.OwnListGet("appsFirst") ~= false end,
               setValue = function(v) ns.SetOwnListValue("appsFirst", v and true or false) end })
         y = y - h
-        -- status underline: a checklist, one colour each
+        -- status color: a checklist, one color each
         local LINE_ITEMS = {
             { key = "lineDelisted",  label = "Delisted (|cff999999Grey|r)",   tooltip = "The group was delisted." },
             { key = "lineAccepted",  label = "Accepted (|cff1ae61aGreen|r)",  tooltip = "Applied and waiting, or invited." },
@@ -147,7 +142,7 @@ initFrame:SetScript("OnEvent", function(self)
         }
         local lineRow
         lineRow, h = W:DualRow(parent, y,
-            -- placeholder: carries the label; the checklist takes its place
+            -- placeholder, the checklist replaces it
             { type = "dropdown", text = "Status Color",
               tooltip = "A colored line below the group you applied to to show it's status. The status text uses the same colors.",
               values = { __placeholder = "..." }, order = { "__placeholder" },
@@ -214,7 +209,7 @@ initFrame:SetScript("OnEvent", function(self)
               disabled = Circle, disabledTooltip = "Icon Shape: Square",
               getValue = function() return ns.OwnListGet("borderTexture") end,
               setValue = function(v)
-                  -- a new style starts on its own colour
+                  -- a new style starts on its own color
                   ns.SetOwnListValue("borderColor", nil)
                   ns.SetOwnListValue("borderTexture", v)
                   EUI:RefreshPage(true)
@@ -225,7 +220,7 @@ initFrame:SetScript("OnEvent", function(self)
               setValue = function(v) ns.SetOwnListValue("borderSize", v) end })
         y = y - h
         do
-            -- border colour swatch beside the size slider
+            -- border color swatch
             local rgn = borderRow and borderRow._rightRegion
             if rgn and EUI.BuildColorSwatch then
                 local swatch, update = EUI.BuildColorSwatch(rgn, rgn:GetFrameLevel() + 5,
@@ -307,8 +302,7 @@ initFrame:SetScript("OnEvent", function(self)
               getValue=function() return APGet("scope", "character") end,
               setValue=function(v) APSet("scope", v) end });  y = y - h
 
-        -- Application Visibility: which results get a share of the bar, one
-        -- checklist row per saved show* key (all on when unset).
+        -- application visibility: which results show on the bar (all on when unset)
         local VIS_LABEL = "Application Visibility"
         local VIS_ITEMS = {
             { key = "showAccepted",  label = "Accepted",  tooltip = "Invites you accepted." },
@@ -316,9 +310,8 @@ initFrame:SetScript("OnEvent", function(self)
             { key = "showDelisted",  label = "Delisted",  tooltip = "The group was delisted before answering." },
             { key = "showCancelled", label = "Cancelled", tooltip = "You cancelled the application." },
         }
-        -- Global search sees row labels and tooltips only, so this row's entry,
-        -- registered before the row (the index keeps the first one), carries the
-        -- checklist's names as search text; it is never shown.
+        -- search only sees labels + tooltips, so this hidden entry carries the
+        -- checklist's names
         if EllesmereUI._RegisterSearchEntry then
             local words = {}
             for i = 1, #VIS_ITEMS do
@@ -333,7 +326,7 @@ initFrame:SetScript("OnEvent", function(self)
                 parent._currentSection and parent._currentSection._sectionName)
         end
 
-        -- Built-in textures, then SharedMedia's.
+        -- built-in textures, then sharedmedia's
         local tex, names, order = ns.BarTextureTables()
         local texValues, texOrder = {}, {}
         for _, key in ipairs(order) do
@@ -343,8 +336,7 @@ initFrame:SetScript("OnEvent", function(self)
         texValues._menuOpts = { itemHeight = 28, background = function(key) return tex[key] end }
         local visRow
         visRow, h = W:DualRow(parent, y,
-            -- Placeholder: carries the label and its disabled look; the
-            -- checklist below takes its place.
+            -- placeholder, the checklist replaces it
             { type="dropdown", text=VIS_LABEL,
               tooltip="Choose which application results show on the bar.",
               disabled=APOff, disabledTooltip=APOffTip,
@@ -389,7 +381,7 @@ initFrame:SetScript("OnEvent", function(self)
                 })
             end
         end
-        -- The module's on state only changes with a reload, so build time is enough.
+        -- on / off only changes with a reload, so build time is enough
         local offOpts
         if ModOff() then
             local tip = EUI.DisabledTooltip("Group Finder")

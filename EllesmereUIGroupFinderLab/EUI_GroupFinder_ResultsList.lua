@@ -1,19 +1,10 @@
 if EUI_CLIENT_BLOCKED then return end -- pre-12.1 client failsafe (EllesmereUI_ClientGate.lua)
 -------------------------------------------------------------------------------
---  ResultsList.lua  -  EllesmereUI Group Finder
---  test: our own premade results list. blizzard's list keeps working but is
---  hidden; in its place we draw only the groups that pass the filters,
---  packed with no gaps, so filtered groups are gone instead of faded. we only
---  read the results; blizzard's list, data and order are never written.
---  click a row to select it (our own selection and our own sign up button
---  over blizzard's), quick signup's clicks sign up. nothing is written to
---  blizzard's search panel: a selection made from addon code leaves its
---  fields tainted, and its own list errors on them once results go secret.
---  when results go secret (keys, restricted content) ours steps aside and
---  blizzard's list shows again. saved in EllesmereUIDB.cawfeeOwnList
---  { enabled, rowHeight }; nothing is built or listened to while it's off.
---  hooks on local/cawfee: Refilter (ns.CawfeeRefilter), filter checks
---  (ns.CawfeePasses, ns.CawfeeResultsSecret), redecorate (ns.CawfeeRedecorate)
+--  ResultsList.lua - our own premade results list
+--  blizzard's list stays alive underneath, faded out. we only read the
+--  results and draw the groups that pass the filters, no gaps.
+--  own selection + sign up button, nothing written to blizzard's panel
+--  (that's what tainted it before). secret results: we step aside.
 -------------------------------------------------------------------------------
 local FOLDER, ns = ...
 if EllesmereUI.HELD_BACK_ADDONS[FOLDER] then return end -- held back (EllesmereUIGroupFinder.lua)
@@ -23,7 +14,7 @@ local EUI = EllesmereUI
 local DUNGEONS, RAIDS = 2, 3
 local DELVES = GROUP_FINDER_CATEGORY_ID_DELVES or 121
 local X_TEX = "Interface\\AddOns\\EllesmereUI\\media\\icons\\eui-close.png"
-local CANCEL_H = 18  -- the cancel bar under the pending text
+local CANCEL_H = 18  -- cancel bar under the pending text
 local GAP = 2
 local function Secret(v) return issecretvalue and issecretvalue(v) or false end
 local function Readable(t) return type(t) == "table" and not Secret(t) and not (canaccesstable and not canaccesstable(t)) end
@@ -37,10 +28,10 @@ local function DB()
     end
     return t
 end
-function ns.OwnListOn() return true end  -- the lab add-on itself is the switch
+function ns.OwnListOn() return true end  -- the lab itself is the switch
 function ns.OwnListRowHeight() return tonumber(DB().rowHeight) or 50 end
-function ns.OwnListOpt(k) return DB()[k] ~= false end  -- playstyle, regionTags (nil = on)
--- text sizes: title, dungeon / raid name, the playstyle / region line
+function ns.OwnListOpt(k) return DB()[k] ~= false end  -- nil = on
+-- text sizes
 local SIZE_DEFAULTS = { titleSize = 12, nameSize = 10, lineSize = 10, scoreSize = 10 }
 function ns.OwnListSize(k) return tonumber(DB()[k]) or SIZE_DEFAULTS[k] end
 function ns.SetOwnListSize(k, v)
@@ -51,8 +42,7 @@ function ns.SetOwnListOpt(k, v)
     DB()[k] = v and true or false
     if ns.OwnListRefresh then ns.OwnListRefresh() end
 end
--- display: iconShape (circle / square), borderTexture, borderSize (px),
--- missingIcons (blizzard / ellesmere)
+-- display settings
 local DISPLAY_DEFAULTS = { iconShape = "circle", borderTexture = "solid", borderSize = 1, missingIcons = "blizzard",
     appsFirst = true, signupClicks = "double", visibility = "hidden",
     lineDelisted = true, lineAccepted = true, lineCancelled = true, lineDeclined = true }
@@ -61,7 +51,7 @@ function ns.OwnListGet(k)
     if v == nil then return DISPLAY_DEFAULTS[k] end
     return v
 end
--- the border colour as shown: the user's pick, else the style's default
+-- user's border color, else the style's
 function ns.OwnListBorderColor()
     local bc = ns.OwnListGet("borderColor")
     if type(bc) == "table" then return bc.r or 1, bc.g or 1, bc.b or 1 end
@@ -78,9 +68,7 @@ function ns.SetOwnListValue(k, v)
     if ns.OwnListRefresh then ns.OwnListRefresh() end
 end
 
--- short dungeon names: raider.io's (its public profile api lists the
--- season's dungeons), else initials. the title on short rows and the
--- dungeon row's squares (dungeon names) both use these
+-- short dungeon names: raider.io's, else initials
 local rioShort, rioTried = nil, {}
 local function RioShorts(who)
     if rioShort or rioTried[who] then return rioShort end
@@ -107,8 +95,6 @@ local function RioShorts(who)
 end
 local SKIP = { the = true, of = true, ["and"] = true }
 local initials = {}
--- by activity, instance map or challenge map id, whichever's known; name for
--- the initials
 function ns.LabShortName(act, mapID, cmID, name, leader)
     local m = RioShorts("player") or (leader and RioShorts(leader))
     local s = m and ((act and m.act[act]) or (mapID and m.map[mapID]) or (cmID and m.cm[cmID]))
@@ -131,15 +117,13 @@ local scrollPx = 0
 local active = false
 local guard = false
 local lastClickID, lastClickTime, clickCount = nil, 0, 0
-local selected  -- our selection (blizzard's selectedResult is never touched)
-local Paint     -- the list's repaint, further down
-local AnySecret -- further down too
+local selected  -- ours, blizzard's is never touched
+local Paint  -- defined further down
+local AnySecret  -- same
 local refreshQueued = false
 local signBtn
 
--- the application's status, except a group that delisted while you'd applied
--- and has listed again: that one counts as fresh ("none"), so it can be
--- picked and signed up to again. returns status, pending
+-- delisted-then-relisted counts as fresh, so you can apply again
 local function AppStatus(id)
     local _, status, pending = C_LFGList.GetApplicationInfo(id)
     if Secret(status) or Secret(pending) then return nil, nil end
@@ -151,8 +135,7 @@ local function AppStatus(id)
     return status, pending
 end
 
--- blizzard's row check (LFGListSearchPanelUtil_CanSelectResult), with the
--- relisted case above
+-- blizzard's row check, plus the relisted case
 local function Selectable(id)
     local status, pending = AppStatus(id)
     if status ~= "none" or pending then return false end
@@ -162,8 +145,7 @@ local function Selectable(id)
     return not Secret(delisted) and not delisted
 end
 
--- whether the selected group can be signed up to: blizzard's sign up
--- button's own checks, read-only. returns ok, the reason when not
+-- blizzard's sign up checks, read-only. returns ok, why not
 local function SignUpState(id)
     local msg = LFGListUtil_GetActiveQueueMessage and LFGListUtil_GetActiveQueueMessage(true)
     if msg then return false, msg end
@@ -187,16 +169,14 @@ local function SignUpState(id)
     return true
 end
 
--- blizzard's sign up dialog for that group, straight (what its own sign up
--- button calls, minus the panel's selection)
+-- opens blizzard's sign up dialog directly
 local function SignUp(id)
     if not (id and SignUpState(id)) then return end
     local dlg = LFGListApplicationDialog
     if not (LFGListApplicationDialog_Show and dlg) then return end
     LFGListApplicationDialog_Show(dlg, id)
-    -- quick signup: the dialog confirms itself, shift keeps it open. the core
-    -- helper does this too when it's awake (quality of life loaded); then the
-    -- dialog's already gone and this does nothing
+    -- quick signup: auto confirm unless shift (if the core helper
+    -- already did it, the dialog's gone)
     if EllesmereUIDB and EllesmereUIDB.quickSignup and not IsShiftKeyDown()
         and dlg:IsShown() and dlg.SignUpButton and dlg.SignUpButton:IsEnabled() then
         dlg.SignUpButton:Click()
@@ -209,7 +189,7 @@ local function PaintSignBtn()
     signBtn:SetEnabled(ok)
     signBtn.why = (not ok) and why or nil
 end
--- where each group first showed in this search, so applying can leave it put
+-- first-seen order, so applied groups can stay put
 local posOf, nextPos = {}, 0
 local function Pos(id)
     if not posOf[id] then nextPos = nextPos + 1; posOf[id] = nextPos end
@@ -224,10 +204,9 @@ local function Accent()
 end
 
 -------------------------------------------------------------------------------
---  which groups show: blizzard's order, applications first like blizzard,
---  only the ones that pass the filters
+--  which groups show
 -------------------------------------------------------------------------------
--- results visibility: dimmed keeps the filtered-out groups, faded
+-- dimmed mode keeps filtered groups, faded
 local dimmed = {}
 local function Collect()
     wipe(shown)
@@ -262,7 +241,7 @@ local function Collect()
         end
     end
     if not appsFirst then
-        -- applications from an earlier search, then everything back in place
+        -- old applications, then back in original order
         for _, id in ipairs(apps) do
             if not Secret(id) and not seen[id] then
                 seen[id] = true
@@ -271,8 +250,7 @@ local function Collect()
         end
         table.sort(shown, ByPos)
     end
-    -- group settings > sort by: the leader's score or the group's size
-    -- (applications stay on top while that's on; ties keep their place)
+    -- sort by score or size, applications stay on top
     local gc = GFNS.Cfg and GFNS.Cfg()
     local by = gc and gc.cawfeeSortBy
     local field = (by == "high" or by == "low") and "leaderOverallDungeonScore"
@@ -297,8 +275,7 @@ local function Collect()
 end
 
 -------------------------------------------------------------------------------
---  right-click: the same three things blizzard's row menu offers, in
---  ellesmereui's context menu
+--  right-click menu
 -------------------------------------------------------------------------------
 function ns.OwnListMenu(anchor, id)
     if not EUI.ShowContextMenu then return end
@@ -324,12 +301,12 @@ end
 --  a row
 -------------------------------------------------------------------------------
 local ROLE_ORDER = { TANK = 1, HEALER = 2, DAMAGER = 3 }
--- raid rows: the role counts, each on its colour
+-- raid role colors
 local RR_ROLES = { "TANK", "HEALER", "DAMAGER" }
 local RR_COLORS = { TANK = { 0.16, 0.38, 0.78 }, HEALER = { 0.16, 0.62, 0.24 }, DAMAGER = { 0.72, 0.16, 0.16 } }
--- application status: blizzard's words and colours per state
+-- status text + colors
 local G, R, Y = { 0.1, 1, 0.1 }, { 1, 0.25, 0.25 }, { 1, 0.82, 0 }
--- blizzard's words carry their own colour codes: stripped, so ours shows
+-- blizzard's strings have color codes baked in, strip them
 local function Plain(t) return t and (t:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")) end
 local function St(text, fallback, c) return { Plain(text) or fallback, c[1], c[2], c[3] } end
 local STATUS = {
@@ -344,7 +321,7 @@ local STATUS = {
     cancelled         = St(LFG_LIST_APP_CANCELLED, "Cancelled", Y),
     failed            = St(LFG_LIST_APP_FAILED, "Failed", R),
 }
--- underline: setting key and colour per status
+-- underline setting + color per status
 local LINE_DELISTED  = { "lineDelisted", 0.6, 0.6, 0.6 }
 local LINE_ACCEPTED  = { "lineAccepted", 0.1, 0.9, 0.1 }
 local LINE_CANCELLED = { "lineCancelled", 1, 0.55, 0.1 }
@@ -365,7 +342,7 @@ local function MakeRow(i)
     r.bg:SetColorTexture(1, 1, 1, 0.03)
     r.sel = r:CreateTexture(nil, "BORDER")
     r.sel:SetAllPoints()
-    -- applied: green line along the bottom, delisted: red
+    -- status underline
     r.under = r:CreateTexture(nil, "ARTWORK", nil, 7)
     r.under:SetPoint("BOTTOMLEFT", r, "BOTTOMLEFT", 0, 0)
     r.under:SetPoint("BOTTOMRIGHT", r, "BOTTOMRIGHT", 0, 0)
@@ -380,10 +357,10 @@ local function MakeRow(i)
     r.act = r:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
     r.act:SetJustifyH("LEFT")
     r.act:SetWordWrap(false)
-    -- the dungeon's short name ahead of the title, when its own line won't fit
+    -- short dungeon name before the title
     r.short = r:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
     r.short:Hide()
-    -- after the activity: "| Relaxed | OCE [flag]"
+    -- line three bits
     r.sep1 = r:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
     r.sep1:SetText("||")
     r.style = r:CreateFontString(nil, "OVERLAY", "GameFontGreenSmall")
@@ -392,7 +369,7 @@ local function MakeRow(i)
     r.tag = r:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     r.flag = r:CreateTexture(nil, "OVERLAY")
     r.flag:SetSize(15, 10)
-    -- cancel an application, like blizzard's x
+    -- cancel button
     r.cancel = CreateFrame("Button", nil, r)
     r.cancel.bg = r.cancel:CreateTexture(nil, "BACKGROUND")
     r.cancel.bg:SetAllPoints()
@@ -426,7 +403,7 @@ local function MakeRow(i)
     for k = 1, 5 do
         local t = r:CreateTexture(nil, "ARTWORK", nil, 2)
         r.icons[k] = t
-        -- spec icons: round, on a 1px theme ring
+        -- ring behind round spec icons
         local ring = r:CreateTexture(nil, "ARTWORK", nil, 1)
         ring:SetPoint("TOPLEFT", t, "TOPLEFT", -1, 1)
         ring:SetPoint("BOTTOMRIGHT", t, "BOTTOMRIGHT", 1, -1)
@@ -441,26 +418,26 @@ local function MakeRow(i)
         m2:SetAllPoints(t)
         r.masks = r.masks or {}
         r.masks[k] = m2
-        -- class circles: the role on top; missing roles (blizzard style) too
+        -- role mark on top
         local role = r:CreateTexture(nil, "ARTWORK", nil, 3)
         role:SetPoint("CENTER", t)
         role:Hide()
         r.roles[k] = role
-        -- square icons: the border style sits on this
+        -- holds the square border
         local bf = CreateFrame("Frame", nil, r)
         bf:SetAllPoints(t)
         bf:EnableMouse(false)
         bf:Hide()
         r.borders = r.borders or {}
         r.borders[k] = bf
-        -- the leader's crown above their icon (group settings: show group leader)
+        -- leader crown
         local c = r:CreateTexture(nil, "OVERLAY")
         c:SetAtlas("groupfinder-icon-leader")
         c:SetPoint("BOTTOM", t, "TOP", 0, 2)
         c:Hide()
         r.crowns[k] = c
     end
-    -- raids: tank / healer / dps counts, each beside its role icon
+    -- raid role counts
     r.rr = {}
     for k = 1, 3 do
         local bg = r:CreateTexture(nil, "ARTWORK", nil, 1)
@@ -474,8 +451,7 @@ local function MakeRow(i)
         bg:Hide(); t:Hide(); c:Hide()
         r.rr[k] = { bg = bg, mask = mask, icon = t, count = c }
     end
-    -- row art (group settings > display): the instance's art fading across
-    -- the left half, under the text
+    -- row art
     r.art = r:CreateTexture(nil, "BACKGROUND", nil, 7)
     if ns.ROW_ART then
         r.art:SetAlpha(ns.ROW_ART.alpha)
@@ -494,9 +470,9 @@ local function MakeRow(i)
         lastClickID, lastClickTime = id, now
         local need = ({ single = 1, double = 2, triple = 3 })[ns.OwnListGet("signupClicks")] or 2
         local signup = EllesmereUIDB and EllesmereUIDB.quickSignup and clickCount >= need
-        -- at the application limit: cancel the oldest (group settings)
+        -- at the app limit, cancel the oldest
         if ns.LabCancelOldest then ns.LabCancelOldest(id) end
-        -- the checks blizzard's own row click makes, read-only
+        -- same check blizzard's row click does
         if not Selectable(id) then return end
         if selected ~= id then
             PlaySound(SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON)
@@ -525,7 +501,7 @@ local function SetSize(fs, size)
 end
 
 local function IconSize(h)
-    -- 16px at 100%, every 5% step of role icon size a whole pixel
+    -- 16px at 100%, 1px per 5%
     local c = GFNS.Cfg and GFNS.Cfg()
     local pct = tonumber(c and c.iconSize) or (GFNS.DEFAULTS and GFNS.DEFAULTS.iconSize) or 125
     return math.max(8, math.min(h - 4, 16 + math.floor((pct - 100) / 5 + 0.5)))
@@ -537,7 +513,7 @@ local function Layout(r, h)
     SetSize(r.name, tS)
     SetSize(r.act, nS)
     for _, fs in ipairs({ r.sep1, r.style, r.sep2, r.tag }) do SetSize(fs, lS) end
-    -- which lines fit: always the title, then the dungeon, then the third
+    -- title always fits, then the dungeon, then line three
     local room = h - 4
     local lines = { tS + 2 }
     if room >= tS + nS + 6 then lines[2] = nS + 2 end
@@ -568,9 +544,9 @@ local function Layout(r, h)
 
     local isz = IconSize(h)
     local bpx = tonumber(ns.OwnListGet("borderSize")) or 0
-    local gap = 2 + ((ns.OwnListGet("iconShape") ~= "square") and bpx * 2 or 0)  -- room for the rings
+    local gap = 2 + ((ns.OwnListGet("iconShape") ~= "square") and bpx * 2 or 0)  -- room for rings
     local cw = math.max(8, math.floor(isz * 0.6 + 0.5))
-    -- cancel: a slim bar under the status text, as wide as it (placed in Fill)
+    -- cancel bar goes under the status (placed in Fill)
     r.cancel:SetHeight(CANCEL_H)
     r.cancel.tex:SetSize(CANCEL_H - 8, CANCEL_H - 8)
     r.cancel:SetFrameLevel(r:GetFrameLevel() + 5)
@@ -593,7 +569,7 @@ local function Layout(r, h)
     r.act:SetPoint("RIGHT", r.status, "LEFT", -8, 0)
 end
 
--- line three: "Relaxed | OCE [flag]" (either part can be off or missing)
+-- line three: playstyle | region
 local function LineThree(r, id, info)
     for _, p in ipairs({ r.sep1, r.style, r.sep2, r.tag, r.flag }) do p:Hide() end
     if (r.lines or 0) < 3 then return end
@@ -604,7 +580,7 @@ local function LineThree(r, id, info)
         style = _G["GROUP_FINDER_GENERAL_PLAYSTYLE" .. ps] or ""
     end
     local tag, tr, tg, tb, flag
-    if ns.RegionTagOf then tag, tr, tg, tb, flag = ns.RegionTagOf(id) end  -- the region tags switch in group settings
+    if ns.RegionTagOf then tag, tr, tg, tb, flag = ns.RegionTagOf(id) end
     local prev
     local function Put(p, gap)
         p:ClearAllPoints()
@@ -635,14 +611,14 @@ local function Fill(r, id)
     r.resultID = id
     local info = C_LFGList.GetSearchResultInfo(id)
     if not Readable(info) then r:Hide() return end
-    -- the title is protected text: handed straight to the font string
+    -- protected text, straight to the font string
     r.name:SetText(info.name)
     local acts = info.activityIDs
     local act = type(acts) == "table" and not Secret(acts) and acts[1]
     local ai = act and not Secret(act) and C_LFGList.GetActivityInfoTable(act)
-    -- group settings: coloured group names (red declined / locked, green new)
+    -- colored group names
     local nr, ng, nb
-    if ns.LabNameColor then nr, ng, nb = ns.LabNameColor(id, info, ai) end  -- all three values (an "and" keeps only the first)
+    if ns.LabNameColor then nr, ng, nb = ns.LabNameColor(id, info, ai) end  -- "and" would drop g and b
     if nr then r.name:SetTextColor(nr, ng, nb) else r.name:SetTextColor(1, 0.82, 0) end
     r.act:SetText(ai and ai.fullName or "")
     local short = (r.lines or 0) < 2 and ai and ns.LabShortName(act, ai.mapID, nil, ai.fullName, not Secret(info.leaderName) and info.leaderName or nil)
@@ -663,7 +639,7 @@ local function Fill(r, id)
     local Opt = ns.LabOpt or function() return true end
     local score = info.leaderOverallDungeonScore
     if Opt("leaderRating") and type(score) == "number" and not Secret(score) and score > 0 then
-        -- raider.io's colours or the game's (rating colors setting)
+        -- raider.io or game colors
         local cr, cg, cb = 1, 1, 1
         if ns.LabRatingColor then cr, cg, cb = ns.LabRatingColor(score) end
         r.score:SetText(score)
@@ -677,13 +653,13 @@ local function Fill(r, id)
     if not Secret(delisted) and delisted then st = STATUS.declined_delisted end  -- secret check first
     if st then
         r.status:SetText(st[1])
-        -- the status colour: the same as its underline
+        -- same color as the underline
         local c = LINE_OF[st] or st
         r.status:SetTextColor(c[2], c[3], c[4], 1)
     else
         r.status:SetText("")
     end
-    -- pending: the cancel bar under the status, the pair centred on the row
+    -- cancel bar under pending, pair centered
     local canCancel = appStatus == "applied"
     r.status:SetPoint("RIGHT", r.score, "LEFT", -8, canCancel and math.floor((CANCEL_H + 2) / 2) or 0)
     if canCancel then
@@ -692,7 +668,7 @@ local function Fill(r, id)
         r.cancel:SetPoint("TOPRIGHT", r.status, "BOTTOMRIGHT", 0, -2)
     end
     r.cancel:SetShown(canCancel)
-    -- status underline: each kind its own colour, each its own switch
+    -- underline per status
     local line = st and LINE_OF[st]
     if line and ns.OwnListGet(line[1]) ~= false then
         r.under:SetColorTexture(line[2], line[3], line[4], 0.9)
@@ -714,9 +690,7 @@ local function Fill(r, id)
     else
         r.art:Hide()
     end
-    -- members, tanks first: spec icons or class icons (group settings: show
-    -- specialization), the leader's crown, open spots showing the role still
-    -- needed (show missing roles)
+    -- members, tanks first
     local members = {}
     local n = info.numMembers
     if type(n) == "number" and not Secret(n) then
@@ -737,7 +711,7 @@ local function Fill(r, id)
         return a.k < b.k
     end)
     local cap = ai and ai.maxNumPlayers or 5
-    -- the roles still open, for the empty slots
+    -- open roles for the empty slots
     local needs = {}
     if ns.OwnListGet("missingIcons") ~= "none" and cap == 5 then
         local counts = C_LFGList.GetSearchResultMemberCounts(id)
@@ -788,11 +762,11 @@ local function Fill(r, id)
                 t:SetTexture(icon)
                 t:SetTexCoord(0.08, 0.92, 0.08, 0.92)
             elseif square then
-                -- square: class colour tile, role on top
+                -- square: class color tile
                 local cc = C_ClassColor and C_ClassColor.GetClassColor(m.cls)
                 if cc then t:SetColorTexture(cc.r * 0.75, cc.g * 0.75, cc.b * 0.75, 1) else t:SetColorTexture(0.3, 0.3, 0.3, 1) end
             else
-                -- the game's own look: class colour circle, role on top
+                -- the game's class circle
                 t:SetAtlas("groupfinder-icon-class-color-" .. m.cls)
             end
             if not icon and NEED_ATLAS[m.role] then
@@ -808,7 +782,7 @@ local function Fill(r, id)
                     bf:Show()
                 end
             elseif icon then
-                -- round spec icon on a ring of the border size
+                -- round spec icon + ring
                 t:AddMaskTexture(r.masks[k]); t._masked = true
                 if bpx > 0 then
                     local ring = r.rings[k]
@@ -827,14 +801,14 @@ local function Fill(r, id)
             nextNeed = nextNeed + 1
             local needTex = need and not blizzMissing and ns.RoleIconTex and ns.RoleIconTex(need)
             if need and blizzMissing then
-                -- the game's own: the small role mark, greyed and faded
+                -- blizzard style: small grey mark
                 t:Hide()
                 role:SetAtlas(NEED_ATLAS[need])
                 role:SetDesaturated(true)
                 role:SetAlpha(0.6)
                 role:Show()
             elseif needTex then
-                -- the small size, like the game's marks
+                -- small, like blizzard's
                 t:Hide()
                 role:SetTexture(needTex)
                 role:SetAlpha(0.6)
@@ -848,8 +822,7 @@ local function Fill(r, id)
             t:Hide()
         end
     end
-    -- raids: role counts (tank, healer, dps) right-aligned like the icons,
-    -- the leader's rating to their left
+    -- raid role counts, rating to their left
     local counts = cap > 5 and C_LFGList.GetSearchResultMemberCounts(id)
     if not Readable(counts) then counts = nil end
     local ellIcons = ns.OwnListGet("missingIcons") == "ellesmere"
@@ -862,7 +835,7 @@ local function Fill(r, id)
         local role = RR_ROLES[k]
         local num = counts and counts[role]
         if counts and type(num) == "number" and not Secret(num) then
-            -- the icon centred on the row, its count above
+            -- icon centered, count above
             local c = RR_COLORS[role]
             p.bg:SetColorTexture(c[1], c[2], c[3], 1)
             if round and not p.masked then p.bg:AddMaskTexture(p.mask); p.masked = true
@@ -902,7 +875,7 @@ end
 -------------------------------------------------------------------------------
 local empty, thumb
 
-function Paint()  -- the forward-declared local
+function Paint()  -- forward-declared up top
     if not (frame and active) then return end
     local h = ns.OwnListRowHeight()
     local height = body:GetHeight() or 0
@@ -930,7 +903,7 @@ function Paint()  -- the forward-declared local
     end
     for i = slots + 1, #rows do rows[i]:Hide() end
     PaintSignBtn()
-    -- a slim thumb on the right while there's more than fits
+    -- scroll thumb
     if maxPx > 0 then
         local share = height / (maxPx + height)
         local th = math.max(16, height * share)
@@ -942,7 +915,7 @@ function Paint()  -- the forward-declared local
         thumb:Hide()
     end
     if SP.searching then
-        empty:SetText("")  -- blizzard's spinner already says it
+        empty:SetText("")  -- blizzard's spinner covers it
     elseif #shown == 0 then
         local total = type(SP.results) == "table" and #SP.results or 0
         empty:SetText(total > 0 and (total .. " groups found, none match your filters") or "No groups found")
@@ -951,8 +924,7 @@ function Paint()  -- the forward-declared local
     end
 end
 
--- blizzard's list hidden while ours shows; the module's own dimming sets its
--- alpha back, so it's held at 0 while we're active
+-- keep blizzard's list hidden while ours shows
 local function HoldHidden(f, a)
     if guard or not active or a == 0 then return end
     guard = true
@@ -971,10 +943,9 @@ local function Build()
     frame:SetPoint("TOPLEFT", SP.ScrollBox, "TOPLEFT", 3, 0)
     frame:SetPoint("BOTTOMRIGHT", SP.ScrollBar or SP.ScrollBox, "BOTTOMRIGHT", 0, 0)
     frame:SetFrameLevel(SP.ScrollBox:GetFrameLevel() + 10)
-    frame:EnableMouse(true)  -- blizzard's hidden rows never get the clicks
+    frame:EnableMouse(true)  -- blizzard's hidden rows never get clicks
     frame:EnableMouseWheel(true)
     frame:SetScript("OnMouseWheel", function(_, delta)
-        -- a row per notch
         scrollPx = scrollPx - delta * (ns.OwnListRowHeight() + GAP)
         Paint()
     end)
@@ -982,13 +953,13 @@ local function Build()
     body = CreateFrame("Frame", nil, frame)
     body:SetPoint("TOPLEFT", frame, "TOPLEFT", 0, 0)
     body:SetPoint("BOTTOMRIGHT", SP.ScrollBox, "BOTTOMRIGHT", -3, 0)
-    body:SetClipsChildren(true)  -- the bottom row cut off at the edge
+    body:SetClipsChildren(true)
     empty = frame:CreateFontString(nil, "OVERLAY", "GameFontDisable")
     empty:SetPoint("TOP", frame, "TOP", 0, -30)
     thumb = frame:CreateTexture(nil, "OVERLAY")
     thumb:SetWidth(3)
     thumb:SetColorTexture(1, 1, 1, 0.3)
-    -- our sign up button, right over blizzard's (faded while ours shows)
+    -- our sign up button over blizzard's
     local sb = SP.SignUpButton
     if sb then
         signBtn = CreateFrame("Button", nil, SP)
@@ -1030,7 +1001,7 @@ local function Build()
     end)
     frame:SetScript("OnEvent", function(_, event)
         if event == "LFG_LIST_SEARCH_RESULT_UPDATED" or event == "LFG_LIST_APPLICATION_STATUS_UPDATED" then
-            -- results can go secret mid-list: re-check (once per frame), step aside
+            -- results can go secret mid-list, recheck once per frame
             if not refreshQueued then
                 refreshQueued = true
                 C_Timer.After(0, function() refreshQueued = false; ns.OwnListRefresh() end)
@@ -1041,8 +1012,7 @@ local function Build()
     end)
 end
 
--- any result gone secret (the module's check reads the first one only):
--- then blizzard's list shows instead of ours
+-- any result secret? hand back to blizzard's list
 function AnySecret()
     local res = SP and SP.results
     if type(res) ~= "table" then return false end
@@ -1054,8 +1024,7 @@ function AnySecret()
     return false
 end
 
--- on or off for the current state: ours only with the setting on, the panel
--- showing a dungeon / raid search, and readable results
+-- ours only on dungeon / raid / delve searches with readable results
 function ns.OwnListRefresh()
     local want = ns.OwnListOn()
     if want and not frame then Build() end
@@ -1076,7 +1045,7 @@ function ns.OwnListRefresh()
         if active then
             frame:RegisterEvent("LFG_LIST_SEARCH_RESULT_UPDATED")
             frame:RegisterEvent("LFG_LIST_APPLICATION_STATUS_UPDATED")
-            -- the sign up button's checks follow the group and the roles
+            -- keep the sign up button current
             frame:RegisterEvent("GROUP_ROSTER_UPDATE")
             frame:RegisterEvent("LFG_LIST_AVAILABILITY_UPDATE")
             frame:RegisterEvent("LFG_LIST_ACTIVE_ENTRY_UPDATE")
@@ -1101,11 +1070,11 @@ function ns.SetOwnListRowHeight(v)
     if active then Paint() end
 end
 
--- the filters changed, a display setting changed: same list, new contents
+-- filters or display changed
 GFNS.CawfeeRefilter = function() if active or ns.OwnListOn() then ns.OwnListRefresh() end end
 GFNS.CawfeeRedecorate = GFNS.CawfeeRefilter
 
--- menus open: dim ours like the module dims blizzard's list
+-- menus open: dim ours too
 local prevDim = GFNS.CawfeeOnDim
 GFNS.CawfeeOnDim = function(on)
     if prevDim then prevDim(on) end

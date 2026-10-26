@@ -1,17 +1,15 @@
 if EUI_CLIENT_BLOCKED then return end -- pre-12.1 client failsafe (EllesmereUI_ClientGate.lua)
 -------------------------------------------------------------------------------
---  EUI_GroupFinder_Extras.lua  -  EllesmereUI Group Finder Lab
---  the lab's extra filters and display pieces: has / missing rows, specific
---  roles, menu icons, two-column group settings, region tags, row art, the
---  raid boss strip, the person / raid icons.
+--  EUI_GroupFinder_Extras.lua - the lab's extra filters and looks:
+--  has / missing rows, specific roles, menu icons, group settings columns,
+--  region tags, row art, the scrolling strips, the person / raid icons
 -------------------------------------------------------------------------------
 local FOLDER, ns = ...
 if EllesmereUI.HELD_BACK_ADDONS[FOLDER] then return end -- held back (EllesmereUIGroupFinder.lua)
--- the group finder's extra pieces (once cawfee extras), living in the module
 ns.EUI = EllesmereUI
 ns.CawfeeLab = true
 
--- account-wide switches in EllesmereUIDB (nil = on)
+-- account-wide switches (nil = on)
 local function Switch(key)
     return function() return not (EllesmereUIDB and EllesmereUIDB[key] == false) end,
            function(v)
@@ -22,7 +20,7 @@ end
 ns.RailArtOn, ns.SetRailArt = Switch("cawfeeRailArt")
 ns.FinderLayoutOn, ns.SetFinderLayout = Switch("cawfeeFinderLayout")
 
--- runs fn once blizzard's group finder is loaded
+-- runs fn once blizzard's group finder loads
 function ns.WhenGroupFinder(fn)
     if C_AddOns.IsAddOnLoaded("Blizzard_GroupFinder") and PVEFrame then
         fn()
@@ -38,11 +36,7 @@ function ns.WhenGroupFinder(fn)
 end
 local GFNS = ns
 
--- filters menu > specific roles: two toggles picking how the role checks
--- combine. "match all (and)" = every check (ellesmere's default),
--- "match any (or)" = just one. saved in the group finder's search settings as
--- cawfeeRolesAny; read by hooks in RaidListKeep / ExtraKeep / AddRoleItems of
--- EUI_GroupFinder_Search.lua on local/cawfee.
+-- specific roles: match all (and) or match any (or)
 GFNS.CawfeeRolesAny = function()
     local c = GFNS.Cfg and GFNS.Cfg()
     return c and c.cawfeeRolesAny == true or false
@@ -50,11 +44,11 @@ end
 
 local CM = ns.EUI
 local function Secret(v) return issecretvalue and issecretvalue(v) or false end
-local HINT_GREY = 0.35  -- the (and) / (or) part, its own font string so it never takes the accent
--- the dim label colour (white at 53%) as a solid grey on the dark fill
+local HINT_GREY = 0.35  -- the (and) / (or) bit, never takes the accent
+-- dim label grey
 local DIM_HEX = "|cff8f8f8f"
 
--- label + its greyed hint right after it
+-- label + grey hint
 local function TwoPart(owner, K)
     local main = owner:CreateFontString(nil, "OVERLAY")
     K.Font(main, K.ITEM_FONT)
@@ -68,8 +62,7 @@ end
 
 local ARROW = "Interface\\AddOns\\" .. FOLDER .. "\\media\\icons\\eui-arrow.png"
 
--- our dropdowns sit outside the menu's frame at times; the menu's click-off
--- asks here first (hook in XF.FiltersInside) so clicks in them keep it open
+-- our dropdowns can hang outside the menu: clicks in them keep it open
 local pops = {}
 GFNS.CawfeeInside = function()
     for _, f in ipairs(pops) do
@@ -80,7 +73,7 @@ end
 
 local MASK = "Interface\\AddOns\\" .. FOLDER .. "\\media\\masks\\rounded.png"
 
--- atlas icon with rounded corners, after the given text
+-- rounded atlas icon after the text
 local function RoundIcon(parent, atlas, after)
     local ic = parent:CreateTexture(nil, "OVERLAY")
     ic:SetSize(12, 12)
@@ -94,19 +87,18 @@ local function RoundIcon(parent, atlas, after)
     return ic
 end
 
--- skinned button with the filters button's look: label, grey hint, arrow
+-- skinned dropdown button: label, grey hint, arrow
 local function ArrowButton(owner, K)
     local btn = CreateFrame("Button", nil, owner)
     btn:SetNormalFontObject("GameFontHighlight")
     btn:SetText(" ")
-    -- ellesmere's settings dropdown arrow, colour baked into the art
     btn.Arrow = btn:CreateTexture(nil, "OVERLAY")
     btn.Arrow:SetTexture(ARROW)
-    btn.Arrow:SetSize(13, 13)  -- half its canvas: the size it shows at in the settings
+    btn.Arrow:SetSize(13, 13)  -- how it looks in the settings
     btn.Arrow:SetPoint("CENTER", btn, "RIGHT", -10, 0)
     btn.Label, btn.Hint = TwoPart(btn, K)
     btn.Label:SetTextColor(CM.TEXT_DIM_R, CM.TEXT_DIM_G, CM.TEXT_DIM_B, CM.TEXT_DIM_A)
-    -- room for an icon after the label, made before the skin so its restrip keeps it
+    -- icon room, made before the skin so it survives
     btn.Icon = RoundIcon(btn, nil, btn.Label)
     btn.IconMask = btn.Icon.mask
     btn.Icon:Hide()
@@ -127,8 +119,7 @@ local function ArrowButton(owner, K)
 end
 
 
--- under the button, or above it when it'd hang off the menu's bottom
--- (a click out there closes the menu)
+-- under the button, or above it if it'd hang off the menu
 local function OpenNear(pop, btn, bounds, pad)
     pad = pad or 0
     pop:ClearAllPoints()
@@ -143,10 +134,8 @@ local function OpenNear(pop, btn, bounds, pad)
     pop:Show()
 end
 
--- arrow button + its list.
--- modes = { { label, hint, icon }, ... }, Get() = picked index, Set(i) on
--- pick. icon = an atlas shown after the label (list and button), rounded. no
--- anchors, the caller places it. the list opens downward
+-- arrow button + its list. modes = { label, hint, icon }, Get() = index,
+-- Set(i) on pick. caller places it
 local function Dropdown(owner, K, modes, Get, Set)
     local btn = ArrowButton(owner, K)
     function btn:ShowMode()
@@ -203,8 +192,8 @@ local function Dropdown(owner, K, modes, Get, Set)
 
     btn:SetScript("OnClick", function()
         if list:IsShown() then list:Hide() return end
-        K.Untip()  -- no tooltip over the open list
-        -- picked mode in the accent colour
+        K.Untip()
+        -- picked one in the accent color
         local ar, ag, ab = K.Accent()
         for i, it in ipairs(list.items) do
             if i == Get() then it.text:SetTextColor(ar, ag, ab, 1)
@@ -221,7 +210,6 @@ local function Dropdown(owner, K, modes, Get, Set)
     return btn
 end
 
--- divider, like the menu's sections
 local function Divider(m, y)
     local div = m:CreateTexture(nil, "ARTWORK")
     div:SetHeight(CM.PP.mult)
@@ -232,9 +220,7 @@ local function Divider(m, y)
 end
 
 -------------------------------------------------------------------------------
---  specific roles: one button (under battle res) opening a dropdown with
---  match exact / match any toggles, a divider, then the tanks / healers /
---  dps count rows. opens above the button when it'd hang off the menu.
+--  specific roles: a dropdown with match exact / any and the role count rows
 -------------------------------------------------------------------------------
 local function Block(m, y)
     local f = CreateFrame("Frame", nil, m)
@@ -280,13 +266,11 @@ GFNS.CawfeeRoleCounts = function(m, y, K)
     local pbg = pop:CreateTexture(nil, "BACKGROUND")
     pbg:SetAllPoints()
     local fr, fg, fb = K.ThemeFill()
-    pbg:SetColorTexture(fr, fg, fb, 0.98)  -- same fill as the filters menu
+    pbg:SetColorTexture(fr, fg, fb, 0.98)
     CM.MakeBorder(pop, K.ThemeBorder())
     pops[#pops + 1] = pop
 
-    -- while open: a veil of the menu's own fill over both columns, so their
-    -- text and checkboxes fade but the panel stays solid. under the border,
-    -- eats clicks (the pop-up's click-off then closes it)
+    -- while open: veil over both columns, eats clicks
     local veil = CreateFrame("Button", nil, K.parent or m)
     veil:SetFrameStrata("FULLSCREEN_DIALOG")
     veil:SetFrameLevel(m:GetFrameLevel() + 8)
@@ -295,7 +279,6 @@ GFNS.CawfeeRoleCounts = function(m, y, K)
     vt:SetColorTexture(fr, fg, fb, 0.7)
     veil:Hide()
 
-    -- match exact / any: one or the other
     local py, toggles = 2, {}
     local function PaintMatch()
         local any = K.Cfg().cawfeeRolesAny == true
@@ -309,7 +292,6 @@ GFNS.CawfeeRoleCounts = function(m, y, K)
             K.Paint()
         end)
         t.any = mode.any
-        -- the grey (and) / (or) right after the label
         local _, cb = t.label:GetPoint(1)
         t.label:ClearAllPoints()
         t.label:SetPoint("LEFT", cb, "RIGHT", 7, 0)
@@ -324,7 +306,7 @@ GFNS.CawfeeRoleCounts = function(m, y, K)
         py = py + K.ITEM_H
     end
     py = Divider(pop, py)
-    -- count rows land in m.counts so the menu still paints them
+    -- count rows go in m.counts so the menu paints them
     m.counts = m.counts or {}
     pop.counts = m.counts
     for _, r in ipairs(K.COUNT_ROLES) do py = K.AddCountRow(pop, py, r.key, r.label) end
@@ -334,7 +316,7 @@ GFNS.CawfeeRoleCounts = function(m, y, K)
     end)
     pop:Hide()
 
-    -- "(2 active)" when count rows are ticked, so they aren't forgotten
+    -- "(2 active)" so ticked rows aren't forgotten
     local function ShowHint()
         local n = CountsOn(K.Cfg())
         btn.Hint:SetText(n > 0 and ("(" .. n .. " active)") or "")
@@ -342,12 +324,11 @@ GFNS.CawfeeRoleCounts = function(m, y, K)
     local sgLevel = sg:GetFrameLevel()
     pop:HookScript("OnShow", function()
         PaintMatch()
-        -- the side panel comes after these rows, so anchor here
         veil:ClearAllPoints()
         veil:SetPoint("TOPLEFT", m.side or m, "TOPLEFT", 0, 0)
         veil:SetPoint("BOTTOMRIGHT", m, "BOTTOMRIGHT", 0, 0)
         veil:Show()
-        sg:SetFrameLevel(veil:GetFrameLevel() + 1)  -- the button stays lit
+        sg:SetFrameLevel(veil:GetFrameLevel() + 1)  -- keeps the button lit
     end)
     pop:HookScript("OnHide", function()
         veil:Hide()
@@ -356,7 +337,7 @@ GFNS.CawfeeRoleCounts = function(m, y, K)
     end)
     btn:SetScript("OnClick", function()
         if pop:IsShown() then pop:Hide() return end
-        OpenNear(pop, btn, m)  -- same width as the button
+        OpenNear(pop, btn, m)
     end)
     btn:SetScript("OnShow", ShowHint)
     btn:SetScript("OnHide", function() pop:Hide() end)
@@ -365,10 +346,8 @@ GFNS.CawfeeRoleCounts = function(m, y, K)
 end
 
 -------------------------------------------------------------------------------
---  raids and delves: the squares in one line that scrolls sideways (arrows at
---  each end, mouse wheel too) instead of a grid that pushes the list down. the
---  module's own squares, moved into a clipped window. hooks in LayoutBosses
---  and LayoutDelves of EUI_GroupFinder_Search.lua; returns 1 line
+--  raids and delves: squares in one sideways-scrolling line instead of a
+--  grid that pushes the list down
 -------------------------------------------------------------------------------
 local ARROW_W = 14
 local ARROW_DIR = "Interface\\AddOns\\EllesmereUI\\media\\icons\\"
@@ -376,8 +355,7 @@ local ARROW_DIR = "Interface\\AddOns\\EllesmereUI\\media\\icons\\"
 local function PlaceStrip(s)
     if not s.list then return end
     local per = s.size + s.gap
-    -- whole steps only, so the squares never shift by a sliver; the end stops
-    -- once the last square is fully in view (any space left is under a square)
+    -- whole steps only, stops once the last square is fully in view
     local full = math.max(1, math.floor((s.clipW + s.gap) / per))
     local maxOff = math.max(0, #s.list - full)
     s.offset = math.max(0, math.min(s.offset, maxOff))
@@ -388,7 +366,7 @@ local function PlaceStrip(s)
             local x = (i - 1) * per + shift
             sq:ClearAllPoints()
             sq:SetPoint("LEFT", s.clip, "LEFT", x, 0)
-            -- squares fully outside the window are hidden so they can't be clicked
+            -- hidden off-window so they can't be clicked
             sq:SetShown(x + s.size > 0 and x < s.clipW)
         end
     end
@@ -403,7 +381,7 @@ end
 local function ScrollStrip(s, step)
     s.offset = s.offset + step
     PlaceStrip(s)
-    if s.paint then s.paint() end  -- the module colours the squares now in view
+    if s.paint then s.paint() end  -- recolor the squares now in view
 end
 
 local function StripArrow(s, row, file, step)
@@ -418,8 +396,7 @@ local function StripArrow(s, row, file, step)
     return b
 end
 
--- one strip: key is the square's data field (boss / delve), fill dresses a
--- square for its entry
+-- one strip. key = the square's data field, fill dresses a square
 local function NewStrip(key, fill)
     local s = { offset = 0 }
     return function(list, squares, Make, size, after, show, cols, slots, row, gap, paint)
@@ -438,7 +415,6 @@ local function NewStrip(key, fill)
             s.list = nil
             return 1
         end
-        -- the grid's room (after the raid button's slot), one line high
         local per = size + gap
         local startX = gap + (slots - cols) * per
         local room = cols * per - gap
@@ -457,13 +433,12 @@ local function NewStrip(key, fill)
             s.left:Show()
             s.clip:SetPoint("LEFT", s.left, "RIGHT", gap, 0)
         end
-        -- scrolling: the window runs to the row's right edge (in line with row 1),
-        -- the last square there can show cut off
+        -- scrolling: runs to the row's right edge
         local clipW = vis * per - gap
         if fits then
             s.clip:SetSize(clipW, size)
         else
-            s.right:SetPoint("RIGHT", row, "RIGHT", 4, 0)  -- a touch wider so the last square's border isn't clipped
+            s.right:SetPoint("RIGHT", row, "RIGHT", 4, 0)  -- a touch wider so the last border isn't clipped
             s.right:Show()
             s.clip:SetPoint("RIGHT", s.right, "LEFT", -gap, 0)
             s.clip:SetHeight(size)
@@ -488,18 +463,17 @@ end
 GFNS.CawfeeBossStrip = NewStrip("boss", function(sq, d)
     sq.icon:SetTexture(d.icon or "Interface\\Icons\\INV_Misc_QuestionMark")
 end)
--- delves: the module dresses its own squares (font, short name) first
+-- delves: the module dresses its squares
 GFNS.CawfeeDelveStrip = NewStrip("delve", function(sq, d)
     if GFNS.LabDressDelve then GFNS.LabDressDelve(sq, d) end
 end)
 
--- filters menu (side panel included) spans the search box's left edge to
--- refresh, the same width as the expressions menu
+-- filters menu spans search box to refresh
 GFNS.CawfeeWidenMenu = function(m, anchor, gap, right)
     local sp = LFGListFrame and LFGListFrame.SearchPanel
     local left = sp and (sp.SearchBox or sp.BackButton)
     if not (left and left:IsVisible() and left:GetLeft() and anchor:GetLeft()) then return end
-    -- side panel and menu split the width evenly
+    -- split evenly
     if m.side and right and right:GetRight() then
         local total = (right:GetRight() * right:GetEffectiveScale() - left:GetLeft() * left:GetEffectiveScale())
             / m:GetEffectiveScale()
@@ -512,12 +486,7 @@ GFNS.CawfeeWidenMenu = function(m, anchor, gap, right)
 end
 
 -------------------------------------------------------------------------------
---  has / missing rows: bloodlust, battle res and your own class, each a
---  checkbox + has / missing dropdown. reuses the menu's hasLust / hasBrez
---  keys, adds cawfeeMyClass; the picks are cawfeeLustMissing,
---  cawfeeBrezMissing and cawfeeMyClassMissing (your class defaults to
---  missing). built through the AddRoleItems hook, kept through the ExtraKeep
---  hook of EUI_GroupFinder_Search.lua.
+--  has / missing rows: bloodlust, battle res and your class
 -------------------------------------------------------------------------------
 local LUST = { SHAMAN = true, MAGE = true, HUNTER = true, EVOKER = true }
 local BREZ = { DRUID = true, DEATHKNIGHT = true, WARLOCK = true, PALADIN = true }
@@ -545,7 +514,7 @@ local CLASS_ROWS = {
         K.ClassLine("PALADIN", "Intercession (Paladin)"),
         "Engineering and other items don't count." } end },
     { key = "cawfeeMyClass", pick = "cawfeeMyClassMissing", missingDefault = true,
-      has = "Has Class", missing = "No Class",  -- your class name goes in at build
+      has = "Has Class", missing = "No Class",  -- class name added at build
       Tip = function(K)
         local name, file = MyClass()
         local a = name and name:match("^[AEIOUaeiou]") and "an" or "a"
@@ -570,7 +539,7 @@ GFNS.CawfeeClassRows = function(m, y, K)
     local ry, my = 0, 0
     for _, row in ipairs(CLASS_ROWS) do
         local function ShowTip(self)
-            if self.list and self.list:IsShown() then return end  -- list open: no tooltip
+            if self.list and self.list:IsShown() then return end
             local title, lines = row.Tip(K)
             K.Tip(self, title, unpack(lines))
         end
@@ -580,11 +549,9 @@ GFNS.CawfeeClassRows = function(m, y, K)
         local icon
         if inRoles then
             local name, file = MyClass()
-            -- class name in its class colour
             local cls = (name and file) and K.ClassLine(file, name) or name or "Class"
             has, missing = "Has " .. cls, "No " .. cls
-            -- the button's label runs at full alpha so the class colour shows;
-            -- "has" / "no" get the dim grey by hand
+            -- full alpha so the class color shows, has / no greyed by hand
             hasBtn, missingBtn = DIM_HEX .. "Has|r " .. cls, DIM_HEX .. "No|r " .. cls
             icon = file and ("classicon-" .. file:lower())
         end
@@ -601,16 +568,15 @@ GFNS.CawfeeClassRows = function(m, y, K)
             { label = missing, button = missingBtn, icon = icon },
         }, function() return Missing(K.Cfg(), row) and 2 or 1 end,
         function(i)
-            -- the class row turns on when picked; bloodlust / battle res leave the box alone
+            -- picking turns the class row on; lust / brez leave the box alone
             local c = K.Cfg()
             c[row.pick] = (i == 2)
             if inRoles then c[row.key] = true end
         end)
-        btn:SetHeight(K.ITEM_H - 2)  -- same as the match exact button
+        btn:SetHeight(K.ITEM_H - 2)
         btn:SetPoint("LEFT", item, "LEFT", 8 + K.CHECK_SZ + 7, 0)
         btn:SetPoint("RIGHT", item, "RIGHT", -8, 0)
         btn:SetScript("OnEnter", ShowTip)
-        -- same step as the misc rows beside them
         if inRoles then ry = ry + K.ITEM_H else my = my + K.ITEM_H end
     end
     roleG:SetHeight(ry)
@@ -618,7 +584,7 @@ GFNS.CawfeeClassRows = function(m, y, K)
     return y + ry + my
 end
 
--- false = drop the group. unknown (secret) members don't count either way
+-- false = drop the group. secret members don't count
 GFNS.CawfeeClassKeep = function(id, info, c)
     if not (c.hasLust or c.hasBrez or c.cawfeeMyClass) then return true end
     local n = info and info.numMembers
@@ -642,10 +608,7 @@ GFNS.CawfeeClassKeep = function(id, info, c)
 end
 
 -------------------------------------------------------------------------------
---  region tags: OCE / NA / MEX / BRA after each group's playstyle, from the
---  leader's realm (us region only). toggle in group settings > misc, saved in
---  the group finder's search settings as cawfeeRegionTags. the row comes in
---  through the GROUP_MENU hook of EUI_GroupFinder_Search.lua.
+--  region tags: OCE / NA / MEX / BRA from the leader's realm (us only)
 -------------------------------------------------------------------------------
 local TAGS = {
     oce = { "OCE", 0.35, 0.65, 1 },
@@ -653,7 +616,7 @@ local TAGS = {
     la  = { "MEX", 1, 0.5, 0.82 },
     br  = { "BRA", 0.35, 0.9, 0.45 },
 }
--- us realms outside north america; everything else counts as na
+-- us realms outside north america, the rest are na
 local realmRegion = {}
 for region, realms in pairs({
     oce = { "amanthul", "barthilas", "caelestrasz", "dathremar", "dreadmaul", "frostmourne",
@@ -681,25 +644,22 @@ end
 
 local tagOf = setmetatable({}, { __mode = "k" })
 
--- flag art per region (media/flags/<region>.png, 64x42 with clear corners)
+-- flag art per region
 local FLAG_DIR = "Interface\\AddOns\\" .. FOLDER .. "\\media\\flags\\"
 local FLAGS = { oce = FLAG_DIR .. "oce.png", na = FLAG_DIR .. "na.png", la = FLAG_DIR .. "la.png", br = FLAG_DIR .. "br.png" }
 
--- for the filtered results list: a group's tag, its colour and flag (us only)
+-- for our results list: tag, color, flag
 function ns.RegionTagOf(resultID)
-    if not TagsOn() then return nil end  -- the group settings switch, us only
+    if not TagsOn() then return nil end
     local region = RegionOf(resultID)
     local t = TAGS[region]
     if t then return t[1], t[2], t[3], t[4], FLAGS[region] end
 end
 
--- "Relaxed | OCE [flag]" after the playstyle text on the third line (titles
--- are protected text and can't be measured; the playstyle is plain text, so
--- its box is exact). no playstyle: no divider, the tag starts the line.
+-- "Relaxed | OCE [flag]" after the playstyle on blizzard's row
 local function Parts(entry)
     local p = tagOf[entry]
     if p then return p end
-    -- our own child frame on the row, above its text
     local f = CreateFrame("Frame", nil, entry)
     f:SetAllPoints(entry)
     f:SetFrameLevel(entry:GetFrameLevel() + 4)
@@ -709,37 +669,27 @@ local function Parts(entry)
         tag  = f:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall"),
         flag = f:CreateTexture(nil, "OVERLAY"),
     }
-    p.sep:SetText("||")  -- an escaped pipe draws one "|"
+    p.sep:SetText("||")  -- escaped pipe draws one |
     p.sep:SetTextColor(0.35, 0.35, 0.35, 1)
     tagOf[entry] = p
     return p
 end
 
 -------------------------------------------------------------------------------
---  row art (group settings > display, cawfeeRowArt): the instance's art on
---  the left half of each row, fading from 30% to nothing.
---  compact rows (cawfeeCompact): one centred line, "MR +18" - a white short
---  activity name, then the title. blizzard's activity and playstyle lines
---  (and the region tag) fade out; the tag and the art are ours, their text
---  is never rewritten. row height stays
---  blizzard's: shrinking it means changing the list's layout, the risky
---  part. only alpha, the title's anchor and width change, the same kind of
---  write the module's own name colours / widths make, and only out of
---  combat. a row we can't read (secret results) stays stock.
+--  row art: the instance's art fading across the left half
 -------------------------------------------------------------------------------
 local NAME_X, NAME_Y = 10, -6  -- blizzard's title anchor
-local TITLE_ROOM = 34  -- kept clear left of the role icons (leader rating)
+local TITLE_ROOM = 34  -- room left of the role icons
 local shifted = setmetatable({}, { __mode = "k" })  -- entry -> title width we set
 
-local function CompactOn() return false end  -- compact mode retired
+local function CompactOn() return false end  -- compact mode's gone
 
 local function RowArtOn()
     local c = GFNS.Cfg and GFNS.Cfg()
     return c and c.cawfeeRowArt == true
 end
 
--- "Murder Row" -> MR, "The Venomous Abyss" -> VA, "March on Quel'Danas" ->
--- MoQD: initials, a leading "the" dropped, small words lower case
+-- "Murder Row" -> MR, "March on Quel'Danas" -> MoQD
 local SMALL = { of = true, the = true, ["and"] = true, to = true, ["in"] = true, on = true, at = true }
 local function Short(name)
     name = (name:match("^([^,:]+)") or name):gsub("\226\128\153", "'")
@@ -749,7 +699,6 @@ local function Short(name)
         if w ~= "" then
             local lw = w:lower()
             if #out == 0 and lw == "the" then
-                -- skip
             elseif #out > 0 and SMALL[lw] then
                 out[#out + 1] = w:sub(1, 1):lower()
             else
@@ -762,10 +711,8 @@ local function Short(name)
     return ov and ov[ab] or ab
 end
 
--- wide instance art by instance map id: this season's keystone background,
--- else the journal's lore / background art (read by id, the journal's own
--- selection is left alone). cropped to a strip shaped like a quarter row
-local ART_CROP = { 0.205, 0.795, 0.25, 0.50 }  -- left, right, top, bottom: half a row's shape, clear of the art's frame
+-- instance art by map id: keystone background, else the journal's
+local ART_CROP = { 0.205, 0.795, 0.25, 0.50 }  -- a strip clear of the art's frame
 local artOf = {}
 local function Art(mapID)
     if not mapID or Secret(mapID) then return nil end
@@ -789,7 +736,7 @@ local function Art(mapID)
     return a or nil
 end
 
--- keystones: "MR"; everything else keeps its difficulty: "VA (Heroic)"
+-- keystones: "MR", the rest keep their difficulty
 local function Activity(resultID)
     local info = C_LFGList.GetSearchResultInfo(resultID)
     if not info or Secret(info) or (canaccesstable and not canaccesstable(info)) then return nil end
@@ -805,15 +752,14 @@ local function ActivityShort(resultID)
     if type(full) ~= "string" or Secret(full) then return nil end
     local base, diff = full:match("^(.-)%s*%(([^()]+)%)$")
     local ab = Short(base or full)
-    if not ai.isMythicPlusActivity and diff then ab = ab .. " " .. DIM_HEX .. "(" .. diff .. ")|r" end  -- difficulty in grey
+    if not ai.isMythicPlusActivity and diff then ab = ab .. " " .. DIM_HEX .. "(" .. diff .. ")|r" end
     return ab
 end
 
-local ART_SHARE, ART_ALPHA = 0.5, 0.2  -- half the row, 20% fading to 0
+local ART_SHARE, ART_ALPHA = 0.5, 0.2  -- half the row, 20% fading out
 local FADE_MASK = "Interface\\AddOns\\" .. FOLDER .. "\\media\\masks\\fade.png"
 
--- the filtered results list's rows: a group's art (nil while row art is off),
--- and how to draw it
+-- for our results list: a group's art (nil when off)
 function ns.RowArtFor(resultID)
     if not RowArtOn() then return nil end
     local ai = Activity(resultID)
@@ -821,8 +767,7 @@ function ns.RowArtFor(resultID)
 end
 ns.ROW_ART = { crop = ART_CROP, share = ART_SHARE, alpha = ART_ALPHA, mask = FADE_MASK }
 
--- the art sits on the row itself, under blizzard's text (a frame of ours
--- would draw over it); the tag goes on our overlay, above
+-- art under blizzard's text, the tag on our overlay above
 local function RowArt(entry, p)
     local art = RowArtOn() and entry.resultID
     local ai = art and Activity(entry.resultID)
@@ -834,14 +779,12 @@ local function RowArt(entry, p)
     if not p.art then
         p.art = entry:CreateTexture(nil, "BACKGROUND", nil, 7)
         p.art:SetAlpha(ART_ALPHA)
-        -- a curved fade (media/masks/fade.png): full for the first fifth, then
-        -- gone well before the right edge, so the art's own frame never shows
+        -- curved fade so the art's own frame never shows
         local mask = entry:CreateMaskTexture()
         mask:SetTexture(FADE_MASK, "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
         mask:SetAllPoints(p.art)
         p.art:AddMaskTexture(mask)
     end
-    -- the row's left half, inside its background inset
     p.art:SetTexture(art)
     p.art:SetTexCoord(unpack(ART_CROP))
     p.art:ClearAllPoints()
@@ -857,7 +800,7 @@ local function Stock(entry, p)
     entry.ActivityName:SetAlpha(1)
     entry.Name:ClearAllPoints()
     entry.Name:SetPoint("TOPLEFT", entry, "TOPLEFT", NAME_X, NAME_Y)
-    entry.Name:SetWidth(shifted[entry])  -- same right edge till blizzard's next update
+    entry.Name:SetWidth(shifted[entry])
     if p.short then p.short:Hide() end
     shifted[entry] = nil
 end
@@ -880,8 +823,7 @@ local function CompactEntry(entry, p)
     local x = NAME_X + math.ceil(p.short:GetStringWidth()) + 5
     entry.Name:ClearAllPoints()
     entry.Name:SetPoint("LEFT", entry, "LEFT", x, 0)
-    -- the title can't be measured (protected text): give it a box from here
-    -- to just short of the role icons, it truncates inside that
+    -- title can't be measured (protected), so give it a box
     local dd, el = entry.DataDisplay, entry:GetLeft()
     local right = dd and dd:IsShown() and dd:GetLeft()
     local room = (right and el) and (right - el - x - TITLE_ROOM) or (176 - x)
@@ -900,7 +842,6 @@ local function TagEntry(entry)
     local region = RegionOf(entry.resultID)
     local t = TAGS[region]
     if not t then return end
-    -- same size as the playstyle text it sits beside
     local play = entry.Playstyle
     local ok, _, size = pcall(play.GetFont, play)
     if ok and type(size) == "number" and not Secret(size) and size > 0 then
@@ -939,11 +880,11 @@ local function RetagRows()
     local sp = LFGListFrame and LFGListFrame.SearchPanel
     local box = sp and sp.ScrollBox
     if box and box.ForEachFrame then box:ForEachFrame(TagEntry) end
-    -- the filtered results list draws its own rows
+    -- our results list too
     if ns.OwnListRefresh then ns.OwnListRefresh() end
 end
 
-ns.LabRetagRows = RetagRows  -- the settings page's row art
+ns.LabRetagRows = RetagRows  -- for the settings page
 
 if ns.WhenGroupFinder then
     ns.WhenGroupFinder(function()
@@ -951,12 +892,12 @@ if ns.WhenGroupFinder then
     end)
 end
 
--- group settings > misc: one more switch (us only), on the end of the list
+-- group settings: our extra rows
 local groupMenu
 GFNS.CawfeeGroupMenu = function(list)
     if not groupMenu then
         groupMenu = {}
-        -- listing's end: the first title after it. misc: the last title
+        -- listing ends at the first title, misc is the last
         local listingEnd, misc
         for i, spec in ipairs(list) do
             if i > 1 and spec.title then
@@ -965,7 +906,7 @@ GFNS.CawfeeGroupMenu = function(list)
             end
         end
         listingEnd = listingEnd or #list + 1
-        -- bottom of listing: region tags (us only), show playstyle
+        -- end of listing: region tags (us), show playstyle
         local listing = {}
         if GetCurrentRegion and GetCurrentRegion() == 1 then
             listing[#listing + 1] = { key = "cawfeeRegionTags", label = "Region Tags",
@@ -978,20 +919,20 @@ GFNS.CawfeeGroupMenu = function(list)
         for i, spec in ipairs(list) do
             if i == listingEnd then for _, d in ipairs(listing) do groupMenu[#groupMenu + 1] = d end end
             if i == misc then
-                -- misc is display now (a copy, ellesmere's list stays as it is)
+                -- misc becomes display
                 groupMenu[#groupMenu + 1] = { title = "Display" }
             else
                 groupMenu[#groupMenu + 1] = spec
             end
         end
         if listingEnd > #list then for _, d in ipairs(listing) do groupMenu[#groupMenu + 1] = d end end
-        -- sort by: our results list's order, at the end of display
+        -- sort by, end of display
         groupMenu[#groupMenu + 1] = { key = "cawfeeSortBy", label = "Sort By", choice = ns.SORT_MODES }
     end
     return groupMenu
 end
 
--- results list order (group settings > sorting). keys saved in cawfeeSortBy
+-- results list order (saved as cawfeeSortBy)
 ns.SORT_MODES = {
     { key = "default", label = "Default" },
     { key = "high",    label = "Highest Score" },
@@ -1000,7 +941,7 @@ ns.SORT_MODES = {
     { key = "small",   label = "Lowest Size" },
 }
 
--- a menu row: its label, then a dropdown of spec.choice
+-- a menu row: label + dropdown
 local function ChoiceItem(col, y, spec, G)
     local item = CreateFrame("Frame", nil, col)
     item:SetHeight(G.ITEM_H)
@@ -1026,14 +967,11 @@ local function ChoiceItem(col, y, spec, G)
     return item
 end
 
--- group settings in two columns: listing split across both, then sign up
--- under it on the left and display (any later sections too) on the right.
--- built through the hook in XF.BuildGroupMenu; returns the taller column's
--- height. the width is set each time it opens (CawfeeGroupMenuPlace).
+-- group settings in two columns: listing across both, sign up under it
+-- on the left, display on the right
 local GROUP_COL_W = 200
 GFNS.CawfeeGroupColumns = function(m, list, G)
     m:SetWidth(GROUP_COL_W * 2)
-    -- sections: { title, items }
     local sections = {}
     for _, spec in ipairs(list) do
         if spec.title or #sections == 0 then sections[#sections + 1] = { title = spec.title, items = {} } end
@@ -1043,7 +981,7 @@ GFNS.CawfeeGroupColumns = function(m, list, G)
     local cols, ys = {}, {}
     for k, point in ipairs({ "TOPLEFT", "TOP" }) do
         local col = CreateFrame("Frame", nil, m)
-        col:SetPoint("TOPLEFT", m, point, 0, 0)  -- left edge, or the middle
+        col:SetPoint("TOPLEFT", m, point, 0, 0)
         col:SetWidth(GROUP_COL_W)
         col:SetHeight(1)
         m.cawfeeCols[k] = col
@@ -1061,7 +999,7 @@ GFNS.CawfeeGroupColumns = function(m, list, G)
         if sec.title then ys[k] = G.AddSection(cols[k], ys[k], sec.title) end
         for _, spec in ipairs(sec.items) do Item(k, spec) end
     end
-    -- listing: title on the left, its rows split down both columns
+    -- listing: title left, rows split over both columns
     local first = sections[1]
     if first then
         if first.title then
@@ -1078,8 +1016,7 @@ GFNS.CawfeeGroupColumns = function(m, list, G)
     return math.max(ys[1], ys[2])
 end
 
--- as wide as the top row: from the menu's left edge (the person button,
--- in line with the search box) to the refresh button's right
+-- as wide as the top row
 GFNS.CawfeeGroupMenuPlace = function(m, owner, refresh)
     if not (m.cawfeeCols and refresh and refresh:GetRight() and owner and owner:GetLeft()) then return end
     local w = (refresh:GetRight() * refresh:GetEffectiveScale() - owner:GetLeft() * owner:GetEffectiveScale())
@@ -1091,12 +1028,10 @@ GFNS.CawfeeGroupMenuPlace = function(m, owner, refresh)
 end
 
 -------------------------------------------------------------------------------
---  menu icons: role icons (from ellesmere's raid frames) on the tank / healer
---  / damage rows, flags on the region rows. between the checkbox and the
---  text. hook after BuildSidePanel in EUI_GroupFinder_Search.lua.
+--  menu icons: role icons and region flags
 -------------------------------------------------------------------------------
 local ROLE_DIR = "Interface\\AddOns\\EllesmereUIRaidFrames\\media\\"
--- the same role art for the results list's open slots (show missing roles)
+-- same art for the results list's open slots
 local ROLE_FILE = { TANK = "tank.png", HEALER = "healer.png", DAMAGER = "dps.png" }
 function ns.RoleIconTex(role)
     local f = ROLE_FILE[role]
@@ -1112,9 +1047,7 @@ local ICONS = {
     region_br  = { FLAGS.br,  15, 10 },
 }
 
--- specific roles closes the roles block. misc as two columns: a divider in
--- line with the side panel's misc one, bloodlust / battle res level with its
--- misc rows, your class right under. if roles run past misc, they just stack.
+-- misc in two columns, lined up with the side panel
 local function LayoutMisc(menu, side)
     local roleG, miscG, sg = menu.cawfeeClassGrp, menu.cawfeeMiscGrp, menu.cawfeeSpecGrp
     if not (roleG and miscG and sg and menu.cawfeeRolesEnd) then return end
@@ -1130,7 +1063,7 @@ local function LayoutMisc(menu, side)
     end
     PlaceBlock(miscG, menu, y)
     y = y + miscG:GetHeight()
-    -- the side panel's next row (min. rating) is taller than ours: centre on it
+    -- centre on the side panel's taller row
     local nudge = 0
     if rowsY and y == rowsY + miscG:GetHeight() and side.cawfeeEndY and menu.cawfeeItemH then
         local nextH = side.cawfeeEndY - y
@@ -1151,7 +1084,7 @@ GFNS.CawfeeDecorateMenu = function(menu, side)
             for key, art in pairs(ICONS) do
                 local item = items[key]
                 if item and item.label and not item.cawfeeIcon then
-                    local _, cb = item.label:GetPoint(1)  -- the checkbox
+                    local _, cb = item.label:GetPoint(1)
                     if cb then
                         local tex = item:CreateTexture(nil, "OVERLAY")
                         tex:SetTexture(art[1])
@@ -1168,7 +1101,5 @@ GFNS.CawfeeDecorateMenu = function(menu, side)
     end
 end
 
--- group settings button: the people icon
 GFNS.CawfeePersonTex = "Interface\\AddOns\\" .. FOLDER .. "\\media\\icons\\eui-person.png"
--- raid list button: a smaller banner than the module's own
 GFNS.CawfeeRaidTex = "Interface\\AddOns\\" .. FOLDER .. "\\media\\icons\\eui-raid.png"
