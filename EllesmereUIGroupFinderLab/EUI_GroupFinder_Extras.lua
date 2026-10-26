@@ -608,28 +608,11 @@ GFNS.CawfeeClassKeep = function(id, info, c)
 end
 
 -------------------------------------------------------------------------------
---  region tags: OCE / NA / MEX / BRA from the leader's realm (us only)
+--  region tags: where the leader plays from (us: region, eu: realm language)
 -------------------------------------------------------------------------------
-local TAGS = {
-    oce = { "OCE", 0.35, 0.65, 1 },
-    na  = { "NA",  1, 0.35, 0.35 },
-    la  = { "MEX", 1, 0.5, 0.82 },
-    br  = { "BRA", 0.35, 0.9, 0.45 },
-}
--- us realms outside north america, the rest are na
-local realmRegion = {}
-for region, realms in pairs({
-    oce = { "amanthul", "barthilas", "caelestrasz", "dathremar", "dreadmaul", "frostmourne",
-            "gundrak", "jubeithos", "khazgoroth", "nagrand", "saurfang", "thaurissan" },
-    br  = { "azralon", "gallywix", "goldrinn", "nemesis", "tolbarad" },
-    la  = { "drakkari", "quelthalas", "ragnaros" },
-}) do
-    for _, r in ipairs(realms) do realmRegion[r] = region end
-end
-
 local function TagsOn()
     local c = GFNS.Cfg and GFNS.Cfg()
-    return c and c.cawfeeRegionTags == true and GetCurrentRegion and GetCurrentRegion() == 1
+    return c and c.cawfeeRegionTags == true and ns.RegionList() ~= nil
 end
 
 local function RegionOf(resultID)
@@ -639,21 +622,16 @@ local function RegionOf(resultID)
     if not leader or Secret(leader) then return nil end
     local realm = leader:match("%-(.+)$") or (GetNormalizedRealmName and GetNormalizedRealmName())
     if not realm or Secret(realm) then return nil end
-    return realmRegion[(realm:gsub("[^%a]", "")):lower()] or "na"
+    return ns.RegionOfRealm(realm)
 end
 
 local tagOf = setmetatable({}, { __mode = "k" })
 
--- flag art per region
-local FLAG_DIR = "Interface\\AddOns\\" .. FOLDER .. "\\media\\flags\\"
-local FLAGS = { oce = FLAG_DIR .. "oce.png", na = FLAG_DIR .. "na.png", la = FLAG_DIR .. "la.png", br = FLAG_DIR .. "br.png" }
-
 -- for our results list: tag, color, flag
 function ns.RegionTagOf(resultID)
     if not TagsOn() then return nil end
-    local region = RegionOf(resultID)
-    local t = TAGS[region]
-    if t then return t[1], t[2], t[3], t[4], FLAGS[region] end
+    local d = ns.RegionInfo(RegionOf(resultID))
+    if d then return d.tag, d.r, d.g, d.b, d.flag end
 end
 
 -- "Relaxed | OCE [flag]" after the playstyle on blizzard's row
@@ -839,9 +817,8 @@ local function TagEntry(entry)
     CompactEntry(entry, p)
     p.sep:Hide(); p.tag:Hide(); p.flag:Hide()
     if CompactOn() or not (TagsOn() and entry.resultID) then return end
-    local region = RegionOf(entry.resultID)
-    local t = TAGS[region]
-    if not t then return end
+    local d = ns.RegionInfo(RegionOf(entry.resultID))
+    if not d then return end
     local play = entry.Playstyle
     local ok, _, size = pcall(play.GetFont, play)
     if ok and type(size) == "number" and not Secret(size) and size > 0 then
@@ -863,10 +840,10 @@ local function TagEntry(entry)
     else
         p.tag:SetPoint("LEFT", play, "LEFT", 0, 0)
     end
-    p.tag:SetText(t[1])
-    p.tag:SetTextColor(t[2], t[3], t[4], 1)
+    p.tag:SetText(d.tag)
+    p.tag:SetTextColor(d.r, d.g, d.b, 1)
     p.tag:Show()
-    local art = FLAGS[region]
+    local art = d.flag
     if art then
         p.flag:SetTexture(art)
         p.flag:SetSize(math.floor(size * 1.5 + 0.5), size)
@@ -908,9 +885,11 @@ GFNS.CawfeeGroupMenu = function(list)
         listingEnd = listingEnd or #list + 1
         -- end of listing: region tags (us), show playstyle
         local listing = {}
-        if GetCurrentRegion and GetCurrentRegion() == 1 then
+        if ns.RegionList() then
             listing[#listing + 1] = { key = "cawfeeRegionTags", label = "Region Tags",
-                tip = "Shows OCE, NA, MEX or BRA after each group's playstyle, from the leader's realm.",
+                tip = GetCurrentRegion() == 3
+                    and "Shows the leader's realm language (EN, DE, FR, ES, IT, PT, RU) after each group's playstyle."
+                    or "Shows OCE, NA, MEX or BRA after each group's playstyle, from the leader's realm.",
                 onToggle = RetagRows }
         end
         listing[#listing + 1] = { key = "cawfeeShowPlaystyle", label = "Show Playstyle", default = true,
@@ -1041,11 +1020,11 @@ local ICONS = {
     role_needsTank   = { ROLE_DIR .. "tank.png",   12, 12 },
     role_needsHealer = { ROLE_DIR .. "healer.png", 12, 12 },
     role_needsDamage = { ROLE_DIR .. "dps.png",    12, 12 },
-    region_na  = { FLAGS.na,  15, 10 },
-    region_oce = { FLAGS.oce, 15, 10 },
-    region_la  = { FLAGS.la,  15, 10 },
-    region_br  = { FLAGS.br,  15, 10 },
 }
+-- the region filter's flags, whichever region you're in
+for _, d in ipairs(ns.RegionList() or {}) do
+    ICONS["region_" .. d.key] = { d.flag, 15, 10 }
+end
 
 -- misc in two columns, lined up with the side panel
 local function LayoutMisc(menu, side)

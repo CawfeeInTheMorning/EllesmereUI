@@ -540,7 +540,7 @@ local function Layout(r, h)
     if room >= tS + nS + 6 then lines[2] = nS + 2 end
     local gc = GFNS.Cfg and GFNS.Cfg()
     local third = not (gc and gc.cawfeeShowPlaystyle == false)
-        or (gc and gc.cawfeeRegionTags == true and GetCurrentRegion and GetCurrentRegion() == 1)
+        or (gc and gc.cawfeeRegionTags == true and ns.RegionList() ~= nil)
     if lines[2] and third and room >= tS + nS + lS + 10 then lines[3] = lS + 2 end
     local total = 0
     for _, lh in ipairs(lines) do total = total + lh end

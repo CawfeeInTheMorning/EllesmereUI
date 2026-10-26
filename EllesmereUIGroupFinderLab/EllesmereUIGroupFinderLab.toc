@@ -13,6 +13,7 @@
 # Runtime, then the lab's own settings section (EUI_GroupFinder_LabOptions.lua,
 # a plugin page: "Group Finder Lab" in the sidebar).
 EllesmereUIGroupFinder.lua
+EUI_GroupFinder_Regions.lua
 EUI_GroupFinder_Search.lua
 EUI_GroupFinder_Applications.lua
 EUI_GroupFinder_Extras.lua
