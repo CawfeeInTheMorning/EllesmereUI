@@ -45,6 +45,7 @@ local SETS = {
             { key = "pt", label = L("Portuguese"), tag = "PT", r = 0.3,  g = 0.85, b = 0.75 },
             { key = "ru", label = L("Russian"),    tag = "RU", r = 1,    g = 0.35, b = 0.35 },
         },
+        language = true,  -- filter titled language, short names in two columns
         -- eu realms by language, english is everything else
         realms = {
             de = {
@@ -97,10 +98,17 @@ local SETS = {
     },
 }
 
+-- the region in use: the game's, or a test one (/gflabregion)
+function ns.RegionID()
+    local test = EllesmereUIDB and EllesmereUIDB.cawfeeRegionTest
+    if test then return test end
+    return GetCurrentRegion and GetCurrentRegion() or 1
+end
+
 local set, byKey, realmOf
 local function Set()
     if set ~= nil then return set or nil end
-    set = GetCurrentRegion and SETS[GetCurrentRegion()] or false
+    set = SETS[ns.RegionID()] or false
     if set then
         byKey, realmOf = {}, {}
         for _, d in ipairs(set.list) do
@@ -137,4 +145,26 @@ end
 function ns.RegionInfo(key)
     Set()
     return byKey and byKey[key]
+end
+
+-- eu realms list languages instead of regions
+function ns.RegionIsLanguage()
+    local s = Set()
+    return s and s.language or false
+end
+
+-- test another region's tags and filter: /gflabregion eu | us | off, then /reload
+SLASH_GFLABREGION1 = "/gflabregion"
+SlashCmdList.GFLABREGION = function(arg)
+    arg = (arg or ""):lower():gsub("%s", "")
+    if not EllesmereUIDB then EllesmereUIDB = {} end
+    if arg == "eu" then EllesmereUIDB.cawfeeRegionTest = 3
+    elseif arg == "us" then EllesmereUIDB.cawfeeRegionTest = 1
+    elseif arg == "off" then EllesmereUIDB.cawfeeRegionTest = nil
+    else
+        print("|cff0cd29fGroup Finder Lab|r: /gflabregion eu | us | off (now: "
+            .. (EllesmereUIDB.cawfeeRegionTest and ("test " .. EllesmereUIDB.cawfeeRegionTest) or "the game's") .. ")")
+        return
+    end
+    print("|cff0cd29fGroup Finder Lab|r: region test " .. arg .. ". /reload to apply.")
 end

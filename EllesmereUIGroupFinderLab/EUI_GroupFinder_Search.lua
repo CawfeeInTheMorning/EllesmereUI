@@ -1913,10 +1913,12 @@ end
 
 local function AddRegionItems(m, y)
     if not RegionsAvailable() then return y end
-    y = AddSection(m, y, EllesmereUI.L("Region"))
-    for _, r in ipairs(Regions()) do
+    -- lab: eu lists languages, short names in two columns
+    local lang = ns.RegionIsLanguage()
+    y = AddSection(m, y, EllesmereUI.L(lang and "Language" or "Region"))
+    for i, r in ipairs(Regions()) do
         local key = r.key
-        m.items["region_" .. key] = MenuItem(m, y, r.label, function()
+        local item = MenuItem(m, y, lang and r.tag or r.label, function()
             local c = Cfg()
             if type(c.regions) ~= "table" then c.regions = {} end
             c.regions[key] = (not c.regions[key]) or nil
@@ -1926,7 +1928,20 @@ local function AddRegionItems(m, y)
             Refilter()
             Paint()
         end)
-        y = y + ITEM_H
+        m.items["region_" .. key] = item
+        if lang then
+            item:ClearAllPoints()
+            if i % 2 == 1 then
+                item:SetPoint("TOPLEFT", m, "TOPLEFT", 1, -y)
+                item:SetPoint("TOPRIGHT", m, "TOP", 0, -y)
+            else
+                item:SetPoint("TOPLEFT", m, "TOP", 0, -y)
+                item:SetPoint("TOPRIGHT", m, "TOPRIGHT", -1, -y)
+            end
+            if i % 2 == 0 or i == #Regions() then y = y + ITEM_H end
+        else
+            y = y + ITEM_H
+        end
     end
     return y
 end

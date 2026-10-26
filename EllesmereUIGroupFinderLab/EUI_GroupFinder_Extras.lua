@@ -846,7 +846,7 @@ local function TagEntry(entry)
     local art = d.flag
     if art then
         p.flag:SetTexture(art)
-        p.flag:SetSize(math.floor(size * 1.5 + 0.5), size)
+        p.flag:SetSize(math.floor(size * 4 / 3 + 0.5), size)
         p.flag:ClearAllPoints()
         p.flag:SetPoint("LEFT", p.tag, "RIGHT", 4, 0)
         p.flag:Show()
@@ -887,7 +887,7 @@ GFNS.CawfeeGroupMenu = function(list)
         local listing = {}
         if ns.RegionList() then
             listing[#listing + 1] = { key = "cawfeeRegionTags", label = "Region Tags",
-                tip = GetCurrentRegion() == 3
+                tip = ns.RegionIsLanguage()
                     and "Shows the leader's realm language (EN, DE, FR, ES, IT, PT, RU) after each group's playstyle."
                     or "Shows OCE, NA, MEX or BRA after each group's playstyle, from the leader's realm.",
                 onToggle = RetagRows }
@@ -1023,7 +1023,7 @@ local ICONS = {
 }
 -- the region filter's flags, whichever region you're in
 for _, d in ipairs(ns.RegionList() or {}) do
-    ICONS["region_" .. d.key] = { d.flag, 15, 10 }
+    ICONS["region_" .. d.key] = { d.flag, 13, 10 }
 end
 
 -- misc in two columns, lined up with the side panel
