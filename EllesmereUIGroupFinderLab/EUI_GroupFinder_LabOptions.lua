@@ -273,33 +273,6 @@ initFrame:SetScript("OnEvent", function(self)
               getValue = function() return ns.OwnListGet("signupClicks") end,
               setValue = function(v) ns.SetOwnListValue("signupClicks", v) end })
         y = y - h
-        local noteRow
-        noteRow, h = W:DualRow(parent, y,
-            -- the switch is in the group settings menu, the note's edited here
-            { type = "label", text = "Signup Note" },
-            EUI.BlankRowCfg())
-        y = y - h
-        -- cog: edit the saved note
-        if noteRow and not EUI._prebuilding and EUI.BuildInlineCog then
-            local rgn = noteRow._leftRegion
-            EUI.BuildInlineCog(rgn, {
-                gap = 20, anchorTo = rgn, relPoint = "RIGHT",  -- a label row has no control to sit by
-                tip = "Edit the saved signup note.",
-                show = function()
-                    EUI:ShowInputPopup({
-                        title = "Signup Note",
-                        message = "Saved between reloads. When signing up, choose Copy, press Ctrl+C, then Ctrl+V.",
-                        placeholder = "Enter signup note...",
-                        initialText = EUI.GetPersistentSignupNote and EUI.GetPersistentSignupNote() or "",
-                        maxLetters = 63, inputHeight = 70, multiline = true, showCount = true, allowEmpty = true,
-                        confirmText = "Save",
-                        onConfirm = function(note)
-                            if EUI.SetPersistentSignupNote then EUI.SetPersistentSignupNote(note or "") end
-                        end,
-                    })
-                end,
-            })
-        end
         return y
     end
 

@@ -2144,7 +2144,7 @@ XF.GROUP_MENU = {
     { key = "cancelOldest",   label = EllesmereUI.L("Cancel Oldest Application"),
       tip = EllesmereUI.L("At the application limit, clicking a group cancels your oldest pending application so you can sign up.") },
     { key = "persistSignupNote", label = EllesmereUI.L("Persistent Signup Note"), core = "_applyPersistSignupNote",
-      tip = EllesmereUI.L("Keeps a saved signup note you can copy into the Sign Up dialog with the Copy button. Edit the note in the Group Finder Lab settings.") },
+      tip = EllesmereUI.L("Keeps the note you typed in the Sign Up dialog between sign ups.") },
     { title = EllesmereUI.L("Misc") },
     { key = "dungeonAbbr",    label = EllesmereUI.L("Dungeon Names"),
       tip = EllesmereUI.L("Each dungeon square shows the dungeon's short name, Raider.IO's when it's loaded (e.g. KR for Kings' Rest)."),
