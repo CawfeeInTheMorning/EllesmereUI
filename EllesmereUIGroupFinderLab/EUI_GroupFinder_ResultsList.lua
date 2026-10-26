@@ -1017,6 +1017,7 @@ local function Build()
     end
     hooksecurefunc(SP.ScrollBox, "SetAlpha", HoldHidden)
     if SP.ScrollBar then hooksecurefunc(SP.ScrollBar, "SetAlpha", HoldHidden) end
+    if SP.SearchingSpinner then hooksecurefunc(SP.SearchingSpinner, "SetAlpha", HoldHidden) end
     hooksecurefunc("LFGListSearchPanel_UpdateResults", function(panel)
         if panel == SP then ns.OwnListRefresh() end
     end)
@@ -1059,6 +1060,7 @@ function ns.OwnListRefresh()
         guard = true
         SP.ScrollBox:SetAlpha(a)
         if SP.ScrollBar then SP.ScrollBar:SetAlpha(a) end
+        if SP.SearchingSpinner then SP.SearchingSpinner:SetAlpha(a) end  -- its "searching..." sat over our rows
         if signBtn then SP.SignUpButton:SetAlpha(a) end
         guard = false
         frame:SetShown(active)
