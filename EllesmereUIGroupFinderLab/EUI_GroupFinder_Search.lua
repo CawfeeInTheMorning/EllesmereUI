@@ -235,26 +235,13 @@ local function SetDifficulty(key, on)
 end
 
 -------------------------------------------------------------------------------
--- region filter (US region only)
+-- region filter (us regions, eu languages)
 -------------------------------------------------------------------------------
-local REGIONS = {
-    { key = "na",  label = EllesmereUI.L("North America") },
-    { key = "oce", label = EllesmereUI.L("Oceanic") },
-    { key = "la",  label = EllesmereUI.L("Latin America") },
-    { key = "br",  label = EllesmereUI.L("Brazil") },
-}
-local REALM_REGION = {}
-for region, list in pairs({
-    oce = { "amanthul", "barthilas", "caelestrasz", "dathremar", "dreadmaul", "frostmourne",
-            "gundrak", "jubeithos", "khazgoroth", "nagrand", "saurfang", "thaurissan" },
-    br  = { "azralon", "gallywix", "goldrinn", "nemesis", "tolbarad" },
-    la  = { "drakkari", "quelthalas", "ragnaros" },
-}) do
-    for _, realm in ipairs(list) do REALM_REGION[realm] = region end
-end
+-- the list comes from EUI_GroupFinder_Regions.lua (us regions, eu languages)
+local function Regions() return ns.RegionList() or XF.EMPTY end
 
 local function IsSecret(v) return issecretvalue and issecretvalue(v) or false end
-local function RegionsAvailable() return GetCurrentRegion and GetCurrentRegion() == 1 end
+local function RegionsAvailable() return ns.RegionList() ~= nil end
 
 local function ChosenRegions()
     local c = Cfg()
@@ -265,8 +252,8 @@ local function RegionFilterActive()
     local r = RegionsAvailable() and ChosenRegions()
     if not r then return false end
     local n = 0
-    for _, d in ipairs(REGIONS) do if r[d.key] then n = n + 1 end end
-    return n > 0 and n < #REGIONS
+    for _, d in ipairs(Regions()) do if r[d.key] then n = n + 1 end end
+    return n > 0 and n < #Regions()
 end
 
 local function ResultInfo(resultID)
@@ -301,7 +288,7 @@ local function LeaderRegion(info)
     if not realm or IsSecret(realm) then return nil end
     local region = XF.regionByRealm[realm]
     if not region then
-        region = REALM_REGION[(realm:gsub("[^%a]", "")):lower()] or "na"
+        region = ns.RegionOfRealm(realm)
         XF.regionByRealm[realm] = region
     end
     return region
@@ -1926,27 +1913,42 @@ end
 
 local function AddRegionItems(m, y)
     if not RegionsAvailable() then return y end
-    y = AddSection(m, y, EllesmereUI.L("Region"))
-    for _, r in ipairs(REGIONS) do
+    -- lab: eu lists languages, short names in two columns
+    local lang = ns.RegionIsLanguage()
+    y = AddSection(m, y, EllesmereUI.L(lang and "Language" or "Region"))
+    for i, r in ipairs(Regions()) do
         local key = r.key
-        m.items["region_" .. key] = MenuItem(m, y, r.label, function()
+        local item = MenuItem(m, y, lang and r.tag or r.label, function()
             local c = Cfg()
             if type(c.regions) ~= "table" then c.regions = {} end
             c.regions[key] = (not c.regions[key]) or nil
             local n = 0
-            for _, o in ipairs(REGIONS) do if c.regions[o.key] then n = n + 1 end end
-            if n == #REGIONS then wipe(c.regions) end
+            for _, o in ipairs(Regions()) do if c.regions[o.key] then n = n + 1 end end
+            if n == #Regions() then wipe(c.regions) end
             Refilter()
             Paint()
         end)
-        y = y + ITEM_H
+        m.items["region_" .. key] = item
+        if lang then
+            item:ClearAllPoints()
+            if i % 2 == 1 then
+                item:SetPoint("TOPLEFT", m, "TOPLEFT", 1, -y)
+                item:SetPoint("TOPRIGHT", m, "TOP", 0, -y)
+            else
+                item:SetPoint("TOPLEFT", m, "TOP", 0, -y)
+                item:SetPoint("TOPRIGHT", m, "TOPRIGHT", -1, -y)
+            end
+            if i % 2 == 0 or i == #Regions() then y = y + ITEM_H end
+        else
+            y = y + ITEM_H
+        end
     end
     return y
 end
 
 local function PaintRegionItems(m)
     local chosen = RegionFilterActive() and ChosenRegions()
-    for _, r in ipairs(REGIONS) do
+    for _, r in ipairs(Regions()) do
         local item = m.items["region_" .. r.key]
         if item then item:SetChecked(chosen and chosen[r.key] == true or false) end
     end

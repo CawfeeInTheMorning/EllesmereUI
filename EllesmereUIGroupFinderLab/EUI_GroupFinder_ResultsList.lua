@@ -389,7 +389,7 @@ local function MakeRow(i)
     r.sep2:SetText("||")
     r.tag = r:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     r.flag = r:CreateTexture(nil, "OVERLAY")
-    r.flag:SetSize(15, 10)
+    r.flag:SetSize(13, 10)
     -- cancel button
     r.cancel = CreateFrame("Button", nil, r)
     r.cancel.bg = r.cancel:CreateTexture(nil, "BACKGROUND")
@@ -540,7 +540,7 @@ local function Layout(r, h)
     if room >= tS + nS + 6 then lines[2] = nS + 2 end
     local gc = GFNS.Cfg and GFNS.Cfg()
     local third = not (gc and gc.cawfeeShowPlaystyle == false)
-        or (gc and gc.cawfeeRegionTags == true and GetCurrentRegion and GetCurrentRegion() == 1)
+        or (gc and gc.cawfeeRegionTags == true and ns.RegionList() ~= nil)
     if lines[2] and third and room >= tS + nS + lS + 10 then lines[3] = lS + 2 end
     local total = 0
     for _, lh in ipairs(lines) do total = total + lh end
@@ -621,7 +621,7 @@ local function LineThree(r, id, info)
         Put(r.tag, 4)
         if flag then
             local fh = math.max(8, ns.OwnListSize("lineSize"))
-            r.flag:SetSize(math.floor(fh * 1.5 + 0.5), fh)
+            r.flag:SetSize(math.floor(fh * 4 / 3 + 0.5), fh)
             r.flag:SetTexture(flag)
             Put(r.flag, 4)
         end
