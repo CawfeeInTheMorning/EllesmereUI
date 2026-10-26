@@ -273,6 +273,39 @@ initFrame:SetScript("OnEvent", function(self)
               getValue = function() return ns.OwnListGet("signupClicks") end,
               setValue = function(v) ns.SetOwnListValue("signupClicks", v) end })
         y = y - h
+        local noteRow
+        noteRow, h = W:DualRow(parent, y,
+            { type = "toggle", text = "Persistent Signup Note",
+              tooltip = "Keeps your typed note between sign ups, and adds a Copy button with your saved note. Edit it with the cog.",
+              getValue = function() return EllesmereUIDB and EllesmereUIDB.persistSignupNote and true or false end,
+              setValue = function(v)
+                  EllesmereUIDB.persistSignupNote = v and true or false
+                  if EUI._applyPersistSignupNote then EUI._applyPersistSignupNote() end
+                  EUI:RefreshPage()
+              end },
+            EUI.BlankRowCfg())
+        y = y - h
+        -- cog: edit the saved note
+        if noteRow and not EUI._prebuilding and EUI.BuildInlineCog then
+            EUI.BuildInlineCog(noteRow._leftRegion, {
+                gap = 9, tip = "Edit the saved signup note.",
+                disabled = function() return not (EllesmereUIDB and EllesmereUIDB.persistSignupNote) end,
+                disabledTooltip = "Persistent Signup Note",
+                show = function()
+                    EUI:ShowInputPopup({
+                        title = "Signup Note",
+                        message = "Saved between reloads. When signing up, choose Copy, press Ctrl+C, then Ctrl+V.",
+                        placeholder = "Enter signup note...",
+                        initialText = EUI.GetPersistentSignupNote and EUI.GetPersistentSignupNote() or "",
+                        maxLetters = 63, inputHeight = 70, multiline = true, showCount = true, allowEmpty = true,
+                        confirmText = "Save",
+                        onConfirm = function(note)
+                            if EUI.SetPersistentSignupNote then EUI.SetPersistentSignupNote(note or "") end
+                        end,
+                    })
+                end,
+            })
+        end
         return y
     end
 

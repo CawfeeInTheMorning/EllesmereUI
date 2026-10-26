@@ -169,12 +169,111 @@ local function SignUpState(id)
     return true
 end
 
+-- persistent signup note. the core helper only wakes with quality of life
+-- loaded, so the lab does its own bits when it's not
+local function NoteOn() return EllesmereUIDB and EllesmereUIDB.persistSignupNote end
+local function CoreNotes() return EUI._ModuleNS and EUI._ModuleNS.EllesmereUIQoL ~= nil end
+local function SavedNote()
+    return EUI.GetPersistentSignupNote and EUI.GetPersistentSignupNote() or ""
+end
+
+-- copy button by the note box: the saved note, ready for ctrl+c (the game
+-- doesn't let addons type into it)
+local copy
+local function HideCopy()
+    if not copy then return end
+    copy.btn:SetText(EUI.L("Copy"))
+    copy.box:Hide()
+    copy.box:ClearFocus()
+end
+local function ShowCopyButton(dlg)
+    if CoreNotes() or not NoteOn() or SavedNote() == "" then
+        if copy then copy:Hide() end
+        return
+    end
+    local desc = dlg.Description
+    if not desc then return end
+    if not copy then
+        copy = CreateFrame("Frame", nil, dlg)
+        copy:SetAllPoints(dlg)
+        copy:EnableMouse(false)
+        local b = CreateFrame("Button", nil, copy)
+        b:SetSize(44, 20)
+        b:SetPoint("LEFT", desc, "RIGHT", 4, 0)
+        b:SetNormalFontObject("GameFontHighlightSmall")
+        b:SetText(EUI.L("Copy"))
+        local skin = EUI._ModuleNS and EUI._ModuleNS.EllesmereUIBlizzardSkin
+        local S = skin and skin.WSkin
+        if S and S.Button then
+            S.Button(b)
+        else
+            local bg = b:CreateTexture(nil, "BACKGROUND")
+            bg:SetAllPoints()
+            bg:SetColorTexture(0.06, 0.06, 0.06, 0.95)
+            EUI.MakeBorder(b, 0.25, 0.25, 0.25, 1, EUI.PanelPP)
+        end
+        local box = CreateFrame("EditBox", nil, copy)
+        box:SetPoint("TOPLEFT", desc, "TOPLEFT", 0, 0)
+        box:SetPoint("BOTTOMRIGHT", desc, "BOTTOMRIGHT", 0, 0)
+        box:SetAutoFocus(false)
+        box:SetFontObject("ChatFontNormal")
+        box:SetTextInsets(5, 5, 0, 0)
+        local bbg = box:CreateTexture(nil, "BACKGROUND")
+        bbg:SetAllPoints()
+        bbg:SetColorTexture(0.03, 0.03, 0.03, 1)
+        box:Hide()
+        box:SetScript("OnEditFocusLost", function() if not b:IsMouseOver() then HideCopy() end end)
+        box:SetScript("OnEscapePressed", HideCopy)
+        box:SetScript("OnKeyUp", function(_, key)
+            -- copied: back to the real note box
+            if key == "C" and IsControlKeyDown() then
+                HideCopy()
+                if desc.EditBox then desc.EditBox:SetFocus() end
+            end
+        end)
+        b:SetScript("OnClick", function()
+            if box:IsShown() then HideCopy() return end
+            box:SetText(SavedNote())
+            box:Show()
+            box:SetFocus()
+            box:HighlightText()
+            b:SetText("Ctrl+C")
+        end)
+        copy.btn, copy.box = b, box
+    end
+    copy:SetFrameLevel(dlg:GetFrameLevel() + 20)
+    copy.btn:SetFrameLevel(copy:GetFrameLevel() + 1)
+    copy.box:SetFrameLevel(copy:GetFrameLevel() + 2)
+    HideCopy()
+    copy:Show()
+end
+
+-- blizzard's show, minus its clearing of the note when the note's kept
+-- (our own copy, blizzard's global is left alone)
+local function ShowDialog(dlg, id)
+    if not NoteOn() then
+        LFGListApplicationDialog_Show(dlg, id)
+        return
+    end
+    dlg.resultID = id
+    dlg.activityID = nil
+    pcall(function()
+        local info = C_LFGList.GetSearchResultInfo(id)
+        local acts = Readable(info) and info.activityIDs
+        local aid = Readable(acts) and acts[1]
+        if not Secret(aid) then dlg.activityID = aid end
+    end)
+    LFGListApplicationDialog_UpdateRoles(dlg)
+    StaticPopupSpecial_Show(dlg)
+end
+
 -- opens blizzard's sign up dialog directly
 local function SignUp(id)
     if not (id and SignUpState(id)) then return end
     local dlg = LFGListApplicationDialog
     if not (LFGListApplicationDialog_Show and dlg) then return end
-    LFGListApplicationDialog_Show(dlg, id)
+    ShowDialog(dlg, id)
+    ShowCopyButton(dlg)
     -- quick signup: auto confirm unless shift (if the core helper
     -- already did it, the dialog's gone)
     if EllesmereUIDB and EllesmereUIDB.quickSignup and not IsShiftKeyDown()

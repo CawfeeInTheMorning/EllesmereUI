@@ -2193,10 +2193,6 @@ XF.GROUP_MENU = {
     { title = EllesmereUI.L("Sign Up") },
     { key = "cancelOldest",   label = EllesmereUI.L("Cancel Oldest Application"),
       tip = EllesmereUI.L("At the application limit, clicking a group cancels your oldest pending application so you can sign up.") },
-    -- The account-wide sign-up helpers, the same settings as Quality of
-    -- Life's rows.
-    { key = "persistSignupNote", label = EllesmereUI.L("Persistent Signup Note"), core = "_applyPersistSignupNote",
-      tip = EllesmereUI.L("Keeps a saved signup note you can copy into the Sign Up dialog with the Copy button.") },
     { title = EllesmereUI.L("Misc") },
     { key = "dungeonAbbr",    label = EllesmereUI.L("Dungeon Names"),
       tip = EllesmereUI.L("Each dungeon square shows the dungeon's short name, Raider.IO's when it's loaded (e.g. KR for Kings' Rest)."),
