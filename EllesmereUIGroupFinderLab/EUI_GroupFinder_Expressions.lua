@@ -1,6 +1,6 @@
 if EUI_CLIENT_BLOCKED then return end -- pre-12.1 client failsafe (EllesmereUI_ClientGate.lua)
 -------------------------------------------------------------------------------
---  Expressions.lua - type a filter like "hasBL and hasBR and healers > 0"
+--  expressions.lua - type a filter like "hasBL and hasBR and healers > 0"
 --  our own little language, parsed into closures: nothing typed ever runs
 --  as lua. saved as cawfeeExpr
 -------------------------------------------------------------------------------
@@ -402,7 +402,7 @@ local function Tag(parent, K, spec, color, onClick)
     return t
 end
 
--- builds the sections once, Layout(width) places them
+-- builds the sections once, layout(width) places them
 local function BuildHelp(panel, K, onClick)
     local help = { sections = {} }
     for _, sec in ipairs(SECTIONS) do

@@ -1,12 +1,10 @@
 if EUI_CLIENT_BLOCKED then return end -- pre-12.1 client failsafe (EllesmereUI_ClientGate.lua)
 -------------------------------------------------------------------------------
 -- EllesmereUIGroupFinder.lua: premade group filters, list tweaks and the M+
--- applications bar. Nothing hooks in until it's enabled.
+-- applications bar. nothing hooks in until it's enabled.
 -------------------------------------------------------------------------------
 local ADDON_NAME, ns = ...
-if not (EllesmereUI and EllesmereUI._ModuleNS and EllesmereUI.Lite and EllesmereUI.HELD_BACK_ADDONS) then EUI_CLIENT_BLOCKED = true; return end -- stale-parent guard: a partially updated install (old parent, new child) goes dormant via the line-1 failsafe instead of erroring
--- Held back from this release (EllesmereUI.HELD_BACK_ADDONS): nothing runs,
--- and with no namespace published the options page never registers.
+if not (EllesmereUI and EllesmereUI._ModuleNS and EllesmereUI.Lite and EllesmereUI.HELD_BACK_ADDONS) then EUI_CLIENT_BLOCKED = true; return end  -- stale-parent guard: a half-updated install goes dormant instead of erroring
 -- lab: never alongside the live group finder
 if C_AddOns.IsAddOnLoaded("EllesmereUIGroupFinder") then
     EllesmereUI.HELD_BACK_ADDONS[ADDON_NAME] = true
@@ -14,10 +12,10 @@ if C_AddOns.IsAddOnLoaded("EllesmereUIGroupFinder") then
 end
 if EllesmereUI.HELD_BACK_ADDONS[ADDON_NAME] then return end
 -- lab: own name, so the live settings page never picks it up
-EllesmereUI._ModuleNS[ADDON_NAME] = ns  -- options file grabs the ns from here
+EllesmereUI._ModuleNS[ADDON_NAME] = ns
 
 local GF = EllesmereUI.Lite.NewAddon(ADDON_NAME)
--- Work on Blizzard frames that waits for combat to end; inert until a Defer.
+-- blizzard frame work that waits for combat to end
 ns.CombatQueue = EllesmereUI.NewCombatQueue(CreateFrame("Frame"))
 
 local DEFAULTS = {
@@ -50,7 +48,7 @@ local db
 
 local function Profile() return db and db.profile end
 
--- Account-wide bits live in EllesmereUIDB.<key>, outside profiles.
+-- account-wide bits, outside profiles
 local function Account(key)
     if not EllesmereUIDB then EllesmereUIDB = {} end
     local t = EllesmereUIDB[key]
@@ -61,7 +59,7 @@ local function Account(key)
     return t
 end
 
--- Account-wide so profile swaps and imports never flip it.
+-- account-wide so profile swaps never flip it
 function ns.Enabled()
     local t = EllesmereUIDB and EllesmereUIDB.groupFinder
     return type(t) == "table" and t.enabled == true or false
@@ -71,13 +69,11 @@ function ns.SetEnabled(v)
     Account("groupFinder").enabled = v and true or false
 end
 
--- True while another premade groups filter that hooks the same panel is loaded:
--- Group Finder can't be turned on then (its page and the login announcement ask).
+-- true while another premade filter hooking the same panel is loaded
 function ns.Blocked()
     return C_AddOns.IsAddOnLoaded("PremadeGroupsFilter") and true or false
 end
 
--- Read-only defaults until the profile's ready.
 local readOnly = { search = setmetatable({}, { __index = DEFAULTS, __newindex = function() end }),
                    apps   = setmetatable({}, { __index = APPS_DEFAULTS, __newindex = function() end }) }
 

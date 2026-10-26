@@ -134,8 +134,8 @@ local function OpenNear(pop, btn, bounds, pad)
     pop:Show()
 end
 
--- arrow button + its list. modes = { label, hint, icon }, Get() = index,
--- Set(i) on pick. caller places it
+-- arrow button + its list. modes = { label, hint, icon }, get() = index,
+-- set(i) on pick. caller places it
 local function Dropdown(owner, K, modes, Get, Set)
     local btn = ArrowButton(owner, K)
     function btn:ShowMode()

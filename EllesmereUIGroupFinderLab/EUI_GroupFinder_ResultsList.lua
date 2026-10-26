@@ -645,7 +645,7 @@ local function Layout(r, h)
     local bpx = tonumber(ns.OwnListGet("borderSize")) or 0
     local gap = 2 + ((ns.OwnListGet("iconShape") ~= "square") and bpx * 2 or 0)  -- room for rings
     local cw = math.max(8, math.floor(isz * 0.6 + 0.5))
-    -- cancel bar goes under the status (placed in Fill)
+    -- cancel bar goes under the status (placed in fill)
     r.cancel:SetHeight(CANCEL_H)
     r.cancel.tex:SetSize(CANCEL_H - 8, CANCEL_H - 8)
     r.cancel:SetFrameLevel(r:GetFrameLevel() + 5)

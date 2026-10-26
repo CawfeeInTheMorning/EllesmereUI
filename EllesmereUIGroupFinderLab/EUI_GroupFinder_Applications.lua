@@ -9,7 +9,6 @@ ADDON_NAME = "EllesmereUIGroupFinder"  -- lab: live module's name, for its fonts
 local CM = EllesmereUI
 
 local IsSecret, PlainString = EllesmereUI.IsSecret, EllesmereUI.PlainString
--- Realm the way UnitFullName returns it.
 local function NormRealm(realm)
     realm = PlainString(realm)
     if not realm then return nil end
@@ -32,7 +31,7 @@ local STATUS_KEY = {
     inviteaccepted = "accepted",
 }
 
--- Bar segments. Invites aren't shown, every invite counts as accepted.
+-- bar segments. invites aren't shown, every invite counts as accepted.
 local SEGMENTS = {
     { key = "accepted",  cfg = "showAccepted",  r = 0.35, g = 0.85, b = 0.40 },
     { key = "declined",  cfg = "showDeclined",  r = 0.95, g = 0.30, b = 0.30 },
@@ -42,8 +41,7 @@ local SEGMENTS = {
 local SCOPES = { "session", "character", "account" }
 local VALID_SCOPE = { session = true, character = true, account = true }
 
--- Tooltip labels and colour escapes, built on the first hover (the locale is
--- ready by then).
+-- tooltip labels, built on first hover
 local tipText
 local function TipText()
     if tipText then return tipText end
@@ -62,7 +60,7 @@ local function TipText()
     return tipText
 end
 
--- Built-in bar textures plus SharedMedia's, built on first use.
+-- bar textures plus sharedmedia's
 local barTextures, barTexNames, barTexOrder
 function ns.BarTextureTables()
     if not barTextures then
@@ -83,7 +81,7 @@ end
 
 local function On() return Get("enabled", false) == true end
 
--- The picked bar texture's file, or nil for a flat colour.
+-- the picked texture's file, nil for flat
 local function TexturePath()
     local key = Get("texture", "none")
     if key == "none" then return nil end
@@ -120,7 +118,7 @@ local function Counts(scope)
 end
 
 -------------------------------------------------------------------------------
--- Card
+-- card
 -------------------------------------------------------------------------------
 local card
 local TITLE_SIZE = 12
@@ -130,7 +128,7 @@ local function Scope()
     return VALID_SCOPE[s] and s or "character"
 end
 
--- Counts use the search box font (12 until it's set).
+-- counts use the search box font
 local function CountFont()
     local sb = _G.LFGListFrame and _G.LFGListFrame.SearchPanel and _G.LFGListFrame.SearchPanel.SearchBox
     local path, size
@@ -139,7 +137,7 @@ local function CountFont()
     return CM.GetFontPath(ADDON_NAME), 12
 end
 
-local tipLines = {}  -- reused per hover
+local tipLines = {}
 local function ShowTip(self)
     local T = TipText()
     local n = 1
@@ -159,7 +157,7 @@ local function ShowTip(self)
 end
 local function HideTip() CM.HideWidgetTooltip() end
 
--- Where the search rows sit, in PVEFrame coordinates.
+-- where the search rows sit
 local function Place()
     local pve = _G.PVEFrame
     local inset = pve and pve.Inset
@@ -190,7 +188,7 @@ local function Layout()
     if not card then return end
     local npath, nsize = CountFont()
     CM.ApplyModuleFont(card.title, nil, TITLE_SIZE, ADDON_NAME, "")
-    -- The Premade Groups title, same size and colour as ours.
+    -- match the premade groups title
     local lbl = _G.LFGListFrame and _G.LFGListFrame.CategorySelection and _G.LFGListFrame.CategorySelection.Label
     if lbl and lbl.GetFont then
         local lpath, lsize, lflags = lbl:GetFont()
@@ -216,11 +214,11 @@ local function Layout()
     Place()
 end
 
-local shares = {}  -- reused per paint
+local shares = {}
 local function Refresh()
     if not (card and card:IsVisible()) then return end
     local c = Counts(Scope())
-    -- Split the bar between the shown outcomes so it always fills.
+    -- split the bar between the shown outcomes
     local total = 0
     for i, seg in ipairs(SEGMENTS) do
         local v = c[seg.key]
@@ -238,7 +236,7 @@ local function Refresh()
         tex:SetPoint("TOPLEFT", bar, "TOPLEFT", x, 0)
         tex:SetPoint("BOTTOMLEFT", bar, "BOTTOMLEFT", x, 0)
         tex:SetWidth(math.max(sw, 0.01))
-        -- Each segment shows its slice of the texture so it reads as one bar.
+        -- each segment shows its slice of the texture
         if textured and w > 0 then tex:SetTexCoord(x / w, (x + sw) / w, 0, 1) end
         tex:SetShown(sw >= 0.5)
         num:SetFormattedText("%d", c[seg.key])
@@ -247,7 +245,7 @@ local function Refresh()
         num:SetShown(sw >= 0.5 and (num:GetStringWidth() or 0) + 4 <= sw)
         x = x + sw
     end
-    card.empty:SetShown(total == 0)  -- nothing counted yet
+    card.empty:SetShown(total == 0)
 end
 
 local BuildCardInto
@@ -264,7 +262,7 @@ BuildCardInto = function()
     local pve = _G.PVEFrame
     if not (host and pve and pve.Inset) then return nil end
 
-    -- Build into a local first so a failure never leaves half a card.
+    -- build into a local so a failure never leaves half a card
     local card = CreateFrame("Frame", nil, host)
     card:SetAllPoints(host)
     card:SetFrameLevel(host:GetFrameLevel() + 5)
@@ -314,13 +312,12 @@ BuildCardInto = function()
     return card
 end
 
--- Only shown on the Dungeons search, the only category it counts.
+-- dungeons search only
 local function InDungeonSearch()
     local sp = _G.LFGListFrame and _G.LFGListFrame.SearchPanel
     return sp and sp:IsShown() and sp.categoryID == (GROUP_FINDER_CATEGORY_ID_DUNGEONS or 2) or false
 end
 
--- The status event is registered only while the bar is on.
 local ev
 local function SyncCountEvent()
     if not ev then return end
@@ -342,7 +339,6 @@ local function Apply()
         if want then
             Layout()
         elseif not on and card.lblSize then
-            -- Off: title back to its own size.
             local lbl = _G.LFGListFrame and _G.LFGListFrame.CategorySelection and _G.LFGListFrame.CategorySelection.Label
             local lpath, _, lflags = lbl and lbl:GetFont()
             if lpath then lbl:SetFont(lpath, card.lblSize, lflags) end
@@ -353,9 +349,9 @@ end
 ns.ApplyApplications = Apply
 
 -------------------------------------------------------------------------------
--- Counting
+-- counting
 -------------------------------------------------------------------------------
-local isMythicPlus = {}  -- resultID -> is a Mythic+ group
+local isMythicPlus = {}  -- resultID -> is a mythic+ group
 local function LookUpMythicPlus(id)
     local info = C_LFGList.GetSearchResultInfo(id)
     if type(info) ~= "table" or IsSecret(info) or (canaccesstable and not canaccesstable(info)) then return nil end
@@ -406,7 +402,7 @@ local function HookPVE()
     local pve = _G.PVEFrame
     if hooked or not pve then return end
     hooked = true
-    -- Next frame, after the skin lays the window out.
+    -- next frame, after the skin lays the window out
     pve:HookScript("OnShow", function() C_Timer.After(0, Apply) end)
     if pve:IsShown() then C_Timer.After(0, Apply) end
     local sp = _G.LFGListFrame and _G.LFGListFrame.SearchPanel
@@ -422,13 +418,12 @@ function ns.Apps_Enable()
     if name then myKey = name .. "-" .. (PlainString(realm) or MyRealm()) end
     local a = Store()
     if time() - (tonumber(a.session.t) or 0) > SESSION_GAP then a.session = Blank() end
-    -- Follow the search rows when they resize.
     if ns.Search_Layout then hooksecurefunc(ns, "Search_Layout", Apply) end
     ev = CreateFrame("Frame")
     ev:RegisterEvent("PLAYER_LOGOUT")
     ev:SetScript("OnEvent", function(self, event, ...)
         if event == "LFG_LIST_APPLICATION_STATUS_UPDATED" then
-            -- Live check: a profile swap can turn the bar off before the next Apply.
+            -- a profile swap can turn the bar off before the next apply
             if On() then
                 local id, status, oldStatus = ...
                 Count(PlainString(status), PlainString(oldStatus), id)
