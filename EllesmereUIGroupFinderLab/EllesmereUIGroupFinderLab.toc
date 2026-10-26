@@ -5,7 +5,7 @@
 ## Group: EllesmereUI
 ## Notes: Cawfee's test version of Premade Group search filters, listing, and application tools. Separate settings from the live version. Only have one of those modules active at a time.
 ## Author: Ellesmere, MorningCawfee
-## Version: 9.6.6-lab
+## Version: 9.6.9-lab
 ## Dependencies: EllesmereUI
 ## SavedVariables: EllesmereUIGroupFinderLabDB
 ## IconTexture: Interface\AddOns\EllesmereUI\media\eg-logo.tga
