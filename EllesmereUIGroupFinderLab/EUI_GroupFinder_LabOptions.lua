@@ -275,22 +275,16 @@ initFrame:SetScript("OnEvent", function(self)
         y = y - h
         local noteRow
         noteRow, h = W:DualRow(parent, y,
-            { type = "toggle", text = "Persistent Signup Note",
-              tooltip = "Keeps your typed note between sign ups, and adds a Copy button with your saved note. Edit it with the cog.",
-              getValue = function() return EllesmereUIDB and EllesmereUIDB.persistSignupNote and true or false end,
-              setValue = function(v)
-                  EllesmereUIDB.persistSignupNote = v and true or false
-                  if EUI._applyPersistSignupNote then EUI._applyPersistSignupNote() end
-                  EUI:RefreshPage()
-              end },
+            -- the switch is in the group settings menu, the note's edited here
+            { type = "label", text = "Signup Note" },
             EUI.BlankRowCfg())
         y = y - h
         -- cog: edit the saved note
         if noteRow and not EUI._prebuilding and EUI.BuildInlineCog then
-            EUI.BuildInlineCog(noteRow._leftRegion, {
-                gap = 9, tip = "Edit the saved signup note.",
-                disabled = function() return not (EllesmereUIDB and EllesmereUIDB.persistSignupNote) end,
-                disabledTooltip = "Persistent Signup Note",
+            local rgn = noteRow._leftRegion
+            EUI.BuildInlineCog(rgn, {
+                gap = 20, anchorTo = rgn, relPoint = "RIGHT",  -- a label row has no control to sit by
+                tip = "Edit the saved signup note.",
                 show = function()
                     EUI:ShowInputPopup({
                         title = "Signup Note",

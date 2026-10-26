@@ -2193,6 +2193,8 @@ XF.GROUP_MENU = {
     { title = EllesmereUI.L("Sign Up") },
     { key = "cancelOldest",   label = EllesmereUI.L("Cancel Oldest Application"),
       tip = EllesmereUI.L("At the application limit, clicking a group cancels your oldest pending application so you can sign up.") },
+    { key = "persistSignupNote", label = EllesmereUI.L("Persistent Signup Note"), core = "_applyPersistSignupNote",
+      tip = EllesmereUI.L("Keeps a saved signup note you can copy into the Sign Up dialog with the Copy button. Edit the note in the Group Finder Lab settings.") },
     { title = EllesmereUI.L("Misc") },
     { key = "dungeonAbbr",    label = EllesmereUI.L("Dungeon Names"),
       tip = EllesmereUI.L("Each dungeon square shows the dungeon's short name, Raider.IO's when it's loaded (e.g. KR for Kings' Rest)."),
@@ -3037,8 +3039,8 @@ local function CogFilterButton(btn)
     -- lab: our own fixed-size face. blizzard's button grows with its text and
     -- only shrinks out of combat, so the row anchors to this
     btn:SetAlpha(0)
-    d.face = CreateFrame("Frame", nil, SP)
-    d.face:SetSize(BTN, BTN)
+    d.face = SkinnedButton(SP, BTN, BTN)  -- the skin's button look
+    d.face:EnableMouse(false)  -- the catcher takes clicks
     d.face:SetFrameLevel(row:GetFrameLevel() + 3)
     d.cogFrame = CreateFrame("Frame", nil, d.face)
     d.cogFrame:SetAllPoints(d.face)
