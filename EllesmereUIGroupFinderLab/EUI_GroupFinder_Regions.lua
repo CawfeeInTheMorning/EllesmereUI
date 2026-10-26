@@ -46,7 +46,8 @@ local SETS = {
             { key = "ru", label = L("Russian"),    tag = "RU", r = 1,    g = 0.35, b = 0.35 },
         },
         language = true,  -- filter titled language, short names in two columns
-        -- eu realms by language, english is everything else
+        -- eu realms by language, english is everything else. accents and cyrillic
+        -- are byte escapes (the repo keeps lua files ascii)
         realms = {
             de = {
                 "aegwynn", "alexstrasza", "alleria", "amanthul", "ambossar", "anetheron",
@@ -55,7 +56,7 @@ local SETS = {
                 "dassyndikat", "derabyssischerat", "dermithrilorden", "derratvondalaran",
                 "destromath", "dethecus", "diealdor", "diearguswacht", "dieewigewacht",
                 "dienachtwache", "diesilbernehand", "dietodeskrallen", "dunmorogh", "durotan",
-                "echsenkessel", "eredar", "festungderstürme", "forscherliga", "frostmourne",
+                "echsenkessel", "eredar", "festungderst\195\188rme", "forscherliga", "frostmourne",
                 "frostwolf", "garrosh", "gilneas", "gorgonnash", "guldan", "kargath", "kelthuzad",
                 "khazgoroth", "kiljaeden", "kragjin", "kultderverdammten", "lordaeron", "lothar",
                 "madmortem", "malfurion", "malganis", "malorne", "malygos", "mannoroth", "mugthol",
@@ -66,12 +67,12 @@ local SETS = {
                 "wrathbringer", "ysera", "zirkeldescenarius", "zuluhed"
             },
             fr = {
-                "arakarahm", "arathi", "archimonde", "chantséternels", "cho’gall",
-                "confrérieduthorium", "conseildesombres", "cultedelarivenoire", "dalaran",
+                "arakarahm", "arathi", "archimonde", "chants\195\169ternels", "cho\226\128\153gall",
+                "confr\195\169rieduthorium", "conseildesombres", "cultedelarivenoire", "dalaran",
                 "drekthar", "eitrigg", "eldrethalas", "elune", "garona", "hyjal", "illidan",
-                "kaelthas", "khazmodan", "kirintor", "krasus", "lacroisadeécarlate",
-                "lesclairvoyants", "lessentinelles", "marécagedezangar", "medivh", "naxxramas",
-                "ner’zhul", "rashgarroth", "sargeras", "sinstralis", "suramar", "templenoir",
+                "kaelthas", "khazmodan", "kirintor", "krasus", "lacroisade\195\169carlate",
+                "lesclairvoyants", "lessentinelles", "mar\195\169cagedezangar", "medivh", "naxxramas",
+                "ner\226\128\153zhul", "rashgarroth", "sargeras", "sinstralis", "suramar", "templenoir",
                 "throkferoth", "uldaman", "varimathras", "voljin", "ysondre"
             },
             es = {
@@ -79,19 +80,19 @@ local SETS = {
                 "sanguino", "shendralar", "tyrande", "uldum", "zuljin"
             },
             it = {
-                "nemesis", "pozzodelleternità"
+                "nemesis", "pozzodelleternit\195\160"
             },
             pt = {
-                "aggraportuguês"
+                "aggraportugu\195\170s"
             },
             ru = {
-                "Азурегос", "Борейскаятундра", "ВечнаяПесня",
-                "Галакронд", "Голдринн", "Гордунни", "Гром",
-                "Дракономор", "Корольлич", "ПиратскаяБухта",
-                "Подземье", "Разувий", "Ревущийфьорд",
-                "СвежевательДуш", "Седогрив", "СтражСмерти",
-                "Термоштепсель", "ТкачСмерти", "ЧерныйШрам",
-                "Ясеневыйлес"
+                "\208\144\208\183\209\131\209\128\208\181\208\179\208\190\209\129", "\208\145\208\190\209\128\208\181\208\185\209\129\208\186\208\176\209\143\209\130\209\131\208\189\208\180\209\128\208\176", "\208\146\208\181\209\135\208\189\208\176\209\143\208\159\208\181\209\129\208\189\209\143",
+                "\208\147\208\176\208\187\208\176\208\186\209\128\208\190\208\189\208\180", "\208\147\208\190\208\187\208\180\209\128\208\184\208\189\208\189", "\208\147\208\190\209\128\208\180\209\131\208\189\208\189\208\184", "\208\147\209\128\208\190\208\188",
+                "\208\148\209\128\208\176\208\186\208\190\208\189\208\190\208\188\208\190\209\128", "\208\154\208\190\209\128\208\190\208\187\209\140\208\187\208\184\209\135", "\208\159\208\184\209\128\208\176\209\130\209\129\208\186\208\176\209\143\208\145\209\131\209\133\209\130\208\176",
+                "\208\159\208\190\208\180\208\183\208\181\208\188\209\140\208\181", "\208\160\208\176\208\183\209\131\208\178\208\184\208\185", "\208\160\208\181\208\178\209\131\209\137\208\184\208\185\209\132\209\140\208\190\209\128\208\180",
+                "\208\161\208\178\208\181\208\182\208\181\208\178\208\176\209\130\208\181\208\187\209\140\208\148\209\131\209\136", "\208\161\208\181\208\180\208\190\208\179\209\128\208\184\208\178", "\208\161\209\130\209\128\208\176\208\182\208\161\208\188\208\181\209\128\209\130\208\184",
+                "\208\162\208\181\209\128\208\188\208\190\209\136\209\130\208\181\208\191\209\129\208\181\208\187\209\140", "\208\162\208\186\208\176\209\135\208\161\208\188\208\181\209\128\209\130\208\184", "\208\167\208\181\209\128\208\189\209\139\208\185\208\168\209\128\208\176\208\188",
+                "\208\175\209\129\208\181\208\189\208\181\208\178\209\139\208\185\208\187\208\181\209\129"
             },
         },
         default = "en",
