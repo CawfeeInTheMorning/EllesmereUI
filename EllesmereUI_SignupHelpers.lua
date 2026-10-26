@@ -332,7 +332,7 @@ boot:SetScript("OnEvent", function(self)
     -- Only while a module with the option rows is loaded; with neither, the
     -- API stays inert and nothing is hooked.
     local hosts = EllesmereUI._ModuleNS
-    if not (hosts.EllesmereUIQoL or hosts.EllesmereUIGroupFinder or hosts.EllesmereUIGroupFinderLab) then return end
+    if not (hosts.EllesmereUIQoL or hosts.EllesmereUIGroupFinder) then return end
     vanilla = LFGListApplicationDialog_Show
     ready = true
     EllesmereUI._applyQuickSignup()
