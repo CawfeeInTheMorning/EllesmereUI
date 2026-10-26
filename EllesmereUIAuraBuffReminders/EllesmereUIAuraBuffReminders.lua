@@ -13,13 +13,18 @@ local EABR = EllesmereUI.Lite.NewAddon("EllesmereUIAuraBuffReminders")
 
 -- WoW Forever runs a reduced module: the Raid Buffs section over that client's
 -- four buffs (EABR.CollectForeverRaidBuffs) and one Forever-only section (the
--- Camp Benefits campfire buff plus custom spell IDs) collected by
--- EABR.CollectForever, with every other retail collector, its events and its
--- options sections off. Both values live on EABR, where every split file
--- reads them; retail reads FOREVER as false at each gate and nothing else
--- changes there.
+-- Camp Benefits campfire buff, gathering tracking, Find Treasure and custom
+-- spell IDs) collected by EABR.CollectForever, with every other retail
+-- collector, its events and its options sections off. Both values live on
+-- EABR, where every split file reads them; retail reads FOREVER as false at
+-- each gate and nothing else changes there.
 EABR.FOREVER = EllesmereUI.IS_FOREVER == true
 EABR.CAMP_BENEFITS = 1229741
+-- WoW Forever gathering trackers, in cast preference order: Find Herbs, Find
+-- Minerals. Both are self-buffs there and share one slot with the class
+-- trackers. Find Treasure (Dwarf) is no aura and stacks with any of them.
+EABR.GATHER_TRACKING = { 2383, 2580 }
+EABR.FIND_TREASURE = 2481
 EABR.WELL_FED = 19705
 -- Food buffs not named Well Fed (Grilled Squid, Nightfin Soup, Runn Tum Tuber Surprise,
 -- Dirge's Chops, Blessed Sunfruit and its juice): counted by ID, since their names are
@@ -27,7 +32,12 @@ EABR.WELL_FED = 19705
 EABR.FOOD_BUFFS = { 18192, 18194, 22730, 25661, 18125, 18141 }
 
 local _B = {}  -- beacon state table, populated later
-local Known = function(id) return id and (IsPlayerSpell(id) or IsSpellKnown(id)) end
+-- The two spellbook checks Blizzard's IsPlayerSpell / IsSpellKnown wrap, called
+-- directly: those globals exist only while the loadDeprecationFallbacks CVar is on.
+local Known = function(id)
+    return id and (C_SpellBook.IsSpellKnown(id)
+        or C_SpellBook.IsSpellInSpellBook(id, Enum.SpellBookSpellBank.Player, false))
+end
 local _eabrInCombat = false
 local InCombat = function() return _eabrInCombat or (InCombatLockdown and InCombatLockdown()) end
 -- Whether important buffs ride the cursor right now: Attach Important Buffs to
@@ -173,7 +183,7 @@ end
 -------------------------------------------------------------------------------
 --  Instance / Difficulty helpers: cached per-frame, call CacheInstanceInfo() at the start of Refresh().
 -------------------------------------------------------------------------------
-local _cachedIType, _cachedDiffID, _cachedMapID
+local _cachedIType, _cachedDiffID, _cachedInstanceID
 
 -- "Pre-pull" state for the elevated Mythic-0 / keystone-lobby threshold
 -- (EABR.GetShowUnderMinutes' showUnderMPlus). True from the moment you zone
@@ -181,24 +191,28 @@ local _cachedIType, _cachedDiffID, _cachedMapID
 -- that dungeon visit so the wide top-up window doesn't keep re-triggering
 -- between pulls (it would otherwise use the pre-key threshold, up to 40 min
 -- by default, for the entire run instead of just the lobby). Reset whenever
--- the map changes (new dungeon / left the instance). Covers both real
--- Mythic 0 (diff 23) and the pre-key Mythic Keystone lobby (diff 8, before
--- the timer starts) -- see InPreKeyDungeon() below.
+-- the instance changes (new dungeon / left the instance; a floor change
+-- inside one dungeon keeps it). Covers both real Mythic 0 (diff 23) and the
+-- pre-key Mythic Keystone lobby (diff 8, before the timer starts) -- see
+-- InPreKeyDungeon() below.
 local _dungeonPrePull = true
 
 local function CacheInstanceInfo()
-    -- The eleventh return flags World Tier scaled content (Lairs, every tier).
-    local _, iType, diffID, _, _, _, _, _, _, _, hasWorldTier = GetInstanceInfo()
+    -- The eighth return is the instance's ID, the eleventh flags World Tier
+    -- scaled content (Lairs, every tier).
+    local _, iType, diffID, _, _, _, _, instanceID, _, _, hasWorldTier = GetInstanceInfo()
     _cachedIType = iType
     _cachedDiffID = tonumber(diffID) or 0
     EABR._cachedDiffID = _cachedDiffID
     EABR._cachedWorldTier = hasWorldTier == true
-    if EABR.FOREVER then return end  -- the map lookup only serves the pre-key threshold window
-    local mapID = C_Map and C_Map.GetBestMapForUnit and C_Map.GetBestMapForUnit("player") or nil
-    if mapID ~= _cachedMapID then
+    if EABR.FOREVER then return end  -- the instance check only serves the pre-key threshold window
+    -- The instance ID, never a map lookup: this runs on every refresh, and the
+    -- game client itself crashes inside C_Map.GetBestMapForUnit in places
+    -- (Murder Row on 12.1.5, whatever addon or Blizzard frame asks).
+    if instanceID ~= _cachedInstanceID then
         _dungeonPrePull = true
     end
-    _cachedMapID = mapID
+    _cachedInstanceID = instanceID
 end
 
 -- Called from PLAYER_REGEN_DISABLED: once you've actually pulled, the
