@@ -298,6 +298,16 @@ end
 -------------------------------------------------------------------------------
 --  right-click menu
 -------------------------------------------------------------------------------
+-- a player link in chat: clicking it is blizzard's own whisper, so nothing of ours
+-- touches the chat box (opening it from here taints the chat type)
+local function WhisperLeader(leader)
+    local name = EUI.BuildFullName(leader) or leader
+    local frame = DEFAULT_CHAT_FRAME
+    if not (name and frame) then return end
+    local link = "|Hplayer:" .. name .. "|h[" .. name .. "]|h"
+    frame:AddMessage(EllesmereUI.Lf("Click to whisper the group leader: %1$s", link), 1, 0.82, 0)
+end
+
 function ns.OwnListMenu(anchor, id)
     if not EUI.ShowContextMenu then return end
     local info = C_LFGList.GetSearchResultInfo(id)
@@ -307,8 +317,9 @@ function ns.OwnListMenu(anchor, id)
     local items = {
         { text = WHISPER_LEADER or "Whisper Leader", noLoc = true,
           isDisabled = function() return not leader end,
+          desc = EllesmereUI.L("Prompts in chat to whisper the party leader."),
           tooltip = not leader and (LFG_LIST_MUST_SIGN_UP_TO_WHISPER or "Sign up to whisper the leader") or nil,
-          onClick = function() ChatFrameUtil.SendTell(leader) end },
+          onClick = function() WhisperLeader(leader) end },
         "---",
         { text = LFG_LIST_REPORT_GROUP_FOR or "Report Group", noLoc = true,
           onClick = function() LFGList_ReportListing(id, leader) end },
