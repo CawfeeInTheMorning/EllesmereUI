@@ -93,6 +93,7 @@ local function StartAddon()
     local _bagDragging = false
     local _bagDragStartCX, _bagDragStartCY = 0, 0
     local _bagDragStartLeft, _bagDragStartTop = 0, 0
+    local _bagDragLastCX, _bagDragLastCY
     local _bagDragFrame = CreateFrame("Frame")
     _bagDragFrame:Hide()
     _bagDragFrame:SetScript("OnUpdate", function(self)
@@ -111,10 +112,13 @@ local function StartAddon()
             return
         end
         local cx, cy = GetCursorPosition()
+        -- cursor didn't move: leave the window alone (every move re-lays out all its slots)
+        if cx == _bagDragLastCX and cy == _bagDragLastCY then return end
+        _bagDragLastCX, _bagDragLastCY = cx, cy
         local es = EUI_Bags:GetEffectiveScale()
         local newLeft = _bagDragStartLeft + (cx / es - _bagDragStartCX)
         local newTop = _bagDragStartTop + (cy / es - _bagDragStartCY)
-        EUI_Bags:ClearAllPoints()
+        -- same anchor point, so this moves it in place (mouse down set the anchor)
         EUI_Bags:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", newLeft, newTop)
     end)
     EUI_Bags:SetScript("OnMouseDown", function(self, button)
@@ -131,6 +135,10 @@ local function StartAddon()
         _bagDragStartLeft = self:GetLeft()
         _bagDragStartTop = self:GetTop()
         if not _bagDragStartLeft or not _bagDragStartTop then return end
+        -- one anchor for the whole drag; OnUpdate just moves it
+        self:ClearAllPoints()
+        self:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", _bagDragStartLeft, _bagDragStartTop)
+        _bagDragLastCX, _bagDragLastCY = cx, cy
         _bagDragging = true
         _bagDragFrame:Show()
     end)
