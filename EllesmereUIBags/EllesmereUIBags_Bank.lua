@@ -25,7 +25,8 @@ end
 -------------------------------------------------------------------------------
 --  Constants
 -------------------------------------------------------------------------------
-local SLOT_SIZE, SPACING = 34, 4
+local SLOT_SIZE, SPACING = ns.SLOT_SIZE, ns.SPACING
+ns.OnSlotMetrics(function(m) SLOT_SIZE, SPACING = m[1], m[2] end)
 local HEADER_H    = 35
 local FOOTER_H    = 32
 local SIDEBAR_W   = 160
@@ -428,7 +429,7 @@ if EUI.IS_FOREVER then
     local function GetOrCreateBagSlot(idx)
         if slots[idx] then return slots[idx] end
         local btn = CreateFrame("Button", nil, bagsWin)
-        btn:SetSize(SLOT_SIZE, SLOT_SIZE)
+        ns.SizeSlot(btn)
         btn:RegisterForClicks("LeftButtonUp", "RightButtonUp")
         btn:RegisterForDrag("LeftButton")
         btn.icon = btn:CreateTexture(nil, "ARTWORK")
@@ -1471,7 +1472,7 @@ local function GetOrCreateBankSlot(idx)
     if _bankSlots[idx] then return _bankSlots[idx] end
     if InCombatLockdown() then QueueBankRetry(); return nil end
     local slotParent = CreateFrame("Frame", nil, EUI_Bank)
-    slotParent:SetSize(SLOT_SIZE, SLOT_SIZE)
+    ns.SizeSlot(slotParent)
     local btn = CreateFrame("ItemButton", nil, slotParent, "ContainerFrameItemButtonTemplate")
     ns.PinItemButton(btn, EUI_Bank)
     btn:SetAllPoints(slotParent)
@@ -2098,10 +2099,15 @@ local _bankListGripCfg = setmetatable({
         UpdateThumb()
     end,
 }, { __index = _bankGripCfg })
+ns.OnSlotMetrics(function(m)
+    _bankGripCfg.step = m[1] + m[2]
+    rawset(_bankListGripCfg, "relayoutStep", m[1] + m[2])
+end)
 
 local BuildBankSidebar  -- defined further down
 function EUI_Bank:RefreshBank()
     if not EUI_Bank:IsVisible() then return end
+    ns.ApplySlotMetrics()
     ns.ApplyWindowBackground(bgAtlas, bgOverlay)
     NotifyBankTypeForTSM()
 
