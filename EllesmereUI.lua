@@ -4023,6 +4023,8 @@ initFrame:SetScript("OnEvent", function(self, event)
 
         proxy:SetScript("OnHide", function(self)
             if closing then return end
+            -- hidden along with the whole ui (alt-z): not an escape press, close nothing
+            if self:IsShown() then return end
             if ModalOpen() then RefreshProxy(); return end
             -- Controller Back (a real Hide, the gamepad pointer in control):
             -- close everything now, newest controller-counted window first.

@@ -974,8 +974,12 @@ local function StartAddon()
         end
     end)
 
+    -- every open gets the window scale, not just the toggle (the bank opens the bags directly)
+    EUI_Bags:HookScript("OnShow", ApplyBagScale)
+
     EUI_Bags:HookScript("OnHide", function()
-        EUI_BagsWindow:Hide()
+        -- the bag bar closes with the bags, not with a hidden ui (it hides along with it)
+        if not EUI_Bags:IsShown() then EUI_BagsWindow:Hide() end
         -- Controller cursor: the carried-item watch lives only while the bags are open.
         local watch = EUI_Bags._padCursorWatch
         if watch then
