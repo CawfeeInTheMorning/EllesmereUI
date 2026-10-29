@@ -135,6 +135,27 @@ local function AppStatus(id)
     return status, pending
 end
 
+-- when each pending application went in. blizzard hands back the time left
+-- (applications time out after 5 min), so a reload still counts from the start
+local APP_TIMEOUT = 300
+local appliedAt = {}
+local function SignedUpAt(id)
+    local _, status, pending, left = C_LFGList.GetApplicationInfo(id)
+    if Secret(status) or Secret(pending) or Secret(left) or status ~= "applied" then
+        appliedAt[id] = nil
+        return nil
+    end
+    if not appliedAt[id] then
+        local gone = type(left) == "number" and math.max(0, APP_TIMEOUT - left) or 0
+        appliedAt[id] = GetTime() - gone
+    end
+    return appliedAt[id]
+end
+local function Elapsed(at)
+    local s = math.max(0, math.floor(GetTime() - at))
+    return string.format("%d:%02d", math.floor(s / 60), s % 60)
+end
+
 -- blizzard's row check, plus the relisted case
 local function Selectable(id)
     local status, pending = AppStatus(id)
@@ -401,6 +422,9 @@ local function MakeRow(i)
     r.tag = r:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     r.flag = r:CreateTexture(nil, "OVERLAY")
     r.flag:SetSize(13, 10)
+    r.sep3 = r:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+    r.sep3:SetText("||")
+    r.timer = r:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     -- cancel button
     r.cancel = CreateFrame("Button", nil, r)
     r.cancel.bg = r.cancel:CreateTexture(nil, "BACKGROUND")
@@ -544,7 +568,7 @@ local function Layout(r, h)
     local tS, nS, lS = ns.OwnListSize("titleSize"), ns.OwnListSize("nameSize"), ns.OwnListSize("lineSize")
     SetSize(r.name, tS)
     SetSize(r.act, nS)
-    for _, fs in ipairs({ r.sep1, r.style, r.sep2, r.tag }) do SetSize(fs, lS) end
+    for _, fs in ipairs({ r.sep1, r.style, r.sep2, r.tag, r.sep3, r.timer }) do SetSize(fs, lS) end
     -- title always fits, then the dungeon, then line three
     local room = h - 4
     local lines = { tS + 2 }
@@ -601,9 +625,10 @@ local function Layout(r, h)
     r.act:SetPoint("RIGHT", r.status, "LEFT", -8, 0)
 end
 
--- line three: playstyle | region
+-- line three: playstyle | region | time since you signed up
 local function LineThree(r, id, info)
-    for _, p in ipairs({ r.sep1, r.style, r.sep2, r.tag, r.flag }) do p:Hide() end
+    for _, p in ipairs({ r.sep1, r.style, r.sep2, r.tag, r.flag, r.sep3, r.timer }) do p:Hide() end
+    r.signedAt = nil
     if (r.lines or 0) < 3 then return end
     local style = ""
     local ps = info.generalPlaystyle
@@ -636,6 +661,13 @@ local function LineThree(r, id, info)
             r.flag:SetTexture(flag)
             Put(r.flag, 4)
         end
+    end
+    local at = SignedUpAt(id)
+    if at then
+        if prev then Put(r.sep3, 4) end
+        r.timer:SetText(Elapsed(at))
+        Put(r.timer, 4)
+        r.signedAt = at
     end
 end
 
@@ -1031,6 +1063,16 @@ local function Build()
     if SP.SearchingSpinner then hooksecurefunc(SP.SearchingSpinner, "SetAlpha", HoldHidden) end
     hooksecurefunc("LFGListSearchPanel_UpdateResults", function(panel)
         if panel == SP then ns.OwnListRefresh() end
+    end)
+    -- sign up timers tick once a second, just their text
+    local tick = 0
+    frame:SetScript("OnUpdate", function(_, dt)
+        tick = tick + dt
+        if tick < 1 then return end
+        tick = 0
+        for _, r in ipairs(rows) do
+            if r.signedAt and r:IsShown() then r.timer:SetText(Elapsed(r.signedAt)) end
+        end
     end)
     frame:SetScript("OnEvent", function(_, event)
         if event == "LFG_LIST_SEARCH_RESULT_UPDATED" or event == "LFG_LIST_APPLICATION_STATUS_UPDATED" then
