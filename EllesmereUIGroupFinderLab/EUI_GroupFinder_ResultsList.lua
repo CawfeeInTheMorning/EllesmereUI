@@ -14,7 +14,7 @@ local EUI = EllesmereUI
 local DUNGEONS, RAIDS = 2, 3
 local DELVES = GROUP_FINDER_CATEGORY_ID_DELVES or 121
 local X_TEX = "Interface\\AddOns\\EllesmereUI\\media\\icons\\eui-close.png"
-local CANCEL_H = 18  -- cancel bar under the pending text
+local CANCEL_H = 18  -- smallest cancel square
 local GAP = 2
 local function Secret(v) return issecretvalue and issecretvalue(v) or false end
 local function Readable(t) return type(t) == "table" and not Secret(t) and not (canaccesstable and not canaccesstable(t)) end
@@ -602,9 +602,11 @@ local function Layout(r, h)
     local bpx = tonumber(ns.OwnListGet("borderSize")) or 0
     local gap = 2 + ((ns.OwnListGet("iconShape") ~= "square") and bpx * 2 or 0)  -- room for rings
     local cw = math.max(8, math.floor(isz * 0.6 + 0.5))
-    -- cancel bar goes under the status (placed in fill)
-    r.cancel:SetHeight(CANCEL_H)
-    r.cancel.tex:SetSize(CANCEL_H - 8, CANCEL_H - 8)
+    -- cancel square left of the text, about two lines tall (placed in fill)
+    local cs = math.max(CANCEL_H, math.min(h - 8, tS + nS + 6))
+    r.cancel:SetSize(cs, cs)
+    r.cancel.tex:SetSize(math.floor(cs * 0.45 + 0.5), math.floor(cs * 0.45 + 0.5))
+    r.cancelSize = cs
     r.cancel:SetFrameLevel(r:GetFrameLevel() + 5)
     SetSize(r.score, ns.OwnListSize("scoreSize"))
     local x = -pad - ((ns.OwnListGet("iconShape") ~= "square") and bpx or 0)
@@ -642,7 +644,7 @@ local function LineThree(r, id, info)
     local function Put(p, gap)
         p:ClearAllPoints()
         if prev then p:SetPoint("LEFT", prev, "RIGHT", gap, 0)
-        else p:SetPoint("TOPLEFT", r, "TOPLEFT", r.pad, -r.lineY[3]) end
+        else p:SetPoint("TOPLEFT", r, "TOPLEFT", r.textX or r.pad, -r.lineY[3]) end
         p:Show()
         prev = p
     end
@@ -685,6 +687,20 @@ local function Fill(r, id)
     if ns.LabNameColor then nr, ng, nb = ns.LabNameColor(id, info, ai) end  -- "and" would drop g and b
     if nr then r.name:SetTextColor(nr, ng, nb) else r.name:SetTextColor(1, 0.82, 0) end
     r.act:SetText(ai and ai.fullName or "")
+    -- signed up: the cancel square sits left of the text, which moves over for it
+    local appStatus = AppStatus(id)
+    local canCancel = appStatus == "applied"
+    local x0 = r.pad or 6
+    r.cancel:ClearAllPoints()
+    if canCancel then
+        r.cancel:SetPoint("LEFT", r, "LEFT", x0, 0)
+        x0 = x0 + (r.cancelSize or CANCEL_H) + 6
+    end
+    r.cancel:SetShown(canCancel)
+    r.textX = x0
+    if r.act:IsShown() then
+        r.act:SetPoint("TOPLEFT", r, "TOPLEFT", x0, -(r.lineY and r.lineY[2] or 0))
+    end
     local short = (r.lines or 0) < 2 and ai and ns.LabShortName(act, ai.mapID, nil, ai.fullName, not Secret(info.leaderName) and info.leaderName or nil)
     if short and short ~= "" then
         local ok, path, size, flags = pcall(r.name.GetFont, r.name)
@@ -692,12 +708,12 @@ local function Fill(r, id)
         r.short:SetTextColor(r.act:GetTextColor())
         r.short:SetText(short)
         r.short:ClearAllPoints()
-        r.short:SetPoint("TOPLEFT", r, "TOPLEFT", r.pad or 6, -(r.lineY and r.lineY[1] or 0))
+        r.short:SetPoint("TOPLEFT", r, "TOPLEFT", x0, -(r.lineY and r.lineY[1] or 0))
         r.short:Show()
         r.name:SetPoint("TOPLEFT", r.short, "TOPRIGHT", 4, 0)
     else
         r.short:Hide()
-        r.name:SetPoint("TOPLEFT", r, "TOPLEFT", r.pad or 6, -(r.lineY and r.lineY[1] or 0))
+        r.name:SetPoint("TOPLEFT", r, "TOPLEFT", x0, -(r.lineY and r.lineY[1] or 0))
     end
     LineThree(r, id, info)
     local Opt = ns.LabOpt or function() return true end
@@ -711,7 +727,6 @@ local function Fill(r, id)
     else
         r.score:SetText("")
     end
-    local appStatus = AppStatus(id)
     local st = appStatus and STATUS[appStatus]
     local delisted = info.isDelisted
     if not Secret(delisted) and delisted then st = STATUS.declined_delisted end  -- secret check first
@@ -723,15 +738,6 @@ local function Fill(r, id)
     else
         r.status:SetText("")
     end
-    -- cancel bar under pending, pair centered
-    local canCancel = appStatus == "applied"
-    r.status:SetPoint("RIGHT", r.score, "LEFT", -8, canCancel and math.floor((CANCEL_H + 2) / 2) or 0)
-    if canCancel then
-        r.cancel:ClearAllPoints()
-        r.cancel:SetPoint("TOPLEFT", r.status, "BOTTOMLEFT", 0, -2)
-        r.cancel:SetPoint("TOPRIGHT", r.status, "BOTTOMRIGHT", 0, -2)
-    end
-    r.cancel:SetShown(canCancel)
     -- underline per status
     local line = st and LINE_OF[st]
     if line and ns.OwnListGet(line[1]) ~= false then
