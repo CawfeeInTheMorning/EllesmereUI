@@ -531,7 +531,7 @@ local function Classified(list, bags, src)
                 local _, _, _, _, instIcon, classID = GetItemInfoInstant(id or str)
                 items[#items + 1] = {
                     str = str, id = id, name = name, lower = name:lower(), q = q or 1,
-                    icon = icon or instIcon, cat = idx, n = (t.counts and t.counts[slot]) or 1,
+                    icon = icon or instIcon, cat = idx, n = (t.counts and t.counts[slot]) or 1, pos = pos, slot = slot,
                     gear = classID == ITEM_CLASS_WEAPON or classID == ITEM_CLASS_ARMOR,
                 }
             end
@@ -689,6 +689,35 @@ local function PaintCount(v)
     end
 end
 
+-- onebag (-1) / multibag (-2) in the bags sidebar: bag sections in bag:slot
+-- order, like the live views. onebag merges bags 0-4 into Main Bags
+local function BagSections(items, multi)
+    local by = {}
+    for _, it in ipairs(items) do
+        local k = (it.pos == 6 or multi) and it.pos or 1
+        by[k] = by[k] or {}
+        local list = by[k]
+        list[#list + 1] = it
+    end
+    local groups = {}
+    for k = 1, 6 do
+        local list = by[k]
+        if list then
+            table.sort(list, function(a, b)
+                if a.pos ~= b.pos then return a.pos < b.pos end
+                return a.slot < b.slot
+            end)
+            local name
+            if k == 6 then name = EllesmereUI.L("Reagent Bag")
+            elseif not multi then name = EllesmereUI.L("Main Bags")
+            elseif k == 1 then name = EllesmereUI.L("Backpack")
+            else name = EllesmereUI.Lf("Bag %d", k - 1) end
+            groups[#groups + 1] = { name = name, items = list }
+        end
+    end
+    return groups
+end
+
 -- force: paint even if the signature didn't change (item data landed)
 Paint = function(v, force)
     if not (v.panel and v.panel:IsShown()) then return end
@@ -717,7 +746,13 @@ Paint = function(v, force)
     local items, used, total = Collect(list, v.mode == "bags", query, filter, src)
     local y, shown, nh = -6, 0, 0
     if list then
-        local groups = Group(items)
+        local sel = v.mode == "bags" and ns.GetSelection()
+        local groups
+        if sel == -1 or sel == -2 then
+            groups = BagSections(items, sel == -2)
+        else
+            groups = Group(items)
+        end
         -- onebank / onewarbank: everything in one block, no headers
         if v.mode == "bank" and select(3, TabKind(v)) then
             local all = {}
