@@ -805,7 +805,9 @@ local function Fill(r, id)
     end
     local NEED_ATLAS = { TANK = "groupfinder-icon-role-micro-tank", HEALER = "groupfinder-icon-role-micro-heal",
         DAMAGER = "groupfinder-icon-role-micro-dps" }
-    local specOn, crownOn = Opt("specIcons"), Opt("leaderCrown")
+    local specOn = Opt("specIcons")
+    -- the crown goes with the activity line when the row's too short for it
+    local crownOn = Opt("leaderCrown") and (r.lines or 0) >= 2
     local square = ns.OwnListGet("iconShape") == "square"
     local bpx = tonumber(ns.OwnListGet("borderSize")) or 0
     local btex = ns.OwnListGet("borderTexture") or "solid"

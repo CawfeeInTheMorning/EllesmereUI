@@ -143,7 +143,7 @@ initFrame:SetScript("OnEvent", function(self)
         y = y - h
         _, h = W:DualRow(parent, y,
             { type = "slider", text = "Row Height", min = 20, max = 64, step = 1,
-              tooltip = "How tall each row is. Lines that no longer fit drop off from the bottom: the playstyle line first, then the dungeon / raid name (its short name then sits ahead of the title).",
+              tooltip = "How tall each row is. Lines that no longer fit drop off from the bottom: the playstyle line first, then the dungeon / raid name (its short name then sits ahead of the title) and the leader crown.",
               getValue = function() return ns.OwnListRowHeight() end,
               setValue = function(v) ns.SetOwnListRowHeight(v) end },
             { type = "toggle", text = "Applied Groups on Top",
