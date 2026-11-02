@@ -390,6 +390,7 @@ end
 
 local function ScrollStrip(s, step)
     s.offset = s.offset + step
+    if GFNS.CawfeeHideBossPick then GFNS.CawfeeHideBossPick() end
     PlaceStrip(s)
     if s.paint then s.paint() end  -- recolor the squares now in view
 end

@@ -2613,10 +2613,88 @@ local function BossEnter(self)
     if not b then return end
     local pick = Cfg().bosses
     pick = type(pick) == "table" and pick[b.key]
-    XF.Tip(self, b.name or "?", b.raidName, EllesmereUI.L(
-        pick == "dead" and "Click to clear this boss"
-        or pick and "Click for groups with this boss dead"
-        or "Click for groups with this boss alive"))
+    XF.Tip(self, b.name or "?", b.raidName,
+        pick == "dead" and EllesmereUI.L("Groups with this boss dead")
+        or pick and EllesmereUI.L("Groups with this boss alive")
+        or EllesmereUI.L("Click to filter by this boss"))
+end
+
+-- boss pick: one list under the clicked square, as wide as it
+local BOSS_PICKS = {
+    { value = true, tex = "Interface\\AddOns\\" .. FOLDER .. "\\media\\icons\\eui-heart.png", tip = "Boss Alive" },
+    { value = "dead", tex = "Interface\\AddOns\\" .. FOLDER .. "\\media\\icons\\eui-skull.png", tip = "Boss Dead" },
+    { tex = X_TEX, tip = "No Filter" },
+}
+local bossPick
+
+local function BossPickList()
+    if bossPick then return bossPick end
+    local list = CreateFrame("Frame", nil, SP)
+    list:SetFrameStrata("FULLSCREEN_DIALOG")
+    list:SetFrameLevel(330)
+    list:SetClampedToScreen(true)
+    list:EnableMouse(true)
+    local bg = list:CreateTexture(nil, "BACKGROUND")
+    bg:SetAllPoints()
+    bg:SetColorTexture(0, 0, 0, 1)
+    CM.MakeBorder(list, ThemeBorder())
+    list.rows = {}
+    for i, p in ipairs(BOSS_PICKS) do
+        local it = CreateFrame("Button", nil, list)
+        it.Icon = it:CreateTexture(nil, "ARTWORK")
+        it.Icon:SetTexture(p.tex)
+        it.Icon:SetPoint("CENTER")
+        local hl = it:CreateTexture(nil, "HIGHLIGHT")
+        hl:SetAllPoints()
+        hl:SetColorTexture(1, 1, 1, CM.DD_ITEM_HL_A or 0.08)
+        it:SetScript("OnEnter", function(self) XF.Tip(self, EllesmereUI.L(p.tip)) end)
+        it:SetScript("OnLeave", XF.Untip)
+        it:SetScript("OnClick", function()
+            local d = list.owner and list.owner.boss
+            list:Hide()
+            if not d then return end
+            local c = Cfg()
+            if type(c.bosses) ~= "table" then c.bosses = {} end
+            c.bosses[d.key] = p.value
+            Refilter()
+            Paint()
+        end)
+        list.rows[i] = it
+    end
+    XF.ClickOff(list, function(self)
+        return self:IsMouseOver() or (self.owner and self.owner:IsMouseOver())
+    end)
+    list:SetScript("OnHide", XF.Untip)
+    list:Hide()
+    bossPick = list
+    -- a strip that scrolls takes the square away from its list
+    ns.CawfeeHideBossPick = function() list:Hide() end
+    return list
+end
+
+local function OpenBossPick(sq)
+    local list = BossPickList()
+    if list:IsShown() and list.owner == sq then list:Hide() return end
+    XF.Untip()
+    list.owner = sq
+    local w = sq:GetWidth()
+    local icon = math.floor(w * 0.6 + 0.5)
+    local c = Cfg()
+    local cur = type(c.bosses) == "table" and sq.boss and c.bosses[sq.boss.key] or nil
+    local ar, ag, ab = Accent()
+    for i, it in ipairs(list.rows) do
+        it:SetSize(w, w)
+        it:ClearAllPoints()
+        it:SetPoint("TOP", list, "TOP", 0, -(i - 1) * w)
+        it.Icon:SetSize(icon, icon)
+        -- the current pick in the accent color
+        if BOSS_PICKS[i].value == cur then it.Icon:SetVertexColor(ar, ag, ab)
+        else it.Icon:SetVertexColor(1, 1, 1) end
+    end
+    list:SetSize(w, w * #BOSS_PICKS)
+    list:ClearAllPoints()
+    list:SetPoint("TOP", sq, "BOTTOM", 0, -2)
+    list:Show()
 end
 
 -- boss square with the journal portrait cropped to the middle.
@@ -2625,18 +2703,7 @@ local function MakeBossSquare(parent)
     b.icon:SetTexCoord(0.25, 0.75, 0, 1)
     b:SetScript("OnEnter", BossEnter)
     b:SetScript("OnClick", function(self)
-        local d = self.boss
-        if not d then return end
-        local c = Cfg()
-        if type(c.bosses) ~= "table" then c.bosses = {} end
-        -- off, alive, dead, off
-        local pick = c.bosses[d.key]
-        if pick == "dead" then c.bosses[d.key] = nil
-        elseif pick then c.bosses[d.key] = "dead"
-        else c.bosses[d.key] = true end
-        Refilter()
-        Paint()
-        if XF.tipOwner == self then BossEnter(self) end
+        if self.boss then OpenBossPick(self) end
     end)
     return b
 end
