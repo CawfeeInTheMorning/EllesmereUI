@@ -68,6 +68,15 @@ function ns.SetOwnListValue(k, v)
     if ns.OwnListRefresh then ns.OwnListRefresh() end
 end
 
+-- dungeons & raids background: the skin asks for this whenever it paints the window
+EUI._ShellLooks = EUI._ShellLooks or {}
+EUI._ShellLooks.lfg = function() return DB().windowBgColor, DB().windowBgOpacity end
+-- no list rebuild, the color picker fires every frame while dragging
+function ns.SetWindowLook(k, v)
+    DB()[k] = v
+    if EUI._WSkinRefreshStyles then EUI._WSkinRefreshStyles() end
+end
+
 -- short dungeon names: raider.io's, else initials
 local rioShort, rioTried = nil, {}
 local function RioShorts(who)

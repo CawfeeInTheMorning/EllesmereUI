@@ -73,12 +73,22 @@ end
 
 local MASK = "Interface\\AddOns\\" .. FOLDER .. "\\media\\masks\\rounded.png"
 
--- rounded atlas icon after the text
-local function RoundIcon(parent, atlas, after)
+-- an atlas name, or a spell's texture (cropped to lose its built-in border)
+local function PaintIcon(ic, icon)
+    if type(icon) == "number" then
+        ic:SetTexture(icon)
+        ic:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    else
+        ic:SetAtlas(icon)
+    end
+end
+
+-- rounded icon after the text
+local function RoundIcon(parent, icon, after)
     local ic = parent:CreateTexture(nil, "OVERLAY")
     ic:SetSize(12, 12)
     ic:SetPoint("LEFT", after, "RIGHT", 4, 0)
-    if atlas then ic:SetAtlas(atlas) end
+    if icon then PaintIcon(ic, icon) end
     local mask = parent:CreateMaskTexture()
     mask:SetTexture(MASK, "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
     mask:SetAllPoints(ic)
@@ -145,7 +155,7 @@ local function Dropdown(owner, K, modes, Get, Set)
         else self.Label:SetTextColor(CM.TEXT_DIM_R, CM.TEXT_DIM_G, CM.TEXT_DIM_B, CM.TEXT_DIM_A) end
         self.Hint:SetText(mode.hint or "")
         if mode.icon then
-            self.Icon:SetAtlas(mode.icon)
+            PaintIcon(self.Icon, mode.icon)
             self.Icon:Show()
         else
             self.Icon:Hide()
@@ -497,7 +507,7 @@ local function MyClass()
 end
 
 local CLASS_ROWS = {
-    { key = "hasLust", pick = "cawfeeLustMissing", has = "Has Bloodlust", missing = "Missing Bloodlust",
+    { key = "hasLust", pick = "cawfeeLustMissing", spell = 2825, has = "Has Bloodlust", missing = "Missing Bloodlust",
       Tip = function(K) return "Bloodlust", {
         "A member whose class has one of these spells:",
         K.ClassLine("SHAMAN", "Bloodlust / Heroism (Shaman)"),
@@ -505,7 +515,7 @@ local CLASS_ROWS = {
         K.ClassLine("HUNTER", "Primal Rage (Hunter pet)"),
         K.ClassLine("EVOKER", "Fury of the Aspects (Evoker)"),
         "Drums and other items don't count." } end },
-    { key = "hasBrez", pick = "cawfeeBrezMissing", has = "Has Battle Res", missing = "Missing Battle Res",
+    { key = "hasBrez", pick = "cawfeeBrezMissing", spell = 20484, has = "Has Battle Res", missing = "Missing Battle Res",
       Tip = function(K) return "Battle Res", {
         "A member whose class has one of these spells:",
         K.ClassLine("DRUID", "Rebirth (Druid)"),
@@ -546,7 +556,7 @@ GFNS.CawfeeClassRows = function(m, y, K)
         local inRoles = row.key == "cawfeeMyClass"
         local has, missing = row.has, row.missing
         local hasBtn, missingBtn
-        local icon
+        local icon = row.spell and C_Spell.GetSpellTexture(row.spell)
         if inRoles then
             local name, file = MyClass()
             local cls = (name and file) and K.ClassLine(file, name) or name or "Class"

@@ -99,6 +99,24 @@ initFrame:SetScript("OnEvent", function(self)
     function AddListSections(parent, y)
         local W = EUI.Widgets
         local _, h
+        _, h = W:SectionHeader(parent, "WINDOW", y); y = y - h
+        _, h = W:DualRow(parent, y,
+            { type = "colorpicker", text = "Background Color", hasAlpha = true,
+              tooltip = "The tint over the Dungeons & Raids window background. Its opacity sets how strong the tint is.",
+              getValue = function()
+                  local c = ns.OwnListGet("windowBgColor")
+                  if c then return c.r, c.g, c.b, c.a or 0.62 end
+                  return 0, 0, 0, 0.62
+              end,
+              setValue = function(r, g, b, a)
+                  ns.SetWindowLook("windowBgColor", { r = r, g = g, b = b, a = a })
+              end },
+            { type = "slider", text = "Background Opacity", min = 0, max = 100, step = 5,
+              tooltip = "How see-through the Dungeons & Raids window background is.",
+              getValue = function() return ns.OwnListGet("windowBgOpacity") or 100 end,
+              setValue = function(v) ns.SetWindowLook("windowBgOpacity", v) end })
+        y = y - h
+
         _, h = W:SectionHeader(parent, "RESULTS LIST", y); y = y - h
         _, h = W:DualRow(parent, y,
             { type = "slider", text = "Title Text Size", min = 8, max = 20, step = 1,
