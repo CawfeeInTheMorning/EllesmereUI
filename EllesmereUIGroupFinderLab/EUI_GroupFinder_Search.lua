@@ -2621,9 +2621,9 @@ end
 
 -- boss pick: one list under the clicked square, as wide as it
 local BOSS_PICKS = {
-    { value = true, tex = "Interface\\AddOns\\" .. FOLDER .. "\\media\\icons\\eui-heart.png", tip = "Boss Alive" },
-    { value = "dead", tex = "Interface\\AddOns\\" .. FOLDER .. "\\media\\icons\\eui-skull.png", tip = "Boss Dead" },
-    { tex = X_TEX, tip = "No Filter" },
+    { value = true, tex = "Interface\\AddOns\\" .. FOLDER .. "\\media\\icons\\eui-heart.png", tip = "Boss Alive", r = 0.2, g = 1, b = 0.3 },
+    { value = "dead", tex = "Interface\\AddOns\\" .. FOLDER .. "\\media\\icons\\eui-skull.png", tip = "Boss Dead", r = 1, g = 0.15, b = 0.15 },
+    { tex = X_TEX, tip = "No Filter", r = 0.6, g = 0.6, b = 0.6 },
 }
 local bossPick
 
@@ -2644,6 +2644,10 @@ local function BossPickList()
         it.Icon = it:CreateTexture(nil, "ARTWORK")
         it.Icon:SetTexture(p.tex)
         it.Icon:SetPoint("CENTER")
+        it.Icon:SetVertexColor(p.r, p.g, p.b)
+        it.cur = it:CreateTexture(nil, "BACKGROUND")
+        it.cur:SetAllPoints()
+        it.cur:SetColorTexture(1, 1, 1, 0.12)
         local hl = it:CreateTexture(nil, "HIGHLIGHT")
         hl:SetAllPoints()
         hl:SetColorTexture(1, 1, 1, CM.DD_ITEM_HL_A or 0.08)
@@ -2681,15 +2685,13 @@ local function OpenBossPick(sq)
     local icon = math.floor(w * 0.6 + 0.5)
     local c = Cfg()
     local cur = type(c.bosses) == "table" and sq.boss and c.bosses[sq.boss.key] or nil
-    local ar, ag, ab = Accent()
     for i, it in ipairs(list.rows) do
         it:SetSize(w, w)
         it:ClearAllPoints()
         it:SetPoint("TOP", list, "TOP", 0, -(i - 1) * w)
         it.Icon:SetSize(icon, icon)
-        -- the current pick in the accent color
-        if BOSS_PICKS[i].value == cur then it.Icon:SetVertexColor(ar, ag, ab)
-        else it.Icon:SetVertexColor(1, 1, 1) end
+        -- a light wash behind the current pick
+        it.cur:SetShown(BOSS_PICKS[i].value == cur)
     end
     list:SetSize(w, w * #BOSS_PICKS)
     list:ClearAllPoints()
