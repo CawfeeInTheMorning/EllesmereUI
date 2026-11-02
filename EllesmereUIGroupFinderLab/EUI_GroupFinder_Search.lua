@@ -2636,7 +2636,8 @@ local function BossPickList()
     list:EnableMouse(true)
     local bg = list:CreateTexture(nil, "BACKGROUND")
     bg:SetAllPoints()
-    bg:SetColorTexture(0, 0, 0, 1)
+    local r, g, b = ThemeFill()
+    bg:SetColorTexture(r, g, b, 0.98)
     CM.MakeBorder(list, ThemeBorder())
     list.rows = {}
     for i, p in ipairs(BOSS_PICKS) do
