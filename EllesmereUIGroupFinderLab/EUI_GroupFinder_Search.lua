@@ -602,10 +602,12 @@ local function BossKeep(resultID, info)
         if IsSecret(name) then return true end
         dead[name] = true
     end
+    -- c.bosses[key]: true = must be alive, "dead" = must be dead
     local chosen, wanted = ChosenBosses(), false
     for _, b in ipairs(bosses or {}) do
-        if b.raid == raid and chosen[b.key] then
-            if dead[b.name] then return false end
+        local pick = b.raid == raid and chosen[b.key]
+        if pick then
+            if (pick == "dead") ~= (dead[b.name] == true) then return false end
             wanted = true
         end
     end
@@ -2609,7 +2611,12 @@ end
 local function BossEnter(self)
     local b = self.boss
     if not b then return end
-    XF.Tip(self, b.name or "?", b.raidName, EllesmereUI.L("Click to toggle: groups with this boss still alive"))
+    local pick = Cfg().bosses
+    pick = type(pick) == "table" and pick[b.key]
+    XF.Tip(self, b.name or "?", b.raidName, EllesmereUI.L(
+        pick == "dead" and "Click to clear this boss"
+        or pick and "Click for groups with this boss dead"
+        or "Click for groups with this boss alive"))
 end
 
 -- boss square with the journal portrait cropped to the middle.
@@ -2622,7 +2629,11 @@ local function MakeBossSquare(parent)
         if not d then return end
         local c = Cfg()
         if type(c.bosses) ~= "table" then c.bosses = {} end
-        c.bosses[d.key] = (not c.bosses[d.key]) or nil
+        -- off, alive, dead, off
+        local pick = c.bosses[d.key]
+        if pick == "dead" then c.bosses[d.key] = nil
+        elseif pick then c.bosses[d.key] = "dead"
+        else c.bosses[d.key] = true end
         Refilter()
         Paint()
         if XF.tipOwner == self then BossEnter(self) end
@@ -2900,11 +2911,15 @@ Paint = function()
     local chosenBosses = ChosenBosses()
     for _, sq in ipairs(bossSquares) do
         if sq:IsShown() and sq.boss then
-            local on = chosenBosses and chosenBosses[sq.boss.key] == true or false
+            local pick = chosenBosses and chosenBosses[sq.boss.key]
+            local on = pick and true or false
             sq.on = on
             sq.icon:SetDesaturated(chosenBosses ~= nil and not on)
             sq.icon:SetAlpha((chosenBosses == nil or on) and 1 or 0.45)
-            if on then SetBorderColor(sq, 1, 1, 1, 1) else SetBorderColor(sq, ThemeBorder()) end
+            -- green: alive, red: dead
+            if pick == "dead" then SetBorderColor(sq, 1, 0.15, 0.15, 1)
+            elseif on then SetBorderColor(sq, 0.2, 1, 0.3, 1)
+            else SetBorderColor(sq, ThemeBorder()) end
         end
     end
     local def = DungeonsDefault(f)
