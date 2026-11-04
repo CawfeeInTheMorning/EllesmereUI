@@ -28,7 +28,7 @@ local function DB()
     end
     return t
 end
-function ns.OwnListOn() return true end  -- the lab itself is the switch
+function ns.OwnListOn() return ns.Enabled() end
 function ns.OwnListRowHeight() return tonumber(DB().rowHeight) or 50 end
 function ns.OwnListOpt(k) return DB()[k] ~= false end  -- nil = on
 -- text sizes
@@ -45,7 +45,7 @@ end
 -- display settings
 local DISPLAY_DEFAULTS = { iconShape = "circle", borderTexture = "solid", borderSize = 1, missingIcons = "blizzard",
     appsFirst = true, signupClicks = "double", visibility = "hidden",
-    lineDelisted = true, lineAccepted = true, lineCancelled = true, lineDeclined = true }
+    lineDelisted = false, lineAccepted = false, lineCancelled = false, lineDeclined = false }
 function ns.OwnListGet(k)
     local v = DB()[k]
     if v == nil then return DISPLAY_DEFAULTS[k] end
@@ -587,7 +587,7 @@ local function Layout(r, h)
     if room >= tS + nS + 6 then lines[2] = nS + 2 end
     local gc = GFNS.Cfg and GFNS.Cfg()
     local third = not (gc and gc.cawfeeShowPlaystyle == false)
-        or (gc and gc.cawfeeRegionTags == true and ns.RegionList() ~= nil)
+        or (gc and gc.cawfeeRegionTags ~= false and ns.RegionList() ~= nil)
     if lines[2] and third and room >= tS + nS + lS + 10 then lines[3] = lS + 2 end
     local total = 0
     for _, lh in ipairs(lines) do total = total + lh end
@@ -1156,11 +1156,6 @@ function ns.OwnListRefresh()
     end
 end
 
-function ns.SetOwnListOn(v)
-    DB().enabled = v and true or nil
-    scrollPx = 0
-    ns.OwnListRefresh()
-end
 function ns.SetOwnListRowHeight(v)
     DB().rowHeight = v
     if active then Paint() end

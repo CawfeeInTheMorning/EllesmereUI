@@ -161,8 +161,8 @@ initFrame:SetScript("OnEvent", function(self)
         local lineRow
         lineRow, h = W:DualRow(parent, y,
             -- placeholder, the checklist replaces it
-            { type = "dropdown", text = "Status Color",
-              tooltip = "A colored line below the group you applied to to show it's status. The status text uses the same colors.",
+            { type = "dropdown", text = "Status Underline",
+              tooltip = "A colored line below the group you applied to, to show its status.",
               values = { __placeholder = "..." }, order = { "__placeholder" },
               getValue = function() return "__placeholder" end,
               setValue = function() end },
@@ -170,7 +170,11 @@ initFrame:SetScript("OnEvent", function(self)
               tooltip = "Groups your filters leave out: hidden from the list, or shown dimmed.",
               values = { dimmed = "Dimmed", hidden = "Hidden" }, order = { "dimmed", "hidden" },
               getValue = function() return ns.OwnListGet("visibility") end,
-              setValue = function(v) ns.SetOwnListValue("visibility", v) end })
+              setValue = function(v)
+                  if v == ns.OwnListGet("visibility") then return end
+                  ns.SetOwnListValue("visibility", v)
+                  if ns.DimFiltersChanged then ns.DimFiltersChanged() end
+              end })
         y = y - h
         if not EUI._prebuilding and EUI.BuildVisOptsCBDropdown then
             local rgn = lineRow._leftRegion
@@ -295,6 +299,7 @@ initFrame:SetScript("OnEvent", function(self)
         _, h = W:SectionHeader(parent, "APPLICANT LIST", y); y = y - h
         _, h = W:DualRow(parent, y,
             { type = "toggle", text = "Ellesmere Applicant List",
+              disabled = ModOff, disabledTooltip = "Group Finder",
               tooltip = "Draws your listed group's applicants with spec, rating, best key and raid progress columns. Raid progress needs Raider.IO.",
               getValue = function() return ns.ApplicantListOn() end,
               setValue = function(v) ns.SetOwnListValue("applicantList", v and true or false); EUI:RefreshPage() end },

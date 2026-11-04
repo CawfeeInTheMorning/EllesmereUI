@@ -22,6 +22,8 @@ ns.FinderLayoutOn, ns.SetFinderLayout = Switch("cawfeeFinderLayout")
 
 -- runs fn once blizzard's group finder loads
 function ns.WhenGroupFinder(fn)
+    -- module off: nothing hooks in
+    if not ns.Enabled() or ns.Blocked() then return end
     if C_AddOns.IsAddOnLoaded("Blizzard_GroupFinder") and PVEFrame then
         fn()
         return
@@ -623,7 +625,7 @@ end
 -------------------------------------------------------------------------------
 local function TagsOn()
     local c = GFNS.Cfg and GFNS.Cfg()
-    return c and c.cawfeeRegionTags == true and ns.RegionList() ~= nil
+    return c and c.cawfeeRegionTags ~= false and ns.RegionList() ~= nil
 end
 
 local function RegionOf(resultID)
@@ -906,7 +908,7 @@ GFNS.CawfeeGroupMenu = function(list)
         -- end of listing: region tags (us), show playstyle
         local listing = {}
         if ns.RegionList() then
-            listing[#listing + 1] = { key = "cawfeeRegionTags", label = "Region Tags",
+            listing[#listing + 1] = { key = "cawfeeRegionTags", label = "Region Tags", default = true,
                 tip = ns.RegionIsLanguage()
                     and "Shows the leader's realm language (EN, DE, FR, ES, IT, PT, RU) after each group's playstyle."
                     or "Shows OCE, NA, MEX or BRA after each group's playstyle, from the leader's realm.",
