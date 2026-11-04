@@ -19,4 +19,5 @@ EUI_GroupFinder_Applications.lua
 EUI_GroupFinder_Extras.lua
 EUI_GroupFinder_Expressions.lua
 EUI_GroupFinder_ResultsList.lua
+EUI_GroupFinder_ApplicantList.lua
 EUI_GroupFinder_LabOptions.lua

@@ -3539,6 +3539,7 @@ function XF.SettingsCog(panel)
     cog:ClearAllPoints()
     cog:SetPoint("BOTTOMLEFT", panel, "BOTTOMLEFT", pad, BOTTOM_Y)
     cog:SetFrameLevel(panel:GetFrameLevel() + 10)
+    cog:Show()
     return cog
 end
 
@@ -3908,6 +3909,106 @@ local function LayoutEntryButtons()
 end
 ns.Search_LayoutEntry = LayoutEntryButtons
 
+-- the listed group's bottom row: cog, then three equal buttons
+local function LayoutViewerButtons(AV)
+    local pad = tonumber(Cfg().padding) or 12
+    local cog = XF.SettingsCog(AV)
+    local x0 = pad + (cog and (XF.COG_H + SQ_GAP) or 0)
+    local pw = AV:GetWidth()
+    if not (type(pw) == "number" and pw > 0) then return end
+    local w = (pw - pad - x0 - SQ_GAP * 2) / 3
+    local browse, delist, edit = AV.BrowseGroupsButton, AV.RemoveEntryButton, AV.EditButton
+    browse:ClearAllPoints()
+    browse:SetPoint("BOTTOMLEFT", AV, "BOTTOMLEFT", x0, BOTTOM_Y)
+    browse:SetWidth(w)
+    delist:ClearAllPoints()
+    delist:SetPoint("BOTTOMLEFT", AV, "BOTTOMLEFT", x0 + w + SQ_GAP, BOTTOM_Y)
+    delist:SetWidth(w)
+    edit:ClearAllPoints()
+    edit:SetPoint("BOTTOMRIGHT", AV, "BOTTOMRIGHT", -pad, BOTTOM_Y)
+    edit:SetWidth(w)
+end
+
+-- same look as search again, blizzard's button underneath takes the click
+local function LayoutViewerRefresh(AV)
+    local blz = AV.RefreshButton
+    if not XF.viewerRefresh then
+        local look = GlyphButton(AV, ROW1_H, "UI-RefreshButton", true)
+        look:SetFrameLevel(AV:GetFrameLevel() + 5)
+        look:EnableMouse(false)
+        look.Glyph:SetSize(14, 14)
+        local px = CM.PP.mult
+        local cd = CreateFrame("Cooldown", nil, look, "CooldownFrameTemplate")
+        cd:SetPoint("TOPLEFT", look, "TOPLEFT", px, -px)
+        cd:SetPoint("BOTTOMRIGHT", look, "BOTTOMRIGHT", -px, px)
+        if cd.SetDrawEdge then cd:SetDrawEdge(false) end
+        if cd.SetHideCountdownNumbers then cd:SetHideCountdownNumbers(true) end
+        if cd.SetSwipeColor then cd:SetSwipeColor(0, 0, 0, 0.65) end
+        blz:HookScript("OnClick", function() cd:SetCooldown(GetTime(), 1) end)
+        blz:SetAlpha(0)
+        blz:HookScript("OnEnter", function()
+            look:LockHighlight()
+            look.Glyph:SetAlpha(1)
+        end)
+        blz:HookScript("OnLeave", function()
+            look:UnlockHighlight()
+            look.Glyph:SetAlpha(0.8)
+        end)
+        XF.viewerRefresh = look
+    end
+    local look = XF.viewerRefresh
+    look:Show()
+    blz:SetAlpha(0)
+    local pad = tonumber(Cfg().padding) or 12
+    local ar, ir = AV:GetRight(), AV.Inset:GetRight()
+    look:ClearAllPoints()
+    -- 3 in from the rows' edge, over the decline buttons
+    look:SetPoint("BOTTOMRIGHT", AV.Inset, "TOPRIGHT", (ar and ir) and (ar - ir - pad - 3) or 0, 0)
+    blz:ClearAllPoints()
+    blz:SetAllPoints(look)
+    blz:SetFrameLevel(look:GetFrameLevel() + 4)
+end
+
+-- own list off: back to blizzard's layout
+local function RestoreViewer(AV)
+    if not XF.viewerLaid then return end
+    XF.viewerLaid = nil
+    AV.BrowseGroupsButton:ClearAllPoints()
+    AV.BrowseGroupsButton:SetPoint("BOTTOMLEFT", AV, "BOTTOMLEFT", -3, 4)
+    AV.BrowseGroupsButton:SetWidth(145)
+    AV.RemoveEntryButton:SetWidth(90)
+    AV.RemoveEntryButton:ClearAllPoints()
+    if UnitIsGroupLeader("player", LE_PARTY_CATEGORY_HOME) then
+        AV.RemoveEntryButton:SetPoint("LEFT", AV.BrowseGroupsButton, "RIGHT", 15, 0)
+    else
+        AV.RemoveEntryButton:SetPoint("BOTTOMLEFT", AV, "BOTTOMLEFT", -3, 4)
+    end
+    AV.EditButton:ClearAllPoints()
+    AV.EditButton:SetPoint("BOTTOMRIGHT", AV, "BOTTOMRIGHT", -3, 4)
+    AV.EditButton:SetWidth(90)
+    if XF.cog and XF.cog:GetParent() == AV then XF.cog:Hide() end
+    XF.viewerRefresh:Hide()
+    local blz = AV.RefreshButton
+    blz:SetAlpha(1)
+    blz:ClearAllPoints()
+    blz:SetPoint("BOTTOMRIGHT", AV.Inset, "TOPRIGHT", 21, 0)
+    blz:SetFrameLevel(AV:GetFrameLevel() + 1)
+end
+
+local function LayoutViewer()
+    local AV = LFGListFrame and LFGListFrame.ApplicationViewer
+    if not (AV and AV:IsVisible()) then return end
+    if InCombatLockdown() then XF.Defer("viewerLayout", LayoutViewer) return end
+    if not ns.ApplicantListOn() then
+        RestoreViewer(AV)
+        return
+    end
+    XF.viewerLaid = true
+    LayoutViewerButtons(AV)
+    LayoutViewerRefresh(AV)
+end
+ns.LayoutViewer = LayoutViewer
+
 -------------------------------------------------------------------------------
 -- boot
 -------------------------------------------------------------------------------
@@ -3932,6 +4033,15 @@ local function Init()
             end)
         end
         if EC:IsShown() then LayoutEntryButtons() end
+    end
+    local AV = LFGListFrame.ApplicationViewer
+    if AV and AV.Inset and AV.RefreshButton and AV.BrowseGroupsButton and AV.RemoveEntryButton and AV.EditButton then
+        AV:HookScript("OnShow", LayoutViewer)
+        -- blizzard re-anchors delist on every update
+        if LFGListApplicationViewer_UpdateInfo then
+            hooksecurefunc("LFGListApplicationViewer_UpdateInfo", LayoutViewer)
+        end
+        LayoutViewer()
     end
     -- A new category: the row filters start over.
     hooksecurefunc("LFGListSearchPanel_SetCategory", function()

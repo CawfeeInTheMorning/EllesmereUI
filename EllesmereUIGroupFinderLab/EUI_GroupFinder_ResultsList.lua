@@ -366,6 +366,7 @@ local ROLE_ORDER = { TANK = 1, HEALER = 2, DAMAGER = 3 }
 -- raid role colors
 local RR_ROLES = { "TANK", "HEALER", "DAMAGER" }
 local RR_COLORS = { TANK = { 0.16, 0.38, 0.78 }, HEALER = { 0.16, 0.62, 0.24 }, DAMAGER = { 0.72, 0.16, 0.16 } }
+ns.RaidRoleColors = RR_COLORS
 -- status text + colors
 local G, R, Y = { 0.1, 1, 0.1 }, { 1, 0.25, 0.25 }, { 1, 0.82, 0 }
 -- blizzard's strings have color codes baked in, strip them
@@ -571,6 +572,8 @@ local function IconSize(h)
     local pct = tonumber(c and c.iconSize) or (GFNS.DEFAULTS and GFNS.DEFAULTS.iconSize) or 125
     return math.max(8, math.min(h - 4, 16 + math.floor((pct - 100) / 5 + 0.5)))
 end
+
+ns.OwnListIconSize = IconSize
 
 local function Layout(r, h)
     local pad = 6

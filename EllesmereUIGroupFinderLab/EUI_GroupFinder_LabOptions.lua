@@ -9,7 +9,7 @@ local EUI = EllesmereUI
 if not EUI.RegisterPlugin then return end
 
 local PAGE_SEARCH = "Premade Search"
-local PAGE_APPS = "Applications"
+local PAGE_APPS = "Applications Tracker"
 
 local initFrame = CreateFrame("Frame")
 initFrame:RegisterEvent("PLAYER_LOGIN")
@@ -291,6 +291,60 @@ initFrame:SetScript("OnEvent", function(self)
               getValue = function() return ns.OwnListGet("signupClicks") end,
               setValue = function(v) ns.SetOwnListValue("signupClicks", v) end })
         y = y - h
+
+        _, h = W:SectionHeader(parent, "APPLICANT LIST", y); y = y - h
+        _, h = W:DualRow(parent, y,
+            { type = "toggle", text = "Ellesmere Applicant List",
+              tooltip = "Draws your listed group's applicants with spec, rating, best key and raid progress columns. Raid progress needs Raider.IO.",
+              getValue = function() return ns.ApplicantListOn() end,
+              setValue = function(v) ns.SetOwnListValue("applicantList", v and true or false); EUI:RefreshPage() end },
+            { type = "slider", text = "Applicant Row Height", min = 20, max = 64, step = 1,
+              tooltip = "How tall each applicant row is.",
+              disabled = function() return not ns.ApplicantListOn() end, disabledTooltip = "Ellesmere Applicant List",
+              getValue = function() return ns.OwnListGet("applicantRowHeight") or 36 end,
+              setValue = function(v) ns.SetOwnListValue("applicantRowHeight", v) end })
+        y = y - h
+        _, h = W:DualRow(parent, y,
+            { type = "toggle", text = "Hide Applicant Note",
+              tooltip = "Hides the applicant's note, especially helpful if you're a streamer.",
+              disabled = function() return not ns.ApplicantListOn() end, disabledTooltip = "Ellesmere Applicant List",
+              getValue = function() return ns.OwnListGet("applicantHideNote") == true end,
+              setValue = function(v) ns.SetOwnListValue("applicantHideNote", v and true or false) end },
+            EUI.BlankRowCfg())
+        y = y - h
+
+        local STREAMER_ITEMS = {
+            { key = "streamerTitle",   label = "Hide Title",   tooltip = "Covers your group's title with a censor bar." },
+            { key = "streamerDungeon", label = "Hide Dungeon", tooltip = "Covers the dungeon and description with a censor bar." },
+            { key = "streamerNames",   label = "Class Names",  tooltip = "Shows each applicant's class instead of their name." },
+            { key = "streamerRating",  label = "Hide Rating",  tooltip = "Removes the rating column." },
+            { key = "streamerSpec",    label = "Hide Spec",    tooltip = "Removes the spec column." },
+        }
+        _, h = W:SectionHeader(parent, "STREAMER MODE", y); y = y - h
+        local streamerRow
+        streamerRow, h = W:DualRow(parent, y,
+            -- placeholder, the checklist replaces it
+            { type = "dropdown", text = "Applicant List",
+              tooltip = "What to hide on your listed group's page.",
+              values = { __placeholder = "..." }, order = { "__placeholder" },
+              getValue = function() return "__placeholder" end,
+              setValue = function() end },
+            EUI.BlankRowCfg())
+        y = y - h
+        if not EUI._prebuilding and EUI.BuildVisOptsCBDropdown then
+            local rgn = streamerRow._leftRegion
+            if rgn._control then rgn._control:Hide() end
+            local dd, ddRefresh = EUI.BuildVisOptsCBDropdown(
+                rgn, 210, rgn:GetFrameLevel() + 2, STREAMER_ITEMS,
+                function(key) return ns.OwnListGet(key) == true end,
+                function(key, v) ns.SetOwnListValue(key, v and true or false) end,
+                nil, nil, nil, nil, nil,
+                { disabled = function() return not ns.ApplicantListOn() end, disabledTooltip = "Ellesmere Applicant List" })
+            EUI.PanelPP.Point(dd, "RIGHT", rgn, "RIGHT", -20, 0)
+            rgn._control = dd
+            rgn._lastInline = nil
+            EUI.RegisterWidgetRefresh(ddRefresh)
+        end
         return y
     end
 

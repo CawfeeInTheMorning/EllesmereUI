@@ -645,6 +645,15 @@ function ns.RegionTagOf(resultID)
     if d then return d.tag, d.r, d.g, d.b, d.flag end
 end
 
+-- same tag for an applicant's "name-realm"
+function ns.RegionTagOfName(name)
+    if not TagsOn() or not name or Secret(name) then return nil end
+    local realm = name:match("%-(.+)$") or (GetNormalizedRealmName and GetNormalizedRealmName())
+    if not realm or Secret(realm) then return nil end
+    local d = ns.RegionInfo(ns.RegionOfRealm(realm))
+    if d then return d.tag, d.r, d.g, d.b, d.flag end
+end
+
 -- "Relaxed | OCE [flag]" after the playstyle on blizzard's row
 local function Parts(entry)
     local p = tagOf[entry]
