@@ -484,6 +484,7 @@ initFrame:SetScript("OnEvent", function(self)
             end,
             onReset     = function()
                 ns.ResetSettings()
+                if ns.ResetOwnList then ns.ResetOwnList() end
                 if ns.Enabled() then
                     ns.Search_Layout()
                     ns.ApplyApplications()

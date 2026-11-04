@@ -2352,74 +2352,6 @@ function XF.SwitchItem(m, y, spec)
     return item
 end
 
--- menu row with - / + (unused in the lab)
-function XF.StepperItem(m, y, spec)
-    local st = spec.stepper
-    local item = CreateFrame("Frame", nil, m)
-    item:SetHeight(ITEM_H)
-    item:SetPoint("TOPLEFT", m, "TOPLEFT", 1, -y)
-    item:SetPoint("TOPRIGHT", m, "TOPRIGHT", -1, -y)
-    local tR, tG, tB, tA = CM.TEXT_DIM_R, CM.TEXT_DIM_G, CM.TEXT_DIM_B, CM.TEXT_DIM_A
-    item.label = item:CreateFontString(nil, "OVERLAY")
-    XF.Font(item.label, ITEM_FONT)
-    item.label:SetPoint("LEFT", item, "LEFT", 8, 0)
-    item.label:SetJustifyH("LEFT")
-    item.label:SetTextColor(tR, tG, tB, tA)
-    item.label:SetText(spec.label)
-    if spec.tip then
-        item:EnableMouse(true)
-        item:SetScript("OnEnter", function(self) XF.Tip(self, spec.label, spec.tip) end)
-        item:SetScript("OnLeave", XF.Untip)
-    end
-    local function Step(text, dir)
-        local b = CreateFrame("Button", nil, item)
-        b:SetSize(16, 16)
-        local bg = b:CreateTexture(nil, "BACKGROUND")
-        bg:SetAllPoints()
-        bg:SetColorTexture(0.12, 0.12, 0.12, 1)
-        b.ring = CM.MakeBorder(b, 0.25, 0.25, 0.25, 0.6, CM.PanelPP)
-        b.t = b:CreateFontString(nil, "OVERLAY")
-        XF.Font(b.t, ITEM_FONT + 2)
-        b.t:SetPoint("CENTER")
-        b.t:SetText(text)
-        b.t:SetTextColor(tR, tG, tB, tA)
-        b:SetScript("OnEnter", function(self)
-            self.t:SetTextColor(1, 1, 1, 1)
-            self.ring:SetColor(1, 1, 1, 0.8)
-        end)
-        b:SetScript("OnLeave", function(self)
-            self.t:SetTextColor(tR, tG, tB, tA)
-            self.ring:SetColor(0.25, 0.25, 0.25, 0.6)
-        end)
-        b:SetScript("OnClick", function()
-            local c = Cfg()
-            local v = tonumber(c[spec.key]) or ns.DEFAULTS[spec.key] or st.min
-            v = math.max(st.min, math.min(st.max, v + dir * st.step))
-            c[spec.key] = v
-            PlaySound(SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON)
-            item:Paint()
-            XF.Redecorate()
-        end)
-        return b
-    end
-    local plus = Step("+", 1)
-    plus:SetPoint("RIGHT", item, "RIGHT", -6, 0)
-    item.value = item:CreateFontString(nil, "OVERLAY")
-    XF.Font(item.value, ITEM_FONT)
-    item.value:SetTextColor(1, 1, 1, 1)
-    item.value:SetJustifyH("CENTER")
-    item.value:SetWidth(34)
-    item.value:SetPoint("RIGHT", plus, "LEFT", -3, 0)
-    local minus = Step("-", -1)
-    minus:SetPoint("RIGHT", item.value, "LEFT", -3, 0)
-    function item:Paint()
-        local v = tonumber(Cfg()[spec.key]) or ns.DEFAULTS[spec.key] or st.min
-        self.value:SetText(v .. "%")
-    end
-    item:Paint()
-    return item
-end
-
 function XF.BuildGroupMenu()
     local m = CreateFrame("Frame", nil, SP)
     XF.groupMenu = m
@@ -2440,7 +2372,7 @@ function XF.BuildGroupMenu()
     if ns.CawfeeGroupColumns then
         -- lab: two-column layout
         y = ns.CawfeeGroupColumns(m, list, { AddSection = AddSection, SwitchItem = XF.SwitchItem,
-            StepperItem = XF.StepperItem, ITEM_H = ITEM_H,
+            ITEM_H = ITEM_H,
             -- lab: for the sort dropdown
             Cfg = Cfg, Refilter = Refilter, Paint = Paint, Font = XF.Font, ITEM_FONT = ITEM_FONT,
             ThemeBorder = ThemeBorder, ClickOff = XF.ClickOff, Tip = XF.Tip, Untip = XF.Untip,
@@ -2450,7 +2382,7 @@ function XF.BuildGroupMenu()
         if spec.title then
             y = AddSection(m, y, spec.title)
         else
-            m.items[#m.items + 1] = spec.stepper and XF.StepperItem(m, y, spec) or XF.SwitchItem(m, y, spec)
+            m.items[#m.items + 1] = XF.SwitchItem(m, y, spec)
             y = y + ITEM_H
         end
     end

@@ -9,17 +9,6 @@ if EllesmereUI.HELD_BACK_ADDONS[FOLDER] then return end -- held back (EllesmereU
 ns.EUI = EllesmereUI
 ns.CawfeeLab = true
 
--- account-wide switches (nil = on)
-local function Switch(key)
-    return function() return not (EllesmereUIDB and EllesmereUIDB[key] == false) end,
-           function(v)
-               if not EllesmereUIDB then EllesmereUIDB = {} end
-               EllesmereUIDB[key] = v and true or false
-           end
-end
-ns.RailArtOn, ns.SetRailArt = Switch("cawfeeRailArt")
-ns.FinderLayoutOn, ns.SetFinderLayout = Switch("cawfeeFinderLayout")
-
 -- runs fn once blizzard's group finder loads
 function ns.WhenGroupFinder(fn)
     -- module off: nothing hooks in
@@ -248,8 +237,8 @@ local function PlaceBlock(f, m, y)
 end
 
 local MATCH = {
-    { any = false, label = "Match All",   hint = "(and)", tip = "Match all of the selected options below." },
-    { any = true,  label = "Match Any",   hint = "(or)",  tip = "Match any of the selected options below." },
+    { any = false, label = EllesmereUI.L("Match All"),   hint = "(and)", tip = EllesmereUI.L("Match all of the selected options below.") },
+    { any = true,  label = EllesmereUI.L("Match Any"),   hint = "(or)",  tip = EllesmereUI.L("Match any of the selected options below.") },
 }
 
 local function CountsOn(c)
@@ -268,7 +257,7 @@ GFNS.CawfeeRoleCounts = function(m, y, K)
     btn:SetHeight(K.ITEM_H - 2)
     btn:SetPoint("TOPLEFT", sg, "TOPLEFT", 9, -1)
     btn:SetPoint("TOPRIGHT", sg, "TOPRIGHT", -9, -1)
-    btn.Label:SetText("Specific Roles")
+    btn.Label:SetText(EllesmereUI.L("Specific Roles"))
 
     local pop = CreateFrame("Frame", nil, K.parent or m)
     pop:SetFrameStrata("FULLSCREEN_DIALOG")
@@ -678,37 +667,9 @@ end
 -------------------------------------------------------------------------------
 --  row art: the instance's art fading across the left half
 -------------------------------------------------------------------------------
-local NAME_X, NAME_Y = 10, -6  -- blizzard's title anchor
-local TITLE_ROOM = 34  -- room left of the role icons
-local shifted = setmetatable({}, { __mode = "k" })  -- entry -> title width we set
-
-local function CompactOn() return false end  -- compact mode's gone
-
 local function RowArtOn()
     local c = GFNS.Cfg and GFNS.Cfg()
     return c and c.cawfeeRowArt == true
-end
-
--- "Murder Row" -> MR, "March on Quel'Danas" -> MoQD
-local SMALL = { of = true, the = true, ["and"] = true, to = true, ["in"] = true, on = true, at = true }
-local function Short(name)
-    name = (name:match("^([^,:]+)") or name):gsub("\226\128\153", "'")
-    local out = {}
-    for word in name:gmatch("[^%s%-']+") do
-        local w = word:gsub("[^%a]", "")
-        if w ~= "" then
-            local lw = w:lower()
-            if #out == 0 and lw == "the" then
-            elseif #out > 0 and SMALL[lw] then
-                out[#out + 1] = w:sub(1, 1):lower()
-            else
-                out[#out + 1] = w:sub(1, 1):upper()
-            end
-        end
-    end
-    local ab = #out > 0 and table.concat(out) or name  -- no latin letters: whole name
-    local ov = CM._dungeonAbbrevOverride
-    return ov and ov[ab] or ab
 end
 
 -- instance art by map id: keystone background, else the journal's
@@ -744,16 +705,6 @@ local function Activity(resultID)
     local act = type(acts) == "table" and not Secret(acts) and acts[1]
     if not act or Secret(act) then return nil end
     return C_LFGList.GetActivityInfoTable(act)
-end
-
-local function ActivityShort(resultID)
-    local ai = Activity(resultID)
-    local full = ai and ai.fullName
-    if type(full) ~= "string" or Secret(full) then return nil end
-    local base, diff = full:match("^(.-)%s*%(([^()]+)%)$")
-    local ab = Short(base or full)
-    if not ai.isMythicPlusActivity and diff then ab = ab .. " " .. DIM_HEX .. "(" .. diff .. ")|r" end
-    return ab
 end
 
 local ART_SHARE, ART_ALPHA = 0.5, 0.2  -- half the row, 20% fading out
@@ -794,51 +745,12 @@ local function RowArt(entry, p)
     p.art:Show()
 end
 
-local function Stock(entry, p)
-    if not shifted[entry] then return end
-    entry.Playstyle:SetAlpha(1)
-    entry.ActivityName:SetAlpha(1)
-    entry.Name:ClearAllPoints()
-    entry.Name:SetPoint("TOPLEFT", entry, "TOPLEFT", NAME_X, NAME_Y)
-    entry.Name:SetWidth(shifted[entry])
-    if p.short then p.short:Hide() end
-    shifted[entry] = nil
-end
-
-local function CompactEntry(entry, p)
-    if InCombatLockdown() or not (entry.Name and entry.ActivityName) then return end
-    local short = CompactOn() and entry.resultID and ActivityShort(entry.resultID)
-    if not short then return Stock(entry, p) end
-    entry.Playstyle:SetAlpha(0)
-    entry.ActivityName:SetAlpha(0)
-    p.short = p.short or p.sep:GetParent():CreateFontString(nil, "OVERLAY", "GameFontNormal")
-
-    local ok, path, size, flags = pcall(entry.Name.GetFont, entry.Name)
-    if ok and path then p.short:SetFont(path, size, flags or "") end
-    p.short:SetText(short)
-    p.short:SetTextColor(1, 1, 1, 1)
-    p.short:ClearAllPoints()
-    p.short:SetPoint("LEFT", entry, "LEFT", NAME_X, 0)
-    p.short:Show()
-    local x = NAME_X + math.ceil(p.short:GetStringWidth()) + 5
-    entry.Name:ClearAllPoints()
-    entry.Name:SetPoint("LEFT", entry, "LEFT", x, 0)
-    -- title can't be measured (protected), so give it a box
-    local dd, el = entry.DataDisplay, entry:GetLeft()
-    local right = dd and dd:IsShown() and dd:GetLeft()
-    local room = (right and el) and (right - el - x - TITLE_ROOM) or (176 - x)
-    room = math.max(40, math.floor(room))
-    entry.Name:SetWidth(room)
-    shifted[entry] = room + x - NAME_X
-end
-
 local function TagEntry(entry)
     if not (entry and entry.Playstyle) then return end
     local p = Parts(entry)
     RowArt(entry, p)
-    CompactEntry(entry, p)
     p.sep:Hide(); p.tag:Hide(); p.flag:Hide()
-    if CompactOn() or not (TagsOn() and entry.resultID) then return end
+    if not (TagsOn() and entry.resultID) then return end
     local d = ns.RegionInfo(RegionOf(entry.resultID))
     if not d then return end
     local play = entry.Playstyle
@@ -908,38 +820,38 @@ GFNS.CawfeeGroupMenu = function(list)
         -- end of listing: region tags (us), show playstyle
         local listing = {}
         if ns.RegionList() then
-            listing[#listing + 1] = { key = "cawfeeRegionTags", label = "Region Tags", default = true,
+            listing[#listing + 1] = { key = "cawfeeRegionTags", label = EllesmereUI.L("Region Tags"), default = true,
                 tip = ns.RegionIsLanguage()
-                    and "Shows the leader's realm language (EN, DE, FR, ES, IT, PT, RU) after each group's playstyle."
-                    or "Shows OCE, NA, MEX or BRA after each group's playstyle, from the leader's realm.",
+                    and EllesmereUI.L("Shows the leader's realm language (EN, DE, FR, ES, IT, PT, RU) after each group's playstyle.")
+                    or EllesmereUI.L("Shows OCE, NA, MEX or BRA after each group's playstyle, from the leader's realm."),
                 onToggle = RetagRows }
         end
-        listing[#listing + 1] = { key = "cawfeeShowPlaystyle", label = "Show Playstyle", default = true,
-            tip = "Each group's playstyle (Learning, Relaxed, Competitive, Carry Offered) on its third line.",
+        listing[#listing + 1] = { key = "cawfeeShowPlaystyle", label = EllesmereUI.L("Show Playstyle"), default = true,
+            tip = EllesmereUI.L("Each group's playstyle (Learning, Relaxed, Competitive, Carry Offered) on its third line."),
             onToggle = RetagRows }
         for i, spec in ipairs(list) do
             if i == listingEnd then for _, d in ipairs(listing) do groupMenu[#groupMenu + 1] = d end end
             if i == misc then
                 -- misc becomes display
-                groupMenu[#groupMenu + 1] = { title = "Display" }
+                groupMenu[#groupMenu + 1] = { title = EllesmereUI.L("Display") }
             else
                 groupMenu[#groupMenu + 1] = spec
             end
         end
         if listingEnd > #list then for _, d in ipairs(listing) do groupMenu[#groupMenu + 1] = d end end
         -- sort by, end of display
-        groupMenu[#groupMenu + 1] = { key = "cawfeeSortBy", label = "Sort By", choice = ns.SORT_MODES }
+        groupMenu[#groupMenu + 1] = { key = "cawfeeSortBy", label = EllesmereUI.L("Sort By"), choice = ns.SORT_MODES }
     end
     return groupMenu
 end
 
 -- results list order (saved as cawfeeSortBy)
 ns.SORT_MODES = {
-    { key = "default", label = "Default" },
-    { key = "high",    label = "Highest Score" },
-    { key = "low",     label = "Lowest Score" },
-    { key = "big",     label = "Largest Size" },
-    { key = "small",   label = "Lowest Size" },
+    { key = "default", label = EllesmereUI.L("Default") },
+    { key = "high",    label = EllesmereUI.L("Highest Score") },
+    { key = "low",     label = EllesmereUI.L("Lowest Score") },
+    { key = "big",     label = EllesmereUI.L("Largest Size") },
+    { key = "small",   label = EllesmereUI.L("Lowest Size") },
 }
 
 -- a menu row: label + dropdown
@@ -991,7 +903,6 @@ GFNS.CawfeeGroupColumns = function(m, list, G)
     local function Item(k, spec)
         local item
         if spec.choice then item = ChoiceItem(cols[k], ys[k], spec, G)
-        elseif spec.stepper then item = G.StepperItem(cols[k], ys[k], spec)
         else item = G.SwitchItem(cols[k], ys[k], spec) end
         m.items[#m.items + 1] = item
         ys[k] = ys[k] + G.ITEM_H
