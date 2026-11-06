@@ -8,6 +8,7 @@
 ## Version: 9.6.9-lab
 ## Dependencies: EllesmereUI
 ## SavedVariables: EllesmereUIGroupFinderLabDB
+## SavedVariablesPerCharacter: EllesmereUIGroupFinderLabCharDB
 ## IconTexture: Interface\AddOns\EllesmereUI\media\eg-logo.tga
 
 # Runtime, then the lab's own settings section (EUI_GroupFinder_LabOptions.lua,
